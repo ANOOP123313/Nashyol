@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import OrderDetail from "./OrderDetail";
 import { ordersAPI } from "../services/api";
+import { downloadCSV } from "../utils/exportCSV";
 
 
 /* ═══════════════════════════════════════════
@@ -322,6 +323,15 @@ export default function Orders() {
   const [modal, setModal]             = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
 
+  const exportOrders = () => {
+    downloadCSV(
+      `orders-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Order ID", "Customer", "Vendor", "Amount", "Items", "Payment Status", "Delivery Status", "Date"],
+      filtered.map((order) => [order.id, order.customer, order.vendor, order.amount, order.items, order.payment, order.delivery, order.date])
+    );
+    toast.success(`Exported ${filtered.length} order${filtered.length === 1 ? "" : "s"}`);
+  };
+
   useEffect(() => {
     ordersAPI.getAll()
       .then((res) => {
@@ -332,15 +342,15 @@ export default function Orders() {
             _id: o._id,
             referral: !!o.couponCode,
             customer: o.user?.name || o.address?.fullName || "Customer",
-            vendor: "TechSource Logistics",
+            vendor: o.items?.[0]?.vendorId?.storeName || "",
             amount: o.totalAmount || 0,
             items: o.items?.length || 1,
             payment: o.paymentStatus || "paid",
             delivery: o.orderStatus || "delivered",
             date: new Date(o.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            email: o.user?.email || "customer@naashyol.com",
-            tax: (o.totalAmount || 0) * 0.08,
-            tracking: { status: o.orderStatus, trackingNo: o.paymentId || "TRACK98210", carrier: "Express", estimatedDelivery: "2026-02-25" },
+            email: o.user?.email || "",
+            tax: o.taxAmount || 0,
+            tracking: { status: o.orderStatus, trackingNo: o.trackingNumber || "", carrier: o.carrier || "", estimatedDelivery: o.estimatedDelivery || "" },
             products: (o.items || []).map((it) => ({
               name: it.title || "Product Item",
               qty: it.quantity || 1,
@@ -427,7 +437,7 @@ export default function Orders() {
           <h1>Orders</h1>
           <p>Manage and track all marketplace orders</p>
         </div>
-        <button className="op-export"><Download size={15} /> Export Orders</button>
+        <button className="op-export" onClick={exportOrders}><Download size={15} /> Export Orders</button>
       </div>
 
       {/* STAT CARDS */}
@@ -490,7 +500,7 @@ export default function Orders() {
                     <td className="op-td" style={{ fontWeight: 700, color: "#111" }}>{o.customer}</td>
                     <td className="op-td" style={{ color: "#6b7280" }}>{o.vendor}</td>
                     <td className="op-td">
-                      <div style={{ fontWeight: 700, color: "#111" }}>${o.amount.toFixed(2)}</div>
+                      <div style={{ fontWeight: 700, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
                       <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
                     </td>
                     <td className="op-td"><Badge status={o.payment} /></td>
@@ -523,7 +533,7 @@ export default function Orders() {
                   <div style={{ fontSize: 13, color: "#6b7280" }}>{o.vendor}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>${o.amount.toFixed(2)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
                   <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
                   <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{o.date}</div>
                 </div>

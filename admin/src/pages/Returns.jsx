@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ordersAPI } from "../services/api";
-
-
-const initialReturns = [];
+import { returnsAPI } from "../services/api";
+import { downloadCSV } from "../utils/exportCSV";
 
 const statusColors = {
   Pending: { bg: "#FFF7ED", text: "#D97706", border: "#FED7AA" },
@@ -53,10 +51,18 @@ const Icons = {
   ChevronDown: () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>,
   Download: () => <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   Close: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Refresh: ({ spinning }) => (
+    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className={spinning ? "animate-spin" : ""}>
+      <polyline points="23 4 23 10 17 10"/>
+      <polyline points="1 20 1 14 7 14"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+  ),
 };
 
 export default function ReturnsRefunds() {
-  const [returns, setReturns] = useState(initialReturns);
+  const [returns, setReturns] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -67,32 +73,54 @@ export default function ReturnsRefunds() {
   const [refundMethod, setRefundMethod] = useState("");
   const [deliveryStatus, setDeliveryStatus] = useState("");
   const [trackingNum, setTrackingNum] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const fetchReturnRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await returnsAPI.getAll();
+      const data = res || [];
+      if (Array.isArray(data)) {
+        const mapped = data.map((r) => {
+          const capStatus = r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Pending";
+          const firstItem = r.items?.[0];
+          const productTitle = firstItem?.productId?.title || firstItem?.title || r.product || "Returned Item";
+          const productImage = firstItem?.productId?.images?.[0] || firstItem?.image || "/placeholder.jpg";
+
+          return {
+            id: `RET-${(r._id || "").slice(-5).toUpperCase()}`,
+            _id: r._id,
+            orderId: `ORD-${(r.orderId?._id || r.orderId || "").slice(-8).toUpperCase()}`,
+            rawOrderId: r.orderId?._id || r.orderId,
+            customer: r.userId?.name || "Customer",
+            email: r.userId?.email || "N/A",
+            phone: r.userId?.phone || "",
+            product: productTitle,
+            image: productImage,
+            quantity: firstItem?.quantity || 1,
+            date: new Date(r.createdAt || Date.now()).toLocaleDateString(),
+            reason: r.reason || firstItem?.reason || "Item return / refund request",
+            orderAmount: r.refundAmount || 0,
+            refundAmount: r.refundAmount || 0,
+            refundMethod: r.refundMethod || "Original Payment Method",
+            status: capStatus,
+            deliveryStatus: r.deliveryStatus || "Pickup Pending",
+            tracking: r.tracking || "",
+            adminNotes: r.adminNotes || "",
+          };
+        });
+        setReturns(mapped);
+      }
+    } catch (err) {
+      console.error("Returns fetch error:", err);
+      toast.error("Failed to load return requests from database");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    ordersAPI.getAll()
-      .then((res) => {
-        const data = res.orders || res || [];
-        if (Array.isArray(data)) {
-          const mapped = data.map((o, idx) => ({
-            id: `RET-${(o._id || "").slice(-5).toUpperCase()}`,
-            _id: o._id,
-            orderId: `ORD-${(o._id || "").slice(-8).toUpperCase()}`,
-            customer: o.user?.name || o.address?.fullName || "Customer",
-            email: o.user?.email || "customer@nashyol.com",
-            product: o.items?.[0]?.title || "Marketplace Product",
-            image: "/placeholder.jpg",
-            quantity: o.items?.[0]?.quantity || 1,
-            date: new Date(o.createdAt || Date.now()).toLocaleDateString(),
-            reason: "Item return / refund request",
-            orderAmount: o.totalAmount || 0,
-            refundAmount: o.totalAmount || 0,
-            status: o.orderStatus === "cancelled" ? "Refunded" : "Pending",
-            deliveryStatus: "Pickup Pending",
-            tracking: o.paymentId || "TRACK98210",
-          }));
-          setReturns(mapped);
-        }
-      })
-      .catch((err) => console.error("Returns fetch error:", err));
+    fetchReturnRequests();
   }, []);
 
   const stats = {
@@ -100,74 +128,181 @@ export default function ReturnsRefunds() {
     Approved: returns.filter((r) => r.status === "Approved").length,
     Rejected: returns.filter((r) => r.status === "Rejected").length,
     Refunded: returns.filter((r) => r.status === "Refunded").length,
-    total: returns.filter((r) => r.status === "Refunded").reduce((s, r) => s + r.refundAmount, 0),
+    total: returns.filter((r) => r.status === "Refunded").reduce((s, r) => s + (r.refundAmount || 0), 0),
   };
 
   const filtered = returns.filter((r) => {
+    const term = search.toLowerCase();
     const matchSearch =
       !search ||
-      r.product.toLowerCase().includes(search.toLowerCase()) ||
-      r.orderId.toLowerCase().includes(search.toLowerCase()) ||
-      r.customer.toLowerCase().includes(search.toLowerCase());
+      r.product.toLowerCase().includes(term) ||
+      r.orderId.toLowerCase().includes(term) ||
+      r.id.toLowerCase().includes(term) ||
+      r.customer.toLowerCase().includes(term) ||
+      r.email.toLowerCase().includes(term) ||
+      r.tracking.toLowerCase().includes(term) ||
+      r.reason.toLowerCase().includes(term);
     const matchStatus = statusFilter === "All Status" || r.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
+  const exportReturns = () => {
+    downloadCSV(
+      `returns-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Return ID", "Order ID", "Customer", "Email", "Product", "Quantity", "Refund Amount", "Refund Method", "Status", "Delivery Status", "Tracking", "Date"],
+      filtered.map((item) => [
+        item.id,
+        item.orderId,
+        item.customer,
+        item.email,
+        item.product,
+        item.quantity,
+        item.refundAmount,
+        item.refundMethod,
+        item.status,
+        item.deliveryStatus,
+        item.tracking,
+        item.date,
+      ])
+    );
+  };
+
   const openModal = (type, ret) => {
     setModal({ type, ret });
-    if (type === "refund") { setRefundAmount(String(ret.refundAmount)); setRefundMethod(""); }
-    if (type === "delivery") { setDeliveryStatus(ret.deliveryStatus === "N/A" ? "Pickup Pending" : ret.deliveryStatus); setTrackingNum(ret.tracking || ""); }
-    if (type === "approve") { setApproveNote(""); }
-    if (type === "reject") { setRejectReason(""); }
+    if (type === "refund") {
+      setRefundAmount(String(ret.refundAmount || 0));
+      setRefundMethod(ret.refundMethod || "Original Payment Method");
+    }
+    if (type === "delivery") {
+      setDeliveryStatus(ret.deliveryStatus === "N/A" ? "Pickup Pending" : ret.deliveryStatus);
+      setTrackingNum(ret.tracking || "");
+    }
+    if (type === "approve") {
+      setApproveNote(ret.adminNotes || "");
+    }
+    if (type === "reject") {
+      setRejectReason("");
+    }
   };
 
   const closeModal = () => setModal(null);
 
   const doApprove = async () => {
+    setActionLoading(true);
     try {
       if (modal.ret._id) {
-        await ordersAPI.updateStatus(modal.ret._id, "processing");
+        await returnsAPI.updateStatus(modal.ret._id, {
+          status: "approved",
+          adminNotes: approveNote || "Return approved for warehouse inspection.",
+        });
       }
-      setReturns((prev) => prev.map((r) => r.id === modal.ret.id ? { ...r, status: "Approved", adminNotes: approveNote || "Return approved." } : r));
+      setReturns((prev) =>
+        prev.map((r) =>
+          r.id === modal.ret.id
+            ? { ...r, status: "Approved", adminNotes: approveNote || "Return approved for warehouse inspection." }
+            : r
+        )
+      );
       toast.success("Return approved successfully");
       closeModal();
+      fetchReturnRequests();
     } catch (err) {
       toast.error("Failed to approve return: " + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const doReject = () => {
+  const doReject = async () => {
     if (!rejectReason.trim()) return;
-    setReturns((prev) => prev.map((r) => r.id === modal.ret.id ? { ...r, status: "Rejected", adminNotes: rejectReason } : r));
-    toast.success("Return rejected");
-    closeModal();
+    setActionLoading(true);
+    try {
+      if (modal.ret._id) {
+        await returnsAPI.updateStatus(modal.ret._id, {
+          status: "rejected",
+          adminNotes: rejectReason,
+        });
+      }
+      setReturns((prev) =>
+        prev.map((r) => (r.id === modal.ret.id ? { ...r, status: "Rejected", adminNotes: rejectReason } : r))
+      );
+      toast.success("Return rejected");
+      closeModal();
+      fetchReturnRequests();
+    } catch (err) {
+      toast.error("Failed to reject return: " + err.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const doRefund = async () => {
     if (!refundMethod) return;
+    setActionLoading(true);
     try {
+      const amt = parseFloat(refundAmount) || 0;
       if (modal.ret._id) {
-        await ordersAPI.cancel(modal.ret._id);
+        await returnsAPI.updateStatus(modal.ret._id, {
+          status: "refunded",
+          refundAmount: amt,
+          refundMethod,
+          adminNotes: `Refund of ₹${amt.toFixed(2)} processed via ${refundMethod}`,
+        });
       }
-      setReturns((prev) => prev.map((r) => r.id === modal.ret.id ? { ...r, status: "Refunded", refundAmount: parseFloat(refundAmount), adminNotes: "Refund processed via " + refundMethod } : r));
-      toast.success("Refund processed successfully");
+      setReturns((prev) =>
+        prev.map((r) =>
+          r.id === modal.ret.id
+            ? {
+                ...r,
+                status: "Refunded",
+                refundAmount: amt,
+                refundMethod,
+                adminNotes: `Refund of ₹${amt.toFixed(2)} processed via ${refundMethod}`,
+              }
+            : r
+        )
+      );
+      toast.success(`Refund of ₹${amt.toFixed(2)} processed successfully`);
       closeModal();
+      fetchReturnRequests();
     } catch (err) {
       toast.error("Failed to process refund: " + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const doDelivery = () => {
-    setReturns((prev) => prev.map((r) => r.id === modal.ret.id ? { ...r, deliveryStatus, tracking: trackingNum || null } : r));
-    closeModal();
+  const doDelivery = async () => {
+    setActionLoading(true);
+    try {
+      if (modal.ret._id) {
+        await returnsAPI.updateStatus(modal.ret._id, {
+          deliveryStatus,
+          tracking: trackingNum,
+        });
+      }
+      setReturns((prev) =>
+        prev.map((r) =>
+          r.id === modal.ret.id ? { ...r, deliveryStatus, tracking: trackingNum || "" } : r
+        )
+      );
+      toast.success("Delivery status and tracking updated successfully");
+      closeModal();
+      fetchReturnRequests();
+    } catch (err) {
+      toast.error("Failed to update delivery info: " + err.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const styles = {
     page: { minHeight: "100vh", background: "#F8F9FA", fontFamily: "'Geist', 'DM Sans', sans-serif", padding: "0" },
     container: { maxWidth: 1100, margin: "0 auto", padding: "32px 20px" },
-    header: { marginBottom: 28 },
+    header: { marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 },
     title: { fontSize: 28, fontWeight: 700, color: "#111827", margin: 0 },
     subtitle: { fontSize: 14, color: "#6B7280", marginTop: 4 },
+    refreshBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, color: "#374151", background: "#fff", cursor: "pointer", fontWeight: 500 },
     statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 },
     statCard: { background: "#fff", borderRadius: 12, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "space-between" },
     statLabel: { fontSize: 13, color: "#6B7280", marginBottom: 4 },
@@ -202,7 +337,6 @@ export default function ReturnsRefunds() {
         reject: { bg: "#fff", color: "#DC2626", border: "1px solid #FECACA" },
         refund: { bg: "#F97316", color: "#fff", border: "none" },
         delivery: { bg: "#fff", color: "#374151", border: "1px solid #E5E7EB" },
-        // ✅ greyed out disabled style for Rejected delivery
         deliveryDisabled: { bg: "#F9FAFB", color: "#9CA3AF", border: "1px solid #E5E7EB" },
       }[variant] || { bg: "#fff", color: "#374151", border: "1px solid #E5E7EB" };
       return { display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: variant === "deliveryDisabled" ? "not-allowed" : "pointer", background: v.bg, color: v.color, border: v.border, whiteSpace: "nowrap", opacity: variant === "deliveryDisabled" ? 0.6 : 1 };
@@ -268,8 +402,8 @@ export default function ReturnsRefunds() {
           <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Return Reason</div>
           <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "#374151", marginBottom: 16 }}>{ret.reason}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><div style={styles.detailLabel}>Order Amount</div><div style={{ fontSize: 18, fontWeight: 700 }}>${ret.orderAmount.toFixed(2)}</div></div>
-            <div><div style={styles.detailLabel}>Refund Amount</div><div style={{ fontSize: 18, fontWeight: 700, color: "#F97316" }}>${ret.refundAmount.toFixed(2)}</div></div>
+            <div><div style={styles.detailLabel}>Order Amount</div><div style={{ fontSize: 18, fontWeight: 700 }}>₹{ret.orderAmount.toFixed(2)}</div></div>
+            <div><div style={styles.detailLabel}>Refund Amount</div><div style={{ fontSize: 18, fontWeight: 700, color: "#F97316" }}>₹{ret.refundAmount.toFixed(2)}</div></div>
             <div><div style={styles.detailLabel}>Status</div><StatusBadge status={ret.status} /></div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -307,8 +441,10 @@ export default function ReturnsRefunds() {
           <textarea style={styles.textarea} placeholder="Add any notes about this approval..." value={approveNote} onChange={e => setApproveNote(e.target.value)} />
         </div>
         <div style={styles.modalFooter}>
-          <button style={styles.btnCancel} onClick={closeModal}>Cancel</button>
-          <button style={styles.btnPrimary("#16A34A")} onClick={doApprove}><Icons.Check /> Approve Return</button>
+          <button style={styles.btnCancel} onClick={closeModal} disabled={actionLoading}>Cancel</button>
+          <button style={styles.btnPrimary("#16A34A")} onClick={doApprove} disabled={actionLoading}>
+            <Icons.Check /> {actionLoading ? "Approving..." : "Approve Return"}
+          </button>
         </div>
       </div>
     </div>
@@ -330,9 +466,9 @@ export default function ReturnsRefunds() {
           <textarea style={{ ...styles.textarea, border: "1.5px solid #FECACA" }} placeholder="Explain why this return is being rejected..." value={rejectReason} onChange={e => setRejectReason(e.target.value)} />
         </div>
         <div style={styles.modalFooter}>
-          <button style={styles.btnCancel} onClick={closeModal}>Cancel</button>
-          <button style={rejectReason.trim() ? styles.btnPrimary("#DC2626") : styles.btnPrimaryDisabled} onClick={doReject} disabled={!rejectReason.trim()}>
-            <Icons.X /> Reject Return
+          <button style={styles.btnCancel} onClick={closeModal} disabled={actionLoading}>Cancel</button>
+          <button style={rejectReason.trim() && !actionLoading ? styles.btnPrimary("#DC2626") : styles.btnPrimaryDisabled} onClick={doReject} disabled={!rejectReason.trim() || actionLoading}>
+            <Icons.X /> {actionLoading ? "Rejecting..." : "Reject Return"}
           </button>
         </div>
       </div>
@@ -351,12 +487,11 @@ export default function ReturnsRefunds() {
         </div>
         <div style={styles.modalBody}>
           <div style={styles.idBox}><div style={styles.idLabel}>Return ID</div><div style={styles.idValue}>{ret.id}</div></div>
-          <label style={styles.label}>Refund Amount *</label>
-          <input type="number" style={{ ...styles.input, marginBottom: 14, border: "1.5px solid #F97316", background: "#FFF7ED", fontWeight: 600, color: "#D97706" }} value={refundAmount} onChange={e => setRefundAmount(e.target.value)} />
+          <label style={styles.label}>Refund Amount (₹) *</label>
+          <input type="number" step="0.01" style={{ ...styles.input, marginBottom: 14, border: "1.5px solid #F97316", background: "#FFF7ED", fontWeight: 600, color: "#D97706" }} value={refundAmount} onChange={e => setRefundAmount(e.target.value)} />
           <label style={styles.label}>Refund Method *</label>
           <div style={{ position: "relative" }}>
             <select style={{ ...styles.select, paddingRight: 36 }} value={refundMethod} onChange={e => setRefundMethod(e.target.value)}>
-              <option value="">Select refund method</option>
               <option value="Original Payment Method">Original Payment Method</option>
               <option value="Store Credit">Store Credit</option>
               <option value="Bank Transfer">Bank Transfer</option>
@@ -365,9 +500,9 @@ export default function ReturnsRefunds() {
           </div>
         </div>
         <div style={styles.modalFooter}>
-          <button style={styles.btnCancel} onClick={closeModal}>Cancel</button>
-          <button style={refundMethod ? styles.btnPrimary("#F97316") : styles.btnPrimaryDisabled} onClick={doRefund} disabled={!refundMethod}>
-            <Icons.DollarCircle /> Process Refund
+          <button style={styles.btnCancel} onClick={closeModal} disabled={actionLoading}>Cancel</button>
+          <button style={refundMethod && !actionLoading ? styles.btnPrimary("#F97316") : styles.btnPrimaryDisabled} onClick={doRefund} disabled={!refundMethod || actionLoading}>
+            <Icons.DollarCircle /> {actionLoading ? "Processing..." : "Process Refund"}
           </button>
         </div>
       </div>
@@ -380,7 +515,7 @@ export default function ReturnsRefunds() {
         <div style={styles.modalHeader}>
           <div>
             <div style={styles.modalTitle}>Update Delivery Status</div>
-            <div style={styles.modalSubtitle}>Update return product delivery information</div>
+            <div style={styles.modalSubtitle}>Update return product delivery information in the database</div>
           </div>
           <button style={styles.closeBtn} onClick={closeModal}><Icons.Close /></button>
         </div>
@@ -397,12 +532,12 @@ export default function ReturnsRefunds() {
             <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}><Icons.ChevronDown /></span>
           </div>
           <label style={styles.label}>Tracking Number</label>
-          <input style={styles.input} placeholder="Enter tracking number" value={trackingNum} onChange={e => setTrackingNum(e.target.value)} />
+          <input style={styles.input} placeholder="Enter tracking number (e.g. TRK-RET-89211)" value={trackingNum} onChange={e => setTrackingNum(e.target.value)} />
         </div>
         <div style={styles.modalFooter}>
-          <button style={styles.btnCancel} onClick={closeModal}>Cancel</button>
-          <button style={styles.btnPrimary("#F97316")} onClick={doDelivery}>
-            <Icons.Truck /> Update Status
+          <button style={styles.btnCancel} onClick={closeModal} disabled={actionLoading}>Cancel</button>
+          <button style={styles.btnPrimary("#F97316")} onClick={doDelivery} disabled={actionLoading}>
+            <Icons.Truck /> {actionLoading ? "Saving..." : "Update Status"}
           </button>
         </div>
       </div>
@@ -413,8 +548,14 @@ export default function ReturnsRefunds() {
     <div style={styles.page}>
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>Returns & Refunds</h1>
-          <p style={styles.subtitle}>Manage product returns and refund requests</p>
+          <div>
+            <h1 style={styles.title}>Returns & Refunds</h1>
+            <p style={styles.subtitle}>Manage product returns and refund requests from live database records</p>
+          </div>
+          <button style={styles.refreshBtn} onClick={fetchReturnRequests} disabled={loading}>
+            <Icons.Refresh spinning={loading} />
+            <span>Refresh</span>
+          </button>
         </div>
 
         <div style={styles.statsGrid}>
@@ -423,7 +564,7 @@ export default function ReturnsRefunds() {
             { label: "Approved", value: stats.Approved, icon: <Icons.CheckCircle />, iconBg: "#EFF6FF" },
             { label: "Rejected", value: stats.Rejected, icon: <Icons.XCircle />, iconBg: "#FEF2F2" },
             { label: "Refunded", value: stats.Refunded, icon: <Icons.RefreshCw />, iconBg: "#F0FDF4" },
-            { label: "Total Refunded", value: `$${stats.total.toFixed(2)}`, icon: <Icons.Dollar />, iconBg: "#FFF7ED" },
+            { label: "Total Refunded", value: `₹${stats.total.toFixed(2)}`, icon: <Icons.Dollar />, iconBg: "#FFF7ED" },
           ].map((s) => (
             <div key={s.label} style={styles.statCard}>
               <div>
@@ -437,41 +578,70 @@ export default function ReturnsRefunds() {
 
         <div style={styles.card}>
           <div style={styles.cardHeader}>
-            <div style={styles.cardTitle}>Return Requests</div>
+            <div style={styles.cardTitle}>Return Requests ({filtered.length})</div>
           </div>
           <div style={styles.searchRow}>
             <div style={styles.searchWrap}>
               <span style={styles.searchIcon}><Icons.Search /></span>
-              <input style={styles.searchInput} placeholder="Search by order ID, customer, product..." value={search} onChange={e => setSearch(e.target.value)} />
+              <input
+                style={styles.searchInput}
+                placeholder="Search by ID, order, customer, email, tracking..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <div style={styles.filterWrap}>
-              <button style={styles.filterBtn} onClick={() => setShowStatusDropdown(v => !v)}>
+              <button style={styles.filterBtn} onClick={() => setShowStatusDropdown((v) => !v)}>
                 {statusFilter} <Icons.ChevronDown />
               </button>
               {showStatusDropdown && (
                 <div style={styles.dropdown}>
                   {["All Status", "Pending", "Approved", "Rejected", "Refunded"].map((s) => (
-                    <div key={s} style={styles.dropItem(statusFilter === s)} onClick={() => { setStatusFilter(s); setShowStatusDropdown(false); }}>
+                    <div
+                      key={s}
+                      style={styles.dropItem(statusFilter === s)}
+                      onClick={() => {
+                        setStatusFilter(s);
+                        setShowStatusDropdown(false);
+                      }}
+                    >
                       {s}
-                      {statusFilter === s && <svg width="14" height="14" fill="none" stroke="#D97706" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                      {statusFilter === s && (
+                        <svg width="14" height="14" fill="none" stroke="#D97706" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <button style={styles.exportBtn}>
+            <button style={styles.exportBtn} onClick={exportReturns}>
               <Icons.Download /> Export
             </button>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
             <div style={{ padding: "48px 24px", textAlign: "center", color: "#6B7280", fontSize: 14 }}>
-              No return requests found
+              <div style={{ display: "inline-block", width: 24, height: 24, border: "2px solid #F97316", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              <div style={{ marginTop: 10 }}>Loading return requests from database...</div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: "48px 24px", textAlign: "center", color: "#6B7280", fontSize: 14 }}>
+              No return requests found in database matching your criteria
             </div>
           ) : (
             filtered.map((ret) => (
               <div key={ret.id} style={styles.returnItem}>
-                <img src={ret.image} alt={ret.product} style={styles.productImg} onError={e => { e.target.style.background = "#E5E7EB"; e.target.src = ""; }} />
+                <img
+                  src={ret.image}
+                  alt={ret.product}
+                  style={styles.productImg}
+                  onError={(e) => {
+                    e.target.style.background = "#E5E7EB";
+                    e.target.src = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800";
+                  }}
+                />
                 <div style={styles.returnInfo}>
                   <div style={styles.productName}>
                     {ret.product}
@@ -479,12 +649,12 @@ export default function ReturnsRefunds() {
                   </div>
                   <div style={styles.meta}>
                     <span style={styles.metaItem}><OrderIcon /> {ret.orderId}</span>
-                    <span style={styles.metaItem}><UserIcon /> {ret.customer}</span>
+                    <span style={styles.metaItem}><UserIcon /> {ret.customer} ({ret.email})</span>
                     <span style={styles.metaItem}><CalIcon /> {ret.date}</span>
                   </div>
                   <div style={styles.reason}><b>Reason:</b> {ret.reason}</div>
                   <div style={styles.amountRow}>
-                    <span style={styles.amount}>Refund Amount: <b>${ret.refundAmount.toFixed(2)}</b></span>
+                    <span style={styles.amount}>Refund Amount: <b>₹{ret.refundAmount.toFixed(2)}</b></span>
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <TruckIcon />
                       <DeliveryBadge status={ret.deliveryStatus} />
@@ -509,7 +679,6 @@ export default function ReturnsRefunds() {
                   {ret.status === "Refunded" && (
                     <button style={styles.btn("delivery")} onClick={() => openModal("delivery", ret)}><Icons.Truck /> Delivery</button>
                   )}
-                  {/* ✅ Rejected: greyed out disabled — no modal opens */}
                   {ret.status === "Rejected" && (
                     <button style={styles.btn("deliveryDisabled")} disabled><Icons.Truck /> Delivery</button>
                   )}

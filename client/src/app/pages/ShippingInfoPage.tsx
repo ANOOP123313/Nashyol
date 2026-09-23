@@ -11,29 +11,29 @@ export function ShippingInfoPage() {
     {
       name: "Standard Shipping",
       icon: Package,
-      price: "$10.00",
-      freeThreshold: "$50+",
+      price: "₹10.00",
+      freeThreshold: "₹50+",
       time: "5-7 business days",
       description: "Reliable delivery with tracking included",
-      features: ["Tracking included", "Signature not required", "Insured up to $100"],
+      features: ["Tracking included", "Signature not required", "Insured up to ₹100"],
     },
     {
       name: "Express Shipping",
       icon: Truck,
-      price: "$25.00",
-      freeThreshold: "$150+",
+      price: "₹25.00",
+      freeThreshold: "₹150+",
       time: "2-3 business days",
       description: "Fast delivery for urgent orders",
-      features: ["Priority processing", "Real-time tracking", "Insured up to $500"],
+      features: ["Priority processing", "Real-time tracking", "Insured up to ₹500"],
     },
     {
       name: "Overnight Shipping",
       icon: Clock,
-      price: "$45.00",
+      price: "₹45.00",
       freeThreshold: "N/A",
       time: "1 business day",
       description: "Next-day delivery for time-sensitive items",
-      features: ["Guaranteed delivery", "Signature required", "Insured up to $1000"],
+      features: ["Guaranteed delivery", "Signature required", "Insured up to ₹1000"],
     },
   ];
 
@@ -101,7 +101,7 @@ export function ShippingInfoPage() {
             <div className="text-center sm:text-left">
               <h2 className="text-2xl font-bold mb-1">Free Standard Shipping</h2>
               <p className="text-lg text-inverse/90">
-                On all orders over $50 within the United States
+                On all orders over ₹50 within the United States
               </p>
             </div>
           </div>

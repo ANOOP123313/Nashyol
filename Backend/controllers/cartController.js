@@ -36,8 +36,15 @@ export const addToCart = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  const variant = product.variants.find((v) => v.sku === sku);
-  if (!variant || !variant.isActive) {
+  // Product listing cards from older clients may not include a SKU. Use the
+  // first active, in-stock variant in that case so add-to-cart remains usable.
+  const requestedVariant = sku && sku !== productId
+    ? product.variants.find((v) => v.sku === sku)
+    : null;
+  const variant = (requestedVariant?.isActive !== false && requestedVariant) ||
+    product.variants.find((v) => v.isActive !== false && v.currentStock > 0) ||
+    product.variants.find((v) => v.isActive !== false);
+  if (!variant) {
     res.status(404);
     throw new Error("Product variant not found");
   }
@@ -50,7 +57,8 @@ export const addToCart = asyncHandler(async (req, res) => {
   let cart = await Cart.findOne({ user: req.user._id });
   if (!cart) cart = await Cart.create({ user: req.user._id, items: [] });
 
-  const existing = cart.items.find((i) => i.product.toString() === productId && i.sku === sku);
+  const cartSku = variant.sku;
+  const existing = cart.items.find((i) => i.product.toString() === productId && i.sku === cartSku);
   if (existing) {
     const newQty = existing.quantity + quantity;
     if (variant.currentStock < newQty) {
@@ -59,7 +67,7 @@ export const addToCart = asyncHandler(async (req, res) => {
     }
     existing.quantity = newQty;
   } else {
-    cart.items.push({ product: productId, sku, quantity });
+    cart.items.push({ product: productId, sku: cartSku, quantity });
   }
   await cart.save();
   

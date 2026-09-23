@@ -11,6 +11,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  deliveryCharge?: number;
   variant?: any;
 }
 
@@ -40,6 +41,7 @@ function mapApiItemToCartItem(apiItem: any): CartItem {
     price: apiItem.price || v.sellingPrice || p.offerPrice || p.price || 0,
     quantity: apiItem.quantity,
     image: v.image || images[0] || "",
+    deliveryCharge: Number(p.deliveryCharge) || 0,
     variant: v,
   };
 }
@@ -104,8 +106,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           await cartApi.add(productId, sku, quantity);
           await refreshCart();
         } catch (e: any) {
-          console.error("Cart error:", e);
-          throw new Error(e.response?.data?.message || "Failed to add item to cart");
+          throw new Error(e instanceof Error ? e.message : "Failed to add item to cart");
         }
       } else {
         setItems((prev) => {

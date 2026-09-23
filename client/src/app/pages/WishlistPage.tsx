@@ -18,18 +18,22 @@ export function WishlistPage() {
     removeFromWishlist(id);
   };
 
-  const handleAddToCart = (id: string) => {
+  const handleAddToCart = async (id: string) => {
     const product = wishlist.find((item) => item.id === id || (item as any)._id === id);
     if (product) {
       const pid = product.id || (product as any)._id;
-      addItem(pid, (product as any).sku || pid, 1, {
-        id: pid,
-        sku: (product as any).sku || pid,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-      });
-      toast.success("Added to cart!");
+      try {
+        await addItem(pid, (product as any).sku || pid, 1, {
+          id: pid,
+          sku: (product as any).sku || pid,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+        });
+        toast.success("Added to cart!");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+      }
     }
   };
 
@@ -134,12 +138,12 @@ export function WishlistPage() {
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xl font-bold text-[var(--primary-color)]">
-                    ${product.price}
+                    ₹{product.price}
                   </span>
                   {product.originalPrice && (
                     <>
                       <span className="text-sm text-muted-foreground line-through">
-                        ${product.originalPrice}
+                        ₹{product.originalPrice}
                       </span>
                       <Badge className="ml-auto bg-gradient-to-r from-green-500 to-green-600 text-inverse text-xs">
                         {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF

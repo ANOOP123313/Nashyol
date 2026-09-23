@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { productsAPI } from "../services/api";
+import { downloadCSV } from "../utils/exportCSV";
 
 import {
   Search, Download, Upload, Plus, Eye, SlidersHorizontal,
@@ -172,8 +173,8 @@ function DetailsModal({ item, onClose, onAdjust }) {
               { label: "Category:", value: item.category },
               { label: "Vendor:", value: item.vendor },
               { label: "Warehouse:", value: item.warehouse },
-              { label: "Unit Price:", value: `$${item.price.toFixed(2)}` },
-              { label: "Total Value:", value: `$${(item.price * item.currentStock).toFixed(2)}` },
+              { label: "Unit Price:", value: `₹${item.price.toFixed(2)}` },
+              { label: "Total Value:", value: `₹${(item.price * item.currentStock).toFixed(2)}` },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 3px" }}>{label}</p>
@@ -384,6 +385,7 @@ export default function InventoryManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [warehouseFilter, setWarehouseFilter] = useState("All Warehouses");
+  const importInputRef = useRef(null);
 
   useEffect(() => {
     productsAPI.getAll()
@@ -392,7 +394,7 @@ export default function InventoryManagement() {
         if (Array.isArray(prods)) {
           const mapped = prods.map((p, i) => {
             const variant = p.variants?.[0] || {};
-            const stock = variant.currentStock ?? 15;
+            const stock = variant.currentStock ?? 0;
             const status = stock === 0 ? "out_of_stock" : stock <= 10 ? "low_stock" : "in_stock";
             return {
               id: p._id || i,
@@ -400,14 +402,14 @@ export default function InventoryManagement() {
               status,
               sku: variant.sku || `SKU-${i}`,
               category: p.category?.name || "Electronics",
-              vendor: variant.currentVendor?.storeName || "TechSource Logistics",
+              vendor: variant.currentVendor?.storeName || "",
               location: "NY",
               warehouse: "Main Warehouse - NY",
-              price: variant.sellingPrice || 99,
+              price: variant.sellingPrice || 0,
               currentStock: stock,
-              reorderPoint: 10,
-              maxCapacity: 100,
-              lastRestocked: new Date().toISOString().split("T")[0],
+              reorderPoint: 0,
+              maxCapacity: 0,
+              lastRestocked: "",
               movements: [],
             };
           });
@@ -431,6 +433,43 @@ export default function InventoryManagement() {
     const matchWH = warehouseFilter === "All Warehouses" || item.warehouse === warehouseFilter;
     return matchSearch && matchStatus && matchWH;
   });
+
+  const exportInventory = () => {
+    downloadCSV(
+      `inventory-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Product ID", "Product", "SKU", "Category", "Vendor", "Warehouse", "Price", "Current Stock", "Reorder Point", "Status"],
+      filtered.map((item) => [item.id, item.name, item.sku, item.category, item.vendor, item.warehouse, item.price, item.currentStock, item.reorderPoint, item.status])
+    );
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const lines = (await file.text()).split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) throw new Error("The CSV has no inventory rows");
+      const parseRow = (line) => line.split(",").map((value) => value.trim().replace(/^"|"$/g, ""));
+      const headers = parseRow(lines[0]).map((header) => header.toLowerCase().replace(/\s+/g, ""));
+      const skuIndex = headers.indexOf("sku");
+      const stockIndex = headers.findIndex((header) => ["stock", "currentstock", "quantity"].includes(header));
+      if (skuIndex < 0 || stockIndex < 0) throw new Error("CSV must include SKU and Stock columns");
+
+      const updates = lines.slice(1).map(parseRow).map((row) => ({ sku: row[skuIndex], stock: Number(row[stockIndex]) })).filter((row) => row.sku && Number.isFinite(row.stock) && row.stock >= 0);
+      const matched = updates.map((update) => ({ update, item: data.find((item) => item.sku === update.sku) })).filter(({ item }) => item);
+      await Promise.all(matched.map(({ update, item }) => productsAPI.update(item.id, { stock: update.stock })));
+      setData((current) => current.map((item) => {
+        const update = updates.find((entry) => entry.sku === item.sku);
+        if (!update) return item;
+        const status = update.stock === 0 ? "out_of_stock" : update.stock <= item.reorderPoint ? "low_stock" : "in_stock";
+        return { ...item, currentStock: update.stock, status };
+      }));
+      toast.success(`Imported ${matched.length} inventory row${matched.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast.error(err.message || "Failed to import inventory");
+    }
+  };
 
   const handleAdd = (form) => {
     const stock = parseInt(form.currentStock) || 0;
@@ -550,8 +589,9 @@ export default function InventoryManagement() {
               </div>
               <CustomDropdown options={statusOptions} value={statusFilter} onChange={setStatusFilter} />
               <CustomDropdown options={warehouseOptions} value={warehouseFilter} onChange={setWarehouseFilter} />
-              <button style={btnOutline}><Download size={15} />Export</button>
-              <button style={btnOrange}><Upload size={15} />Import</button>
+              <button style={btnOutline} onClick={exportInventory}><Download size={15} />Export</button>
+              <input ref={importInputRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} style={{ display: "none" }} />
+              <button style={btnOrange} onClick={() => importInputRef.current?.click()}><Upload size={15} />Import</button>
               <button style={btnOrange} onClick={() => setShowAdd(true)}><Plus size={15} />Add Product</button>
             </div>
           </div>
@@ -597,7 +637,7 @@ export default function InventoryManagement() {
                     </div>
                     <div>
                       <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 2px" }}>Price:</p>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: "#111827", margin: 0 }}>${item.price.toFixed(2)}</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: "#111827", margin: 0 }}>₹{item.price.toFixed(2)}</p>
                     </div>
                   </div>
 

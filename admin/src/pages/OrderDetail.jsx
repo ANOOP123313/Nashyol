@@ -409,23 +409,23 @@ export default function OrderDetail({ order: orderProp, onBack }) {
         if (res) {
           setOrder({
             id: res._id || id,
-            customer: res.user?.name || res.shippingAddress?.fullName || "Customer",
-            email: res.user?.email || "customer@example.com",
+            customer: res.user?.name || res.address?.fullName || "N/A",
+            email: res.user?.email || "N/A",
             date: res.createdAt ? new Date(res.createdAt).toLocaleDateString() : "N/A",
             delivery: (res.orderStatus || "pending").toLowerCase(),
-            amount: res.totalPrice || 0,
-            tax: res.taxPrice || 0,
-            products: (res.orderItems || []).map(item => ({
-              name: item.name || "Product",
+            amount: res.totalAmount || 0,
+            tax: res.taxAmount || 0,
+            products: (res.items || []).map(item => ({
+              name: item.title || "N/A",
               qty: item.quantity || 1,
               price: item.price || 0,
               img: "📦"
             })),
             tracking: {
               status: res.orderStatus || "Pending",
-              carrier: res.carrier || "FedEx",
-              trackingNo: res.trackingNumber || `TRK-${(res._id||"").slice(-8)}`,
-              estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "3-5 Business Days"
+              carrier: res.carrier || "N/A",
+              trackingNo: res.trackingNumber || "N/A",
+              estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "N/A"
             }
           });
         }
@@ -490,7 +490,7 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                       <div className="od-item-name">{p.name}</div>
                       <div className="od-item-qty">Quantity: {p.qty}</div>
                     </div>
-                    <div className="od-item-price">${(p.price || 0).toFixed(2)}</div>
+                    <div className="od-item-price">₹{(p.price || 0).toFixed(2)}</div>
                   </div>
                 ))
               )}
@@ -556,15 +556,15 @@ export default function OrderDetail({ order: orderProp, onBack }) {
               <div className="od-card-body">
                 <div className="od-pay-row">
                   <span style={{ fontSize: 14, color: "#6b7280" }}>Subtotal:</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>${subtotal.toFixed(2)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="od-pay-row">
                   <span style={{ fontSize: 14, color: "#6b7280" }}>Tax:</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>${tax.toFixed(2)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{tax.toFixed(2)}</span>
                 </div>
                 <div className="od-pay-total">
                   <span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Total:</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: "#f97316" }}>${total.toFixed(2)}</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: "#f97316" }}>₹{total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -583,4 +583,4 @@ export default function OrderDetail({ order: orderProp, onBack }) {
       )}
     </div>
   );
-}
+}

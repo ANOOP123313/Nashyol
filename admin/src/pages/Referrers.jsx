@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { dashboardAPI, referralsAPI } from "../services/api";
 
-import { referralsAPI } from "../services/api";
-
-const referrersData = [];
-const referralHistory = [];
-const earnedCoupons = [];
 
 /* ── useWindowWidth hook ── */
 function useWindowWidth() {
@@ -72,14 +69,37 @@ function CustomSelect({ value, onChange, options }) {
 }
 
 /* ── Modal ── */
-function GenerateCouponModal({ referrer, onClose }) {
+function GenerateCouponModal({ referrer, onClose, onSuccess }) {
   const [couponType, setCouponType] = useState("General Referral Reward");
   const [valueType, setValueType] = useState("Percentage (%)");
   const [value, setValue] = useState("5");
   const [expiry, setExpiry] = useState("30");
   const [notes, setNotes] = useState("");
   const [expiryFocused, setExpiryFocused] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const isMobile = useWindowWidth() < 640;
+
+  const handleGenerate = async () => {
+    if (!value) return toast.error("Value is required");
+    setSubmitting(true);
+    try {
+      await referralsAPI.generateCoupon({
+        referrerId: referrer.id || referrer._id,
+        couponType,
+        valueType,
+        value: Number(value),
+        expiry: Number(expiry),
+        notes,
+      });
+      toast.success("Reward coupon generated successfully!");
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      toast.error("Failed to generate coupon: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 1000 }}>
@@ -98,7 +118,7 @@ function GenerateCouponModal({ referrer, onClose }) {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "14px", marginBottom: "16px" }}>
           <div>
             <label style={lbl}>Value Type</label>
-            <CustomSelect value={valueType} onChange={setValueType} options={["Percentage (%)", "Fixed Amount ($)"]} />
+            <CustomSelect value={valueType} onChange={setValueType} options={["Percentage (%)", "Fixed Amount (₹)"]} />
           </div>
           <div>
             <label style={lbl}>Value</label>
@@ -117,27 +137,21 @@ function GenerateCouponModal({ referrer, onClose }) {
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
           <button onClick={onClose} style={{ padding: "10px 22px", border: "1px solid #e5e7eb", borderRadius: "8px", background: "#fff", color: "#374151", fontSize: "14px", fontWeight: "500", cursor: "pointer" }}>Cancel</button>
-          <button style={{ padding: "10px 22px", border: "none", borderRadius: "8px", background: "#f59e0b", color: "#fff", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>Generate Coupon</button>
+          <button onClick={handleGenerate} disabled={submitting} style={{ padding: "10px 22px", border: "none", borderRadius: "8px", background: "#f59e0b", color: "#fff", fontSize: "14px", fontWeight: "600", cursor: "pointer", opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? "Generating..." : "Generate Coupon"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Order Detail data ── */
-const orderDetails = {
-  "ORD-2024-458": { id: "ORD-2024-458", date: "Feb 20, 2026", status: "Delivered", customer: "Jennifer Smith", email: "jennifer@example.com", items: [{ name: "Smart Watch Pro", qty: 1, price: "$299.99", img: "⌚" }], subtotal: "$299.99", tax: "$30.00", total: "$329.99", carrier: "UPS", tracking: "UPS9876543210", estDelivery: "2026-02-25" },
-  "ORD-2024-455": { id: "ORD-2024-455", date: "Feb 18, 2026", status: "Shipped", customer: "Mark Johnson", email: "mark@example.com", items: [{ name: "Noise Cancelling Earbuds", qty: 1, price: "$189.50", img: "🎧" }], subtotal: "$189.50", tax: "$19.00", total: "$208.50", carrier: "DHL", tracking: "DHL1122334455", estDelivery: "2026-02-23" },
-  "ORD-2024-449": { id: "ORD-2024-449", date: "Feb 17, 2026", status: "Shipped", customer: "John Smith", email: "john.smith@email.com", items: [{ name: "Wireless Bluetooth Headphones", qty: 1, price: "$129.99", img: "🎧" }], subtotal: "$1,249.99", tax: "$125.00", total: "$1,374.99", carrier: "FedEx", tracking: "FDX1234567890", estDelivery: "2026-02-21" },
-  "ORD-2024-442": { id: "ORD-2024-442", date: "Feb 10, 2026", status: "Delivered", customer: "David Wilson", email: "david@example.com", items: [{ name: "Mechanical Keyboard", qty: 1, price: "$329.99", img: "⌨️" }], subtotal: "$329.99", tax: "$33.00", total: "$362.99", carrier: "USPS", tracking: "USPS5566778899", estDelivery: "2026-02-15" },
-};
-
 const statusColors = { Shipped: { bg: "#1d4ed8", color: "#dcfce7" }, Delivered: { bg: "#dcfce7", color: "#15803d" }, Pending: { bg: "#fef3c7", color: "#b45309" }, Cancelled: { bg: "#fee2e2", color: "#dc2626" } };
 
 /* ── Order Detail Page ── */
 function OrderDetail({ orderId, onBack }) {
   const isMobile = useWindowWidth() < 768;
-  const order = orderDetails[orderId];
+  const order = orderId;
   if (!order) return null;
   const sc = statusColors[order.status] || { bg: "#f3f4f6", color: "#374151" };
 
@@ -245,13 +259,34 @@ function OrderDetail({ orderId, onBack }) {
 }
 
 /* ── Referrer Detail ── */
-function ReferrerDetail({ referrer, onBack }) {
+function ReferrerDetail({ referrer, onBack, onRefresh }) {
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const isMobile = useWindowWidth() < 768;
   const isTablet = useWindowWidth() < 1024;
-  const initials = referrer.name.split(" ").map(n => n[0]).join("");
+  const [history, setHistory] = useState([]);
+  const [coupons, setCoupons] = useState([]);
+  const [loadingDetail, setLoadingDetail] = useState(true);
+
+  const loadDetail = () => {
+    setLoadingDetail(true);
+    referralsAPI.getDetail(referrer.id || referrer._id)
+      .then((res) => {
+        if (res) {
+          setHistory(res.referralHistory || []);
+          setCoupons(res.earnedCoupons || []);
+        }
+      })
+      .catch((err) => console.error("Error loading referrer detail:", err))
+      .finally(() => setLoadingDetail(false));
+  };
+
+  useEffect(() => {
+    loadDetail();
+  }, [referrer]);
+
+  const initials = (referrer.name || "R").split(" ").map(n => n[0]).join("");
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(referrer.code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
@@ -261,7 +296,7 @@ function ReferrerDetail({ referrer, onBack }) {
 
   return (
     <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Segoe UI',-apple-system,sans-serif" }}>
-      {showModal && <GenerateCouponModal referrer={referrer} onClose={() => setShowModal(false)} />}
+      {showModal && <GenerateCouponModal referrer={referrer} onClose={() => setShowModal(false)} onSuccess={() => { loadDetail(); if (onRefresh) onRefresh(); }} />}
       <div style={{ padding: isMobile ? "20px 16px" : "32px 36px" }}>
 
         {/* Header */}
@@ -285,13 +320,13 @@ function ReferrerDetail({ referrer, onBack }) {
               <div style={{ width: "60px", height: "60px", borderRadius: "50%", background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", fontWeight: "700", color: "#fff", flexShrink: 0 }}>{initials}</div>
               <div>
                 <h2 style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color: "#111", margin: "0 0 5px" }}>{referrer.name}</h2>
-                <span style={{ display: "inline-block", background: "#10b981", color: "#fff", fontSize: "11px", fontWeight: "600", padding: "2px 10px", borderRadius: "20px", marginBottom: "10px" }}>active</span>
+                <span style={{ display: "inline-block", background: referrer.status === "active" ? "#10b981" : "#ef4444", color: "#fff", fontSize: "11px", fontWeight: "600", padding: "2px 10px", borderRadius: "20px", marginBottom: "10px" }}>{referrer.status}</span>
                 <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "6px" : "24px", fontSize: "13px", color: "#6b7280", marginBottom: "6px" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><IcMail s={13} />{referrer.email}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><IcPhone s={13} />+1 (555) 123-4567</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><IcPhone s={13} />{referrer.phone}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#6b7280" }}>
-                  <IcCalendar s={13} />Joined 1/15/2026
+                  <IcCalendar s={13} />Joined {referrer.joinedDate}
                 </div>
               </div>
             </div>
@@ -312,11 +347,11 @@ function ReferrerDetail({ referrer, onBack }) {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(3,1fr)" : "repeat(5,1fr)", gap: "12px", marginBottom: "18px" }}>
           {[
-            { label: "Total Referrals", val: referrer.totalReferrals, icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
-            { label: "Conversion Rate", val: "100%", icon: <IcTrendUp s={20} c="#10b981" />, bg: "#ecfdf5" },
-            { label: "Total Rewards", val: `$${referrer.rewardsEarned}`, icon: <IcDollar s={20} c="#f59e0b" />, bg: "#fffbeb" },
-            { label: "Available Coupons", val: referrer.availableCoupons, icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5", vc: "#10b981" },
-            { label: "Used Coupons", val: 18, icon: <IcCheckCircle s={20} c="#4b9ce2" />, bg: "#eff6ff" },
+            { label: "Total Referrals", val: referrer.referrals ?? 0, icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
+            { label: "Conversion Rate", val: `${referrer.referrals ? Math.round(((referrer.conversions || 0) / referrer.referrals) * 100) : 0}%`, icon: <IcTrendUp s={20} c="#10b981" />, bg: "#ecfdf5" },
+            { label: "Total Rewards", val: referrer.reward || "₹0.00", icon: <IcDollar s={20} c="#f59e0b" />, bg: "#fffbeb" },
+            { label: "Available Coupons", val: coupons.filter(c => c.status === "active").length, icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5", vc: "#10b981" },
+            { label: "Used Coupons", val: coupons.filter(c => c.status === "used").length, icon: <IcCheckCircle s={20} c="#4b9ce2" />, bg: "#eff6ff" },
           ].map((s, i) => (
             <div key={i} style={{ background: "#fff", borderRadius: "12px", padding: "16px 14px", border: "1px solid #eef0f3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -331,9 +366,11 @@ function ReferrerDetail({ referrer, onBack }) {
         {/* Referral History */}
         <div style={{ background: "#fff", borderRadius: "13px", padding: isMobile ? "16px" : "22px 26px", marginBottom: "18px", border: "1px solid #eef0f3" }}>
           <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#111", marginBottom: "16px" }}>Referral History</h3>
-          {isMobile ? (
+          {history.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "#9ca3af", fontSize: "14px" }}>No referral history recorded yet.</div>
+          ) : isMobile ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {referralHistory.map((row, i) => (
+              {history.map((row, i) => (
                 <div key={i} style={{ border: "1px solid #f3f4f6", borderRadius: "10px", padding: "14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                     <div>
@@ -368,8 +405,8 @@ function ReferrerDetail({ referrer, onBack }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {referralHistory.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: i < referralHistory.length - 1 ? "1px solid #f9fafb" : "none" }}>
+                  {history.map((row, i) => (
+                    <tr key={i} style={{ borderBottom: i < history.length - 1 ? "1px solid #f9fafb" : "none" }}>
                       <td style={{ padding: "13px 10px" }}>
                         <div style={{ fontSize: "13px", fontWeight: "500", color: "#111" }}>{row.customer}</div>
                         <div style={{ fontSize: "11px", color: "#9ca3af" }}>{row.email}</div>
@@ -396,9 +433,11 @@ function ReferrerDetail({ referrer, onBack }) {
         {/* Earned Coupons */}
         <div style={{ background: "#fff", borderRadius: "13px", padding: isMobile ? "16px" : "22px 26px", border: "1px solid #eef0f3" }}>
           <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#111", marginBottom: "16px" }}>Earned Coupons</h3>
-          {isMobile ? (
+          {coupons.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "#9ca3af", fontSize: "14px" }}>No coupons earned yet.</div>
+          ) : isMobile ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {earnedCoupons.map((c, i) => (
+              {coupons.map((c, i) => (
                 <div key={i} style={{ border: "1px solid #f3f4f6", borderRadius: "10px", padding: "14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "13px", fontWeight: "600", color: "#374151" }}><IcTag />{c.code}</span>
@@ -424,8 +463,8 @@ function ReferrerDetail({ referrer, onBack }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {earnedCoupons.map((c, i) => (
-                    <tr key={i} style={{ borderBottom: i < earnedCoupons.length - 1 ? "1px solid #f9fafb" : "none" }}>
+                  {coupons.map((c, i) => (
+                    <tr key={i} style={{ borderBottom: i < coupons.length - 1 ? "1px solid #f9fafb" : "none" }}>
                       <td style={{ padding: "13px 10px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600", color: "#374151" }}><IcTag />{c.code}</span></td>
                       <td style={{ padding: "13px 10px" }}><span style={{ background: c.typeColor, color: "#fff", fontSize: "12px", fontWeight: "600", padding: "5px 13px", borderRadius: "20px", display: "inline-block" }}>{c.type}</span></td>
                       <td style={{ padding: "13px 10px", fontSize: "13px", fontWeight: "600", color: "#111" }}>{c.value}</td>
@@ -471,25 +510,42 @@ export default function ReferrersPage() {
   const [search, setSearch] = useState("");
   const [selectedReferrer, setSelectedReferrer] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
-  const [toast, setToast] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [referrersList, setReferrersList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const isMobile = useWindowWidth() < 768;
   const isTablet = useWindowWidth() < 1024;
 
-  if (selectedReferrer) return <ReferrerDetail referrer={selectedReferrer} onBack={() => setSelectedReferrer(null)} />;
+  const loadReferrers = () => {
+    setLoading(true);
+    referralsAPI.getAll()
+      .then((res) => {
+        setReferrersList(Array.isArray(res) ? res : []);
+      })
+      .catch((err) => console.error("Error loading referrers:", err))
+      .finally(() => setLoading(false));
+  };
 
-  const filtered = referrersData.filter(r => {
+  useEffect(() => {
+    loadReferrers();
+  }, []);
+
+  if (selectedReferrer) return <ReferrerDetail referrer={selectedReferrer} onBack={() => setSelectedReferrer(null)} onRefresh={loadReferrers} />;
+
+  const filtered = referrersList.filter(r => {
     const ms = statusFilter === "All Status" || r.status === statusFilter.toLowerCase();
-    const mq = r.name.toLowerCase().includes(search.toLowerCase()) || r.email.toLowerCase().includes(search.toLowerCase()) || r.code.toLowerCase().includes(search.toLowerCase());
+    const mq = (r.name || "").toLowerCase().includes(search.toLowerCase()) || (r.email || "").toLowerCase().includes(search.toLowerCase()) || (r.code || "").toLowerCase().includes(search.toLowerCase());
     return ms && mq;
   });
 
   const handleCopy = code => {
     navigator.clipboard.writeText(code).then(() => {
       setCopiedCode(code);
-      setToast(true);
-      setTimeout(() => { setCopiedCode(null); setToast(false); }, 2000);
+      setToastVisible(true);
+      setTimeout(() => { setCopiedCode(null); setToastVisible(false); }, 2000);
     });
   };
+
 
   return (
     <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Segoe UI',-apple-system,sans-serif" }}>
@@ -525,10 +581,10 @@ export default function ReferrersPage() {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
           {[
-            { label: "Total Referrers", value: "6", sub: "5 active", subC: "#4b9ce2", icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
-            { label: "Total Referrals", value: "128", sub: "100% conversion", subC: "#10b981", icon: <IcTrendUp s={20} c="#f87171" />, bg: "#fff1f2" },
-            { label: "Rewards Distributed", value: "$790.00", sub: "In coupon value", subC: "#6b7280", icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5" },
-            { label: "Avg. Referrals", value: "25.6", sub: "Per active user", subC: "#6b7280", icon: <IcUserMinus s={20} c="#f97316" />, bg: "#fff7ed" },
+            { label: "Total Referrers", value: String(referralStats.referrers), sub: "From backend leaderboard", subC: "#4b9ce2", icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
+            { label: "Total Referrals", value: String(referralStats.referrals), sub: "From backend", subC: "#10b981", icon: <IcTrendUp s={20} c="#f87171" />, bg: "#fff1f2" },
+            { label: "Rewards Distributed", value: `₹${referralStats.rewards.toFixed(2)}`, sub: "Referral rewards", subC: "#6b7280", icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5" },
+            { label: "Avg. Referrals", value: referralStats.referrers ? (referralStats.referrals / referralStats.referrers).toFixed(1) : "0", sub: "Calculated", subC: "#6b7280", icon: <IcUserMinus s={20} c="#f97316" />, bg: "#fff7ed" },
           ].map((s, i) => (
             <div key={i} style={{ background: "#fff", borderRadius: "13px", padding: "16px 14px", border: "1px solid #eef0f3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -575,7 +631,7 @@ export default function ReferrersPage() {
           {isMobile ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {filtered.map(r => (
-                <div key={r.id} style={{ border: "1px solid #f3f4f6", borderRadius: "12px", padding: "16px" }}>
+                <div key={r.id || r._id} style={{ border: "1px solid #f3f4f6", borderRadius: "12px", padding: "16px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                     <div>
                       <div style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>{r.name}</div>
@@ -593,21 +649,21 @@ export default function ReferrersPage() {
                     <div>
                       <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Total Referrals</div>
                       <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <span style={{ fontSize: "18px", fontWeight: "700", color: "#111" }}>{r.totalReferrals}</span>
-                        {r.totalReferrals > 20 && <IcTrendUp s={13} c="#10b981" />}
+                        <span style={{ fontSize: "18px", fontWeight: "700", color: "#111" }}>{r.referrals ?? 0}</span>
+                        {(r.referrals || 0) > 0 && <IcTrendUp s={13} c="#10b981" />}
                       </div>
                     </div>
                     <div>
                       <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Rewards Earned</div>
-                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#10b981" }}>${r.rewardsEarned.toFixed(2)}</div>
+                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#10b981" }}>{r.reward || `₹${(r.rewardNum || 0).toFixed(2)}`}</div>
                     </div>
                     <div>
                       <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Coupons</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", color: "#374151" }}><IcGift s={13} c="#f59e0b" />{r.availableCoupons}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", color: "#374151" }}><IcGift s={13} c="#f59e0b" />{r.earnedCoupons ?? 0}</div>
                     </div>
                     <div>
-                      <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Last Referral</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#6b7280" }}><IcCalendar s={11} />{r.lastReferral}</div>
+                      <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Last Active</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#6b7280" }}><IcCalendar s={11} />{r.lastActive || r.joinedDate || "Recently"}</div>
                     </div>
                   </div>
                   <button onClick={() => setSelectedReferrer(r)} style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "none", border: "1px solid #fde68a", borderRadius: "7px", padding: "7px 14px", cursor: "pointer", color: "#f59e0b", fontSize: "13px", fontWeight: "600", marginTop: "12px", width: "100%", justifyContent: "center" }}>
@@ -621,14 +677,14 @@ export default function ReferrersPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "750px" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    {["Referrer", "Referral Code", "Total Referrals", "Rewards Earned", "Available Coupons", "Last Referral", "Status", "Actions"].map(h => (
+                    {["Referrer", "Referral Code", "Total Referrals", "Rewards Earned", "Available Coupons", "Last Active", "Status", "Actions"].map(h => (
                       <th key={h} style={{ textAlign: "left", fontSize: "13px", color: "#374151", fontWeight: "500", padding: "14px 12px", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map(r => (
-                    <tr key={r.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <tr key={r.id || r._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                       <td style={{ padding: "16px 12px" }}>
                         <div style={{ fontSize: "15px", fontWeight: "600", color: "#111" }}>{r.name}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#9ca3af", marginTop: "3px" }}><IcMail s={12} />{r.email}</div>
@@ -643,13 +699,13 @@ export default function ReferrersPage() {
                       </td>
                       <td style={{ padding: "16px 12px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "22px", fontWeight: "700", color: "#111" }}>{r.totalReferrals}</span>
-                          {r.totalReferrals > 20 && <IcTrendUp s={16} c="#10b981" />}
+                          <span style={{ fontSize: "22px", fontWeight: "700", color: "#111" }}>{r.referrals ?? 0}</span>
+                          {(r.referrals || 0) > 0 && <IcTrendUp s={16} c="#10b981" />}
                         </div>
                       </td>
-                      <td style={{ padding: "16px 12px", fontSize: "14px", color: "#10b981", fontWeight: "600" }}>${r.rewardsEarned.toFixed(2)}</td>
-                      <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "14px", color: "#374151" }}><IcGift s={15} c="#f59e0b" />{r.availableCoupons}</span></td>
-                      <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "13px", color: "#6b7280" }}><IcCalendar s={13} />{r.lastReferral}</span></td>
+                      <td style={{ padding: "16px 12px", fontSize: "14px", color: "#10b981", fontWeight: "600" }}>{r.reward || `₹${(r.rewardNum || 0).toFixed(2)}`}</td>
+                      <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "14px", color: "#374151" }}><IcGift s={15} c="#f59e0b" />{r.earnedCoupons ?? 0}</span></td>
+                      <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "13px", color: "#6b7280" }}><IcCalendar s={13} />{r.lastActive || r.joinedDate || "Recently"}</span></td>
                       <td style={{ padding: "16px 12px" }}>
                         <span style={{ display: "inline-block", padding: "5px 16px", borderRadius: "20px", fontSize: "13px", fontWeight: "600", background: r.status === "active" ? "#10b981" : "#6b7280", color: "#fff" }}>{r.status}</span>
                       </td>
@@ -668,7 +724,7 @@ export default function ReferrersPage() {
       </div>
 
       {/* Toast */}
-      {toast && (
+      {toastVisible && (
         <div style={{ position: "fixed", bottom: "32px", right: "32px", display: "flex", alignItems: "center", gap: "10px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "13px 20px", boxShadow: "0 8px 28px rgba(0,0,0,0.13)", zIndex: 9999 }}>
           <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>

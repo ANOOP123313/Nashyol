@@ -28,6 +28,8 @@ interface Product {
   reviews: number;
   badge?: string;
   inStock?: boolean;
+  sku?: string;
+  defaultVariant?: { sku: string };
   description?: string;
 }
 
@@ -52,14 +54,17 @@ export function ProductCard({
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
 
-  const productId = product.id || (product as any)._id;
-  const isProductLiked = isLiked || isInWishlist(productId);
+  const productId = product?.id || (product as any)?._id || "";
+  const isProductLiked = isLiked || (productId ? isInWishlist(productId) : false);
 
-  const inStock = product.inStock !== false;
-  const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+  const inStock = product?.inStock !== false;
+  const priceNum = Number(product?.price) || 0;
+  const origPriceNum = Number(product?.originalPrice) || 0;
+  const hasDiscount = origPriceNum > 0 && origPriceNum > priceNum;
   const discountPercentage = hasDiscount
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((origPriceNum - priceNum) / origPriceNum) * 100)
     : 0;
+
 
   // Handle add to cart with animation and feedback
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -83,7 +88,7 @@ export function ProductCard({
     
     try {
       // If the product has a default SKU or we are in a context where we know it
-      const sku = (product as any).sku || (product as any).defaultVariant?.sku;
+      const sku = product.sku || product.defaultVariant?.sku;
       
       if (sku) {
         await addItem(product.id, sku, 1, {
@@ -102,8 +107,8 @@ export function ProductCard({
         // or just redirect as a last resort. 
         const defaultSku = (product as any).id; // Fallback to ID if no SKU
         
-        await addItem(product.id, defaultSku, 1, {
-          id: product.id,
+        await addItem(productId, defaultSku, 1, {
+          id: productId,
           sku: defaultSku,
           name: product.name,
           price: product.price,
@@ -286,18 +291,18 @@ export function ProductCard({
             <div className="flex items-end justify-between pt-1 sm:pt-2 mt-auto">
               <div className="flex flex-col gap-0.5 sm:gap-1">
                 <span className="text-lg sm:text-2xl font-bold text-[var(--primary-color)]">
-                  ${product.price.toFixed(2)}
+                  ${priceNum.toFixed(2)}
                 </span>
                 {hasDiscount && (
                   <span className="text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground line-through">
-                    ${product.originalPrice.toFixed(2)}
+                    ${origPriceNum.toFixed(2)}
                   </span>
                 )}
               </div>
               {hasDiscount && (
                 <div className="bg-green-50 dark:bg-green-900/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg">
                   <span className="text-[10px] sm:text-xs font-bold text-green-600 dark:text-green-400">
-                    SAVE ${(product.originalPrice - product.price).toFixed(2)}
+                    SAVE ${(origPriceNum - priceNum).toFixed(2)}
                   </span>
                 </div>
               )}
@@ -372,12 +377,12 @@ export function ProductCard({
                 {/* Price */}
                 <div className="flex items-center gap-3">
                   <span className="text-3xl font-bold text-[var(--primary-color)]">
-                    ${product.price.toFixed(2)}
+                    ${priceNum.toFixed(2)}
                   </span>
                   {hasDiscount && (
                     <>
                       <span className="text-xl text-muted-foreground line-through">
-                        ${product.originalPrice.toFixed(2)}
+                        ${origPriceNum.toFixed(2)}
                       </span>
                       <Badge className="bg-green-500">-{discountPercentage}%</Badge>
                     </>

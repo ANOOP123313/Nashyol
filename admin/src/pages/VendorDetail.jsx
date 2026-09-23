@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { vendorsAPI } from "../services/api";
+import { downloadCSV } from "../utils/exportCSV";
 import {
   TrendingUp, Download, Pencil, Star, Package, DollarSign,
   Phone, Calendar, MapPin, Mail, CheckCircle, AlertCircle,
   Eye, Trash2, Plus, CreditCard, Upload, FileText, Menu, X
 } from "lucide-react";
 
-/* ─────────────────────────── static data ─────────────────────────── */
 const initialProducts = [];
-
 const paymentHistory = [];
 
 const businessDocuments = [];
@@ -288,7 +287,7 @@ function EditProductModal({ product, vendorName, onClose, onSave }) {
           </div>
 
           <div className="vd2-modal-grid">
-            <FormField label="Price ($) *">
+            <FormField label="Price (₹) *">
               <input value={form.price} onChange={e => set("price", e.target.value)}
                 placeholder="e.g., 89.99" type="number" className="vd2-inp" />
             </FormField>
@@ -298,7 +297,7 @@ function EditProductModal({ product, vendorName, onClose, onSave }) {
             </FormField>
           </div>
 
-          <FormField label="Paid Amount ($)">
+          <FormField label="Paid Amount (₹)">
             <input value={form.paidAmount} onChange={e => set("paidAmount", e.target.value)}
               placeholder="e.g., 30.00" type="number" className="vd2-inp" />
           </FormField>
@@ -348,10 +347,10 @@ function AddPaymentModal({ product, onClose, onSave }) {
           
           <div className="vd2-modal-grid">
             <FormField label="Paid Amount">
-              <input value={`$${(product.paidAmount || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`₹${(product.paidAmount || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
             <FormField label="Balance">
-              <input value={`$${balance.toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`₹${balance.toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
           </div>
           
@@ -397,17 +396,17 @@ export default function VendorDetail() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const vendor = {
-    name:         vendorData?.storeName || vendorData?.name    || "TechStore Pro",
-    initial:      (vendorData?.storeName || vendorData?.name || "T").charAt(0),
-    owner:        vendorData?.ownerName || vendorData?.owner   || "Vendor Owner",
-    email:        vendorData?.email   || "vendor@example.com",
-    phone:        vendorData?.phone   || "+1 (555) 123-4567",
-    address:      vendorData?.address || "123 Business St, San Francisco, CA 94103",
-    joined:       vendorData?.createdAt ? new Date(vendorData.createdAt).toLocaleDateString() : "2025-01-15",
-    rating:       vendorData?.rating || 4.8,
-    reviews:      vendorData?.reviewsCount || 245,
-    products:     vendorData?.productsCount || 156,
-    totalSales:   vendorData?.totalSales ? `$${vendorData.totalSales.toLocaleString()}` : "$125,000",
+    name:         vendorData?.storeName || vendorData?.name || "N/A",
+    initial:      (vendorData?.storeName || vendorData?.name || "N").charAt(0),
+    owner:        vendorData?.ownerName || vendorData?.owner?.name || "N/A",
+    email:        vendorData?.email || vendorData?.owner?.email || "N/A",
+    phone:        vendorData?.phone || "N/A",
+    address:      vendorData?.address || "N/A",
+    joined:       vendorData?.createdAt ? new Date(vendorData.createdAt).toLocaleDateString() : "N/A",
+    rating:       vendorData?.rating ?? "N/A",
+    reviews:      vendorData?.reviewsCount ?? 0,
+    products:     vendorData?.productsCount ?? 0,
+    totalSales:   vendorData?.totalSales != null ? `₹${vendorData.totalSales.toLocaleString()}` : "₹0",
     verified:     vendorData?.approvalStatus === "approved" || vendorData?.status === "verified",
     status:       vendorData?.approvalStatus || vendorData?.status || "active",
   };
@@ -437,7 +436,7 @@ export default function VendorDetail() {
     setProducts(prev => [...prev, {
       id: Date.now(), name: newProduct.name, sku: newProduct.sku, category: newProduct.category,
       price: parseFloat(newProduct.price), stock: parseInt(newProduct.stock),
-      sold: 0, total: "$0.00", hasPay: false, paidAmount: 0,
+      sold: 0, total: "₹0.00", hasPay: false, paidAmount: 0,
     }]);
     setNewProduct({ name:"",sku:"",category:"",price:"",stock:"",paidAmount:"",description:"" });
     setShowAddProduct(false);
@@ -464,6 +463,22 @@ export default function VendorDetail() {
   const activeCount   = products.filter(p => p.stock > 0).length;
   const inactiveCount = products.filter(p => p.stock === 0).length;
 
+  const exportVendorProducts = () => {
+    downloadCSV(
+      `vendor-products-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Product", "SKU", "Category", "Price", "Stock", "Sold", "Revenue"],
+      products.map((product) => [product.name, product.sku, product.category, product.price, product.stock, product.sold, product.total])
+    );
+  };
+
+  const exportPayments = () => {
+    downloadCSV(
+      `vendor-payments-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Transaction", "Date", "Total", "Paid", "Balance", "Method", "Orders", "Status"],
+      paymentHistory.map((payment) => [payment.id, payment.date, payment.total, payment.paid, payment.balance, payment.method, payment.orders, payment.status])
+    );
+  };
+
   const statusBadgeStyle = {
     verified:  { bg:"#10b981", color:"#fff" },
     active:    { bg:"#10b981", color:"#fff" },
@@ -484,7 +499,7 @@ export default function VendorDetail() {
           <button className="vd2-btn-ghost" onClick={() => { setSelectedStatus(vendorStatus); setShowStatusModal(true); }}>
             <TrendingUp size={15} /> Change Status
           </button>
-          <button className="vd2-btn-ghost"><Download size={15} /> Export</button>
+          <button className="vd2-btn-ghost" onClick={exportVendorProducts}><Download size={15} /> Export</button>
           <button className="vd2-btn-primary"><Pencil size={15} /> Edit</button>
         </div>
       </div>
@@ -548,11 +563,11 @@ export default function VendorDetail() {
         {/* ── Stat Cards ── */}
         <div className="vd2-stat-grid">
           {[
-            { label:"Total Revenue", value:"$104,878.98", sub:"From 1,191 sales", subColor:"#16a34a",
+            { label:"Total Revenue", value:"₹104,878.98", sub:"From 1,191 sales", subColor:"#16a34a",
               icon:<DollarSign size={22} color="#fff"/>, iconBg:"#f97316" },
-            { label:"Paid Amount", value:"$21,370.50", sub:<Badge label="2 payments" bg="#dcfce7" color="#15803d"/>,
+            { label:"Paid Amount", value:"₹21,370.50", sub:<Badge label="2 payments" bg="#dcfce7" color="#15803d"/>,
               icon:<CheckCircle size={22} color="#16a34a"/>, iconBg:"#dcfce7" },
-            { label:"Partially Paid", value:"$6,780.25", sub:<Badge label="1 pending" bg="#ffedd5" color="#c2410c"/>,
+            { label:"Partially Paid", value:"₹6,780.25", sub:<Badge label="1 pending" bg="#ffedd5" color="#c2410c"/>,
               icon:<AlertCircle size={22} color="#d97706"/>, iconBg:"#fef9c3" },
           ].map(c => (
             <div key={c.label} style={{ background:"#fff", borderRadius:18, border:"1px solid #f0f0f0", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", padding:"20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -623,7 +638,7 @@ export default function VendorDetail() {
                           bg={p.category==="Electronics"?"#eff6ff":"#f5f3ff"}
                           color={p.category==="Electronics"?"#1d4ed8":"#6d28d9"} />
                       </td>
-                      <td className="vd2-td" style={{ fontWeight:600 }}>${p.price.toFixed(2)}</td>
+                      <td className="vd2-td" style={{ fontWeight:600 }}>₹{p.price.toFixed(2)}</td>
                       <td className="vd2-td" style={{ fontWeight:700, color:p.stock===0?"#ef4444":"#111" }}>{p.stock}</td>
                       <td className="vd2-td">{p.sold}</td>
                       <td className="vd2-td" style={{ fontWeight:600, color:"#16a34a" }}>{p.total}</td>
@@ -653,7 +668,7 @@ export default function VendorDetail() {
           <div style={{ background:"#fff", borderRadius:18, border:"1px solid #f0f0f0", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid #f3f4f6", flexWrap:"wrap", gap:10 }}>
               <h2 style={{ margin:0, fontSize:16, fontWeight:700, color:"#111" }}>Payment History</h2>
-              <button className="vd2-btn-ghost"><Download size={14}/> Export</button>
+              <button className="vd2-btn-ghost" onClick={exportPayments}><Download size={14}/> Export</button>
             </div>
             <div className="vd2-tbl-wrap">
               <table className="vd2-tbl">
@@ -728,8 +743,8 @@ export default function VendorDetail() {
                 </div>
                 <div style={{ padding:"20px", display:"flex", flexDirection:"column", gap:16 }}>
                   {[
-                    ["Payment Method","Bank Transfer"],
-                    ["Bank Account","**** **** **** 4532"],
+                    ["Payment Method","N/A"],
+                    ["Bank Account","N/A"],
                   ].map(([k,v])=>(
                     <div key={k}>
                       <p style={{ margin:"0 0 4px", fontSize:12, color:"#6b7280" }}>{k}</p>
@@ -738,11 +753,11 @@ export default function VendorDetail() {
                   ))}
                   <div>
                     <p style={{ margin:"0 0 4px", fontSize:12, color:"#6b7280" }}>Total Paid</p>
-                    <p style={{ margin:0, fontSize:24, fontWeight:800, color:"#16a34a" }}>$21,370.50</p>
+                    <p style={{ margin:0, fontSize:24, fontWeight:800, color:"#16a34a" }}>N/A</p>
                   </div>
                   <div>
                     <p style={{ margin:"0 0 4px", fontSize:12, color:"#6b7280" }}>Outstanding Balance</p>
-                    <p style={{ margin:0, fontSize:24, fontWeight:800, color:"#f97316" }}>$12,200.25</p>
+                    <p style={{ margin:0, fontSize:24, fontWeight:800, color:"#f97316" }}>N/A</p>
                   </div>
                 </div>
               </div>
@@ -880,7 +895,7 @@ export default function VendorDetail() {
                 </FormField>
               </div>
               <div className="vd2-modal-grid">
-                <FormField label="Price ($) *">
+                <FormField label="Price (₹) *">
                   <input value={newProduct.price} onChange={e=>setNewProduct({...newProduct,price:e.target.value})}
                     placeholder="89.99" type="number" className="vd2-inp" />
                 </FormField>
@@ -889,7 +904,7 @@ export default function VendorDetail() {
                     placeholder="100" type="number" className="vd2-inp" />
                 </FormField>
               </div>
-              <FormField label="Paid Amount ($)">
+              <FormField label="Paid Amount (₹)">
                 <input value={newProduct.paidAmount} onChange={e=>setNewProduct({...newProduct,paidAmount:e.target.value})}
                   placeholder="30.00" type="number" className="vd2-inp" />
               </FormField>

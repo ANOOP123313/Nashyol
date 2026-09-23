@@ -92,11 +92,11 @@ export function FeaturedProductsSection() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <span className="text-xl font-bold text-foreground">
-                      ${product.price}
+                      ₹{product.price}
                     </span>
                     {product.originalPrice && (
                       <span className="text-sm text-muted-foreground dark:text-muted-foreground line-through ml-2">
-                        ${product.originalPrice}
+                        ₹{product.originalPrice}
                       </span>
                     )}
                   </div>
@@ -113,37 +113,44 @@ export function FeaturedProductsSection() {
 export function CategoryGridSection({ title, category, items }: {
   title: string;
   category: string;
-  items: { name: string; image: string }[];
+  items: Array<{ name?: string; title?: string; image: string; link?: string }>;
 }) {
+  const viewAllLink = `/category?category=${encodeURIComponent(category)}`;
+
   return (
     <div className="px-4 py-6 bg-transparent">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-        <Link href={`/products?category=${category}`} className="text-[var(--primary-color)] text-sm font-semibold hover:underline">
+        <Link href={viewAllLink} className="text-[var(--primary-color)] text-sm font-semibold hover:underline">
           View All →
         </Link>
       </div>
       <div className="grid grid-cols-4 gap-3">
-        {items.map((item, index) => (
-          <Link
-            key={index}
-            href={`/products?category=${category}&subcategory=${item.name}`}
-            className="group"
-          >
-            <div className="relative rounded-xl overflow-hidden aspect-square shadow-md hover:shadow-lg transition-all">
-              <ImageWithFallback
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                <span className="text-inverse text-xs font-semibold p-2 w-full text-center">
-                  {item.name}
-                </span>
+        {items.map((item, index) => {
+          const itemName = item.name || item.title || `Item ${index + 1}`;
+          const itemLink = item.link || `/category?category=${encodeURIComponent(category)}&subcategory=${encodeURIComponent(itemName)}`;
+
+          return (
+            <Link
+              key={index}
+              href={itemLink}
+              className="group"
+            >
+              <div className="relative rounded-xl overflow-hidden aspect-square shadow-md hover:shadow-lg transition-all">
+                <ImageWithFallback
+                  src={item.image}
+                  alt={itemName}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                  <span className="text-inverse text-xs font-semibold p-2 w-full text-center line-clamp-1">
+                    {itemName}
+                  </span>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

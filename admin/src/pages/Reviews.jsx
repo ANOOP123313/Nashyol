@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
-
   Star, Trash2, Eye, EyeOff, CheckCircle, XCircle,
   Filter, Search, ThumbsUp, Calendar, Package,
-  Bell, ChevronDown, X, ThumbsUp as ThumbsUpIcon,
-  MessageSquare,
+  ChevronDown, X, RefreshCw, MessageSquare,
 } from "lucide-react";
-
-/* ─── Data ──────────────────────────────────────────────────────────── */
-const initialReviews = [];
+import { reviewsAPI } from "../services/api";
 
 /* ─── Small reusable components ─────────────────────────────────────── */
 function StarRating({ rating, size = 14 }) {
@@ -27,15 +23,16 @@ function StarRating({ rating, size = 14 }) {
   );
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status = "pending" }) {
+  const safeStatus = (status || "pending").toLowerCase();
   const map = {
-    approved: "bg-green-100 text-green-700",
-    pending:  "bg-orange-100 text-orange-600",
-    disabled: "bg-red-100 text-red-600",
+    approved: "bg-green-100 text-green-700 border border-green-200",
+    pending:  "bg-amber-100 text-amber-700 border border-amber-200",
+    disabled: "bg-red-100 text-red-600 border border-red-200",
   };
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${map[status]}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${map[safeStatus] || map.pending}`}>
+      {safeStatus === "pending" ? "Pending Review" : safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1)}
     </span>
   );
 }
@@ -74,7 +71,7 @@ function ReviewDetailModal({ review, onClose, onAction }) {
                 <span className="font-bold text-gray-900">{review.name}</span>
                 {review.verified && (
                   <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
-                    <CheckCircle size={10} /> Verified Purchase
+                    <CheckCircle size={10} /> Verified Customer
                   </span>
                 )}
               </div>
@@ -91,7 +88,11 @@ function ReviewDetailModal({ review, onClose, onAction }) {
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Package size={13} className="text-gray-500" />
               <span className="text-sm font-medium text-gray-700">{review.product}</span>
-              <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-mono">{review.productId}</span>
+              {review.productId && (
+                <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-mono">
+                  #{review.productId.slice(-6).toUpperCase()}
+                </span>
+              )}
             </div>
             <StarRating rating={review.rating} size={15} />
             <h3 className="text-sm font-bold text-gray-900 mt-2 mb-1">{review.title}</h3>
@@ -131,47 +132,55 @@ function ReviewDetailModal({ review, onClose, onAction }) {
   );
 }
 
-/* ─── Main Page — NO sidebar, content only ──────────────────────────── */
-import { reviewsAPI } from "../services/api";
-
+/* ─── Main Page ──────────────────────────────────────────────────────── */
 export default function Reviews() {
   const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState("");
-  const [filter, setFilter]   = useState("All");
-
-  useEffect(() => {
-    reviewsAPI.getAllToModerate()
-      .then((res) => {
-        const data = Array.isArray(res) ? res : res.reviews || [];
-        if (Array.isArray(data)) {
-          const mapped = data.map((r, i) => ({
-            id: r._id || i,
-            name: r.user?.name || "Customer",
-            initials: (r.user?.name || "CU").slice(0, 2).toUpperCase(),
-            email: r.user?.email || "customer@example.com",
-            verified: true,
-            status: r.isApproved ? "approved" : "pending",
-            product: r.product?.title || "Marketplace Item",
-            productId: r.product?._id || "PRD-001",
-            date: new Date(r.createdAt || Date.now()).toISOString().split("T")[0],
-            rating: r.rating || 5,
-            title: r.comment ? `${r.comment.slice(0, 30)}...` : "Great product!",
-            body: r.comment || "No comment left.",
-            helpful: 0,
-            color: "#F97316",
-          }));
-          setReviews(mapped);
-        }
-      })
-      .catch((err) => console.error("Reviews fetch error:", err));
-  }, []); 
-
+  const [filter, setFilter]   = useState("All Reviews");
   const [filterOpen, setFilterOpen]   = useState(false);
   const [selectedReview, setSelected] = useState(null);
   const [width, setWidth]             = useState(
     typeof window !== "undefined" ? window.innerWidth : 1200
   );
   const filterRef = useRef(null);
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await reviewsAPI.getAll();
+      const data = Array.isArray(res) ? res : res?.reviews || [];
+      const mapped = data.map((r, i) => {
+        const userName = r.user?.name || "Customer";
+        return {
+          id: r._id || i,
+          name: userName,
+          initials: userName.slice(0, 2).toUpperCase(),
+          email: r.user?.email || "N/A",
+          verified: Boolean(r.user),
+          status: r.status || (r.isApproved ? "approved" : "pending"),
+          product: r.product?.title || "General Product",
+          productId: r.product?._id || "",
+          date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "N/A",
+          rating: r.rating ?? 5,
+          title: r.title || (r.comment ? `${r.comment.slice(0, 30)}...` : "Product Review"),
+          body: r.comment || "",
+          helpful: r.helpful || 0,
+          color: "#F97316",
+        };
+      });
+      setReviews(mapped);
+    } catch (err) {
+      console.error("Reviews fetch error:", err);
+      toast.error("Failed to load reviews from database");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
 
   useEffect(() => {
     const onResize = () => setWidth(window.innerWidth);
@@ -193,12 +202,17 @@ export default function Reviews() {
   const filterOptions = ["All Reviews", "Pending", "Approved", "Disabled"];
 
   const filtered = reviews.filter((r) => {
-    const matchFilter = filter === "All Reviews" || r.status === filter.toLowerCase();
+    const matchFilter =
+      filter === "All Reviews" ||
+      r.status.toLowerCase() === filter.toLowerCase();
     const q = search.toLowerCase();
-    return matchFilter && (
-      r.name.toLowerCase().includes(q) ||
-      r.product.toLowerCase().includes(q) ||
-      r.title.toLowerCase().includes(q)
+    return (
+      matchFilter &&
+      (r.name.toLowerCase().includes(q) ||
+        r.product.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.body.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q))
     );
   });
 
@@ -209,10 +223,16 @@ export default function Reviews() {
   async function handleAction(id, action) {
     try {
       if (action === "approve" || action === "enable") {
-        await reviewsAPI.approve(id, true);
+        await reviewsAPI.updateStatus(id, { status: "approved", isApproved: true });
+        toast.success("Review approved successfully");
       } else if (action === "reject" || action === "disable") {
-        await reviewsAPI.approve(id, false);
+        await reviewsAPI.updateStatus(id, { status: "disabled", isApproved: false });
+        toast.success("Review disabled");
+      } else if (action === "delete") {
+        await reviewsAPI.delete(id);
+        toast.success("Review deleted successfully");
       }
+
       setReviews((prev) =>
         prev
           .map((r) => {
@@ -221,22 +241,32 @@ export default function Reviews() {
             if (action === "reject" || action === "disable") return { ...r, status: "disabled" };
             return r;
           })
-          .filter((r) => action === "delete" ? r.id !== id : true)
+          .filter((r) => (action === "delete" ? r.id !== id : true))
       );
-      toast.success(`Review ${action}d successfully`);
     } catch (err) {
       toast.error("Failed to update review: " + err.message);
     }
   }
 
   return (
-    /* This div fills whatever space the parent layout gives it */
     <div className="flex-1 overflow-y-auto bg-gray-50 min-h-screen">
       <div className={`mx-auto ${isMobile ? "p-3" : "p-6"}`} style={{ maxWidth: 1200 }}>
 
-        {/* Page title */}
-        <h1 className="text-2xl font-extrabold text-gray-900 m-0">Reviews</h1>
-        <p className="text-sm text-gray-500 mt-1 mb-5">Moderate product reviews</p>
+        {/* Page header */}
+        <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 m-0">Reviews</h1>
+            <p className="text-sm text-gray-500 mt-1 mb-0">Moderate and manage customer product reviews</p>
+          </div>
+          <button
+            onClick={fetchReviews}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin text-orange-500" : ""} />
+            <span>Refresh</span>
+          </button>
+        </div>
 
         {/* ── Stats ── */}
         <div
@@ -245,7 +275,7 @@ export default function Reviews() {
         >
           {[
             { label: "Total Reviews",      value: totalReviews },
-            { label: "Pending Moderation", value: pendingCount, badge: "Needs Review" },
+            { label: "Pending Moderation", value: pendingCount, badge: pendingCount > 0 ? "Needs Review" : null },
             { label: "Average Rating",     value: avgRating },
           ].map(({ label, value, badge }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -267,7 +297,9 @@ export default function Reviews() {
           <div
             className={`flex ${isMobile ? "flex-col" : "flex-row items-center"} justify-between gap-3 mb-4`}
           >
-            <h2 className="text-base font-bold text-gray-900 m-0">Review Moderation</h2>
+            <h2 className="text-base font-bold text-gray-900 m-0">
+              Review Moderation ({filtered.length})
+            </h2>
 
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search */}
@@ -311,105 +343,111 @@ export default function Reviews() {
 
           {/* Review list */}
           <div className="space-y-2.5">
-            {filtered.map((review) => (
-              <div
-                key={review.id}
-                className="border border-gray-100 rounded-xl p-4 bg-white hover:shadow-md transition-shadow"
-              >
-                <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-3`}>
-
-                  {/* Left: info */}
-                  <div className="flex gap-2.5 flex-1 min-w-0">
-                    <Avatar initials={review.initials} color={review.color} size={38} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-bold text-gray-900">{review.name}</span>
-                        {review.verified && (
-                          <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
-                            <CheckCircle size={9} /> Verified
-                          </span>
-                        )}
-                        <StatusBadge status={review.status} />
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5 mb-1">{review.email}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                        <span className="flex items-center gap-1"><Package size={10} /> {review.product}</span>
-                        <span className="flex items-center gap-1"><Calendar size={10} /> {review.date}</span>
-                      </div>
-                      <div className="mt-1"><StarRating rating={review.rating} size={13} /></div>
-                      <p className="text-sm font-semibold text-gray-800 mt-1 mb-0.5">{review.title}</p>
-                      <p className="text-xs text-gray-500 m-0 line-clamp-2">{review.body}</p>
-                      {review.helpful > 0 && (
-                        <div className="flex items-center gap-1 mt-1.5 text-gray-400 text-xs">
-                          <ThumbsUp size={11} /> {review.helpful} people found this helpful
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: action buttons */}
-                  <div
-                    className="flex items-center gap-1.5 flex-wrap flex-shrink-0"
-                    style={{ marginTop: isMobile ? 8 : 0, paddingLeft: isMobile ? 48 : 0 }}
-                  >
-                    <button
-                      onClick={() => setSelected(review)}
-                      className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer bg-transparent"
-                    >
-                      <Eye size={12} /> View
-                    </button>
-
-                    {review.status === "pending" && (
-                      <>
-                        <button
-                          onClick={() => handleAction(review.id, "approve")}
-                          className="flex items-center gap-1 text-xs text-green-600 border border-green-300 px-2.5 py-1.5 rounded-lg hover:bg-green-50 cursor-pointer bg-transparent"
-                        >
-                          <CheckCircle size={12} /> Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(review.id, "reject")}
-                          className="flex items-center gap-1 text-xs text-red-500 border border-red-300 px-2.5 py-1.5 rounded-lg hover:bg-red-50 cursor-pointer bg-transparent"
-                        >
-                          <XCircle size={12} /> Reject
-                        </button>
-                      </>
-                    )}
-
-                    {review.status === "approved" && (
-                      <button
-                        onClick={() => handleAction(review.id, "disable")}
-                        className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer bg-transparent"
-                      >
-                        <EyeOff size={12} /> Disable
-                      </button>
-                    )}
-
-                    {review.status === "disabled" && (
-                      <button
-                        onClick={() => handleAction(review.id, "enable")}
-                        className="flex items-center gap-1 text-xs text-green-600 border border-green-300 px-2.5 py-1.5 rounded-lg hover:bg-green-50 cursor-pointer bg-transparent"
-                      >
-                        <Eye size={12} /> Enable
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleAction(review.id, "delete")}
-                      className="text-red-400 hover:text-red-600 border-none bg-transparent cursor-pointer p-1.5 rounded-lg hover:bg-red-50"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
+            {loading ? (
+              <div className="text-center py-12 text-gray-400">
+                <div className="size-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-sm">Loading reviews from database...</p>
               </div>
-            ))}
-
-            {filtered.length === 0 && (
+            ) : filtered.length === 0 ? (
               <div className="text-center py-14 text-gray-400">
                 <MessageSquare size={30} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No reviews found</p>
               </div>
+            ) : (
+              filtered.map((review) => (
+                <div
+                  key={review.id}
+                  className="border border-gray-100 rounded-xl p-4 bg-white hover:shadow-md transition-shadow"
+                >
+                  <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-3`}>
+
+                    {/* Left: info */}
+                    <div className="flex gap-2.5 flex-1 min-w-0">
+                      <Avatar initials={review.initials} color={review.color} size={38} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-bold text-gray-900">{review.name}</span>
+                          {review.verified && (
+                            <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                              <CheckCircle size={9} /> Verified Customer
+                            </span>
+                          )}
+                          <StatusBadge status={review.status} />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5 mb-1">{review.email}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                          <span className="flex items-center gap-1"><Package size={10} /> {review.product}</span>
+                          <span className="flex items-center gap-1"><Calendar size={10} /> {review.date}</span>
+                        </div>
+                        <div className="mt-1"><StarRating rating={review.rating} size={13} /></div>
+                        <p className="text-sm font-semibold text-gray-800 mt-1 mb-0.5">{review.title}</p>
+                        <p className="text-xs text-gray-500 m-0 line-clamp-2">{review.body}</p>
+                        {review.helpful > 0 && (
+                          <div className="flex items-center gap-1 mt-1.5 text-gray-400 text-xs">
+                            <ThumbsUp size={11} /> {review.helpful} people found this helpful
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: action buttons */}
+                    <div
+                      className="flex items-center gap-1.5 flex-wrap flex-shrink-0"
+                      style={{ marginTop: isMobile ? 8 : 0, paddingLeft: isMobile ? 48 : 0 }}
+                    >
+                      <button
+                        onClick={() => setSelected(review)}
+                        className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer bg-transparent"
+                      >
+                        <Eye size={12} /> View
+                      </button>
+
+                      {review.status === "pending" && (
+                        <>
+                          <button
+                            onClick={() => handleAction(review.id, "approve")}
+                            className="flex items-center gap-1 text-xs text-green-600 border border-green-300 px-2.5 py-1.5 rounded-lg hover:bg-green-50 cursor-pointer bg-transparent"
+                          >
+                            <CheckCircle size={12} /> Approve
+                          </button>
+                          <button
+                            onClick={() => handleAction(review.id, "reject")}
+                            className="flex items-center gap-1 text-xs text-red-500 border border-red-300 px-2.5 py-1.5 rounded-lg hover:bg-red-50 cursor-pointer bg-transparent"
+                          >
+                            <XCircle size={12} /> Reject
+                          </button>
+                        </>
+                      )}
+
+                      {review.status === "approved" && (
+                        <button
+                          onClick={() => handleAction(review.id, "disable")}
+                          className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer bg-transparent"
+                        >
+                          <EyeOff size={12} /> Disable
+                        </button>
+                      )}
+
+                      {review.status === "disabled" && (
+                        <button
+                          onClick={() => handleAction(review.id, "enable")}
+                          className="flex items-center gap-1 text-xs text-green-600 border border-green-300 px-2.5 py-1.5 rounded-lg hover:bg-green-50 cursor-pointer bg-transparent"
+                        >
+                          <Eye size={12} /> Enable
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleAction(review.id, "delete")}
+                        className="text-red-400 hover:text-red-600 border-none bg-transparent cursor-pointer p-1.5 rounded-lg hover:bg-red-50"
+                        title="Delete review"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

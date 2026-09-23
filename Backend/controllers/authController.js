@@ -96,3 +96,30 @@ export const login = asyncHandler(async (req, res) => {
 export const getMe = asyncHandler(async (req, res) => {
   res.json(req.user);
 });
+
+export const updateMe = asyncHandler(async (req, res) => {
+  const { name, email } = req.body;
+
+  if (!name?.trim() || !email?.trim()) {
+    return res.status(400).json({ message: "Name and email are required" });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user._id } });
+  if (existing) {
+    return res.status(400).json({ message: "Email already registered" });
+  }
+
+  req.user.name = name.trim();
+  req.user.email = normalizedEmail;
+  await req.user.save();
+
+  res.json({
+    _id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+    role: req.user.role,
+    referralCode: req.user.referralCode,
+    walletBalance: req.user.walletBalance,
+  });
+});

@@ -167,7 +167,7 @@ function TicketModal({ ticket, onClose }) {
           <div className="border-t border-gray-100 mb-4" />
           <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3">Conversation History</h4>
           <div className="space-y-3 mb-5">
-            {ticket.conversation.map((msg, i) => (
+            {(ticket.conversation || []).map((msg, i) => (
               <div key={i} className="border border-gray-100 rounded-xl p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${msg.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
@@ -322,18 +322,21 @@ export default function Support() {
             _id: t._id,
             title: t.subject,
             customer: t.userId?.name || "Customer",
-            email: t.userId?.email || "customer@example.com",
+            email: t.userId?.email || "N/A",
             category: "General Inquiry",
             date: new Date(t.createdAt || Date.now()).toLocaleDateString(),
-            priority: (t.priority || "MEDIUM").toUpperCase(),
-            status: t.status === "open" ? "Open" : t.status === "in-progress" ? "Pending" : "Resolved",
+            priority: (t.priority || "medium").toUpperCase(),
+            status: t.status === "open" ? "Open" : t.status === "in-progress" ? "Pending" : "Closed",
             assignedTo: "Support Agent",
-            messages: [
-              { sender: "Customer", text: t.message, time: "Initial Query" },
+            conversation: [
+              { sender: t.userId?.name || "Customer", role: "Customer", message: t.message, time: "Initial Query", initials: (t.userId?.name || "C").slice(0, 2).toUpperCase(), color: "bg-blue-500" },
               ...(t.adminReply || []).map((r) => ({
                 sender: "Admin",
-                text: r.message,
+                role: "Admin",
+                message: r.message,
                 time: new Date(r.createdAt || Date.now()).toLocaleTimeString(),
+                initials: "AD",
+                color: "bg-orange-500",
               })),
             ],
           }));
@@ -391,7 +394,7 @@ export default function Support() {
         </div>
         <div className="bg-white rounded-2xl px-4 sm:px-5 py-3 sm:py-5" style={{ boxShadow: "0 1px 8px 0 rgba(0,0,0,0.06)" }}>
           <p className="text-xs sm:text-sm text-gray-400 mb-1.5 sm:mb-2 font-normal">Avg Response Time</p>
-          <p className="text-2xl sm:text-3xl font-semibold text-gray-900">2.4h</p>
+          <p className="text-2xl sm:text-3xl font-semibold text-gray-900">N/A</p>
         </div>
       </div>
 

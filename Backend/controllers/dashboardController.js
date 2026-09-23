@@ -16,14 +16,17 @@ export const getAdminStats = asyncHandler(async (req, res) => {
     productCount,
     userCount,
     vendorCount,
+    pendingVendorCount,
     totalRevenue,
     referralCount,
+    referralRevenue,
     activeCoupons,
   ] = await Promise.all([
     Order.countDocuments(),
     Product.countDocuments(),
     User.countDocuments({ role: "user" }),
     Vendor.countDocuments({ approvalStatus: "approved" }),
+    Vendor.countDocuments({ approvalStatus: "pending" }),
 
     // 💰 Total Revenue
     Order.aggregate([
@@ -32,6 +35,10 @@ export const getAdminStats = asyncHandler(async (req, res) => {
     ]),
 
     Referral.countDocuments(),
+    Referral.aggregate([
+      { $match: { rewardGranted: true } },
+      { $group: { _id: null, total: { $sum: "$rewardAmount" } } },
+    ]),
     Coupon.countDocuments({ isActive: true }),
   ]);
 
@@ -68,7 +75,7 @@ export const getAdminStats = asyncHandler(async (req, res) => {
         totalReferrals: { $sum: 1 },
         conversions: {
           $sum: {
-            $cond: [{ $eq: ["$status", "converted"] }, 1, 0],
+            $cond: ["$rewardGranted", 1, 0],
           },
         },
       },
@@ -88,7 +95,7 @@ export const getAdminStats = asyncHandler(async (req, res) => {
   const topVendors = await Vendor.find()
     .sort({ totalRevenue: -1 })
     .limit(5)
-    .select("name totalRevenue");
+    .select("storeName email totalRevenue");
 
   // 🥇 Leaderboard (Top Referrers)
   const leaderboard = await Referral.aggregate([
@@ -98,7 +105,7 @@ export const getAdminStats = asyncHandler(async (req, res) => {
         referrals: { $sum: 1 },
         conversions: {
           $sum: {
-            $cond: [{ $eq: ["$status", "converted"] }, 1, 0],
+            $cond: ["$rewardGranted", 1, 0],
           },
         },
       },
@@ -126,8 +133,10 @@ export const getAdminStats = asyncHandler(async (req, res) => {
       products: productCount,
       customers: userCount,
       vendors: vendorCount,
+      pendingApprovals: pendingVendorCount,
       revenue: totalRevenue[0]?.total || 0,
       referrals: referralCount,
+      referralRevenue: referralRevenue[0]?.total || 0,
       activeCoupons,
     },
 

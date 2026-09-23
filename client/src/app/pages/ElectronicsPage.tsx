@@ -9,13 +9,13 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { PageHeader } from "../components/PageHeader";
 import { FlashDealsSection } from "../components/FlashDealsSection";
 import { ShopByCategorySection } from "../components/ShopByCategorySection";
-import { getProductsByCategory, getSubcategoriesByCategory, getBrandsByCategory } from "../data/products";
 import { useCart } from "../contexts/CartContext";
 import { useWishlist } from "../contexts/WishlistContext";
 import { toast } from "sonner";
 
 import { productsApi } from "@/services/api";
 import { useEffect, useState } from "react";
+import { useCategorySubcategories } from "@/services/categorySubcategories";
 
 function mapBackendProduct(p: any) {
   const v = p.variants?.[0] || {};
@@ -28,6 +28,7 @@ function mapBackendProduct(p: any) {
     originalPrice: p.offerPrice ? v.sellingPrice : undefined,
     image: v.image || p.images?.[0] || "https://placehold.co/400x400?text=No+Image",
     rating: 4.8,
+    reviews: p.reviews?.length || 12,
     reviewsCount: p.reviews?.length || 12,
     badge: p.offerPrice ? "Sale" : p.featured ? "Featured" : undefined,
     inStock: (v.currentStock ?? 1) > 0,
@@ -35,10 +36,8 @@ function mapBackendProduct(p: any) {
 }
 
 export function ElectronicsPage() {
-  const categoryName = "Electronics";
   const [products, setProducts] = useState<any[]>([]);
-  const subcategories = getSubcategoriesByCategory(categoryName);
-  const brands = getBrandsByCategory(categoryName);
+  const { subcategories } = useCategorySubcategories("Electronics");
   const { addItem } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
@@ -51,15 +50,6 @@ export function ElectronicsPage() {
       })
       .catch(() => setProducts([]));
   }, []);
-
-  // Get subcategory images from actual products
-  const subcategoryData = subcategories.map((subcat) => {
-    const product = products.find((p) => p.subcategory === subcat);
-    return {
-      name: subcat,
-      image: product?.image || "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=500",
-    };
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-indigo-50 dark:from-gray-950 dark:via-blue-950/20 dark:to-indigo-950/20">
@@ -104,26 +94,7 @@ export function ElectronicsPage() {
             </Button>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-            {[
-              { name: "Smartphones", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400" },
-              { name: "Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400" },
-              { name: "Headphones", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400" },
-              { name: "Smart Watches", image: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400" },
-              { name: "Cameras", image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400" },
-              { name: "Gaming", image: "https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=400" },
-              { name: "Tablets", image: "https://images.unsplash.com/photo-1561154464-82e9adf32764?w=400" },
-              { name: "Smart Home", image: "https://images.unsplash.com/photo-1558089687-e5c0c58d7c49?w=400" },
-              { name: "TV & Audio", image: "https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400" },
-              { name: "Drones", image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400" },
-              { name: "Accessories", image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400" },
-              { name: "Power Banks", image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400" },
-              { name: "Speakers", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400" },
-              { name: "Keyboards", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400" },
-              { name: "Monitors", image: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400" },
-              { name: "Printers", image: "https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=400" },
-              { name: "Mice", image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=400" },
-              { name: "Storage", image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=400" },
-            ].map((category) => (
+            {subcategories.map((category) => (
               <Link key={category.name}
                 href={`/category?category=Electronics&subcategory=${encodeURIComponent(category.name)}`}
                 className="group flex flex-col items-center"
@@ -374,34 +345,38 @@ export function ElectronicsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-bold text-foreground">
-                          ${product.price}
+                          ₹{product.price}
                         </span>
                         {product.originalPrice && (
                           <span className="text-sm text-muted-foreground line-through">
-                            ${product.originalPrice}
+                            ₹{product.originalPrice}
                           </span>
                         )}
                       </div>
                       {product.originalPrice && (
                         <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                          Save ${(product.originalPrice - product.price).toFixed(2)}
+                          Save ₹{(product.originalPrice - product.price).toFixed(2)}
                         </span>
                       )}
                     </div>
                     <Button
                       size="icon"
                       className="size-12 rounded-full bg-[var(--primary-color)] hover:bg-orange-600 text-inverse border-0"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        addItem(product.id, (product as any).sku || product.id, 1, {
-                          id: product.id,
-                          sku: (product as any).sku || product.id,
-                          name: product.name,
-                          price: product.price,
-                          image: product.image,
-                        });
-                        toast.success(`${product.name} added to cart!`);
+                        try {
+                          await addItem(product.id, (product as any).sku || product.id, 1, {
+                            id: product.id,
+                            sku: (product as any).sku || product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image,
+                          });
+                          toast.success(`${product.name} added to cart!`);
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+                        }
                       }}
                     >
                       <ShoppingCart className="size-5" />

@@ -193,7 +193,7 @@ export function PrivacyPolicyPage() {
             </h1>
           </div>
           <p className="text-lg text-muted-foreground mb-4">
-            At N4ASHYOL, we take your privacy seriously. This policy explains how we
+            At NAASHYOL, we take your privacy seriously. This policy explains how we
             collect, use, and protect your personal information.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -206,7 +206,7 @@ export function PrivacyPolicyPage() {
         {/* Introduction */}
         <Card className="p-8 mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
           <p className="text-muted-foreground leading-relaxed">
-            This Privacy Policy describes how N4ASHYOL ("we," "us," or "our") collects,
+            This Privacy Policy describes how NAASHYOL ("we," "us," or "our") collects,
             uses, and shares your personal information when you visit or make a purchase
             from our website. By using our services, you agree to the collection and use
             of information in accordance with this policy.
@@ -298,15 +298,15 @@ export function PrivacyPolicyPage() {
               <div className="space-y-2 text-muted-foreground">
                 <p>
                   <strong className="text-foreground">Email:</strong>{" "}
-                  privacy@n4ashyol.com
+                  privacy@NAASHYOL.com
                 </p>
                 <p>
                   <strong className="text-foreground">Phone:</strong>{" "}
-                  1-800-N4ASHYOL
+                  1-800-NAASHYOL
                 </p>
                 <p>
                   <strong className="text-foreground">Mail:</strong>{" "}
-                  N4ASHYOL Privacy Team, 123 Commerce Street, Suite 100, New York, NY
+                  NAASHYOL Privacy Team, 123 Commerce Street, Suite 100, New York, NY
                   10001
                 </p>
               </div>

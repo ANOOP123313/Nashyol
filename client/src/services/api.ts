@@ -38,7 +38,19 @@ export const authApi = {
     request<{ _id: string; name: string; email: string; role: string; token: string }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
     request<{ _id: string; name: string; email: string; role: string; token: string }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
-  me: () => request<{ _id: string; name: string; email: string; role: string }>("/api/auth/me"),
+  phoneLogin: (body: { phone: string; password: string }) =>
+    request<{ _id: string; name: string; phone?: string; email?: string; role: string; token: string; user?: any }>("/api/auth/phone/login", { method: "POST", body: JSON.stringify(body) }),
+  sendRegistrationOTP: (body: { phone: string }) =>
+    request<{ message: string; phone: string }>("/api/auth/phone/send-registration-otp", { method: "POST", body: JSON.stringify(body) }),
+  verifyRegistrationOTP: (body: { phone: string; otp: string; name: string; email: string; password: string; referralCode?: string }) =>
+    request<{ _id?: string; name?: string; phone?: string; email?: string; role?: string; token: string; user?: any }>("/api/auth/phone/verify-registration-otp", { method: "POST", body: JSON.stringify(body) }),
+  forgotPasswordWhatsapp: (body: { phone: string }) =>
+    request<{ message: string; phone: string }>("/api/auth/phone/forgot-password", { method: "POST", body: JSON.stringify(body) }),
+  resetPasswordWhatsapp: (body: { phone: string; otp: string; newPassword: string }) =>
+    request<{ message: string }>("/api/auth/phone/reset-password", { method: "POST", body: JSON.stringify(body) }),
+  me: () => request<{ _id: string; name: string; email?: string; phone?: string; role: string }>("/api/auth/me"),
+  updateMe: (body: { name: string; email: string }) =>
+    request<{ _id: string; name: string; email: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
 };
 
 // Banners
@@ -48,8 +60,13 @@ export const bannersApi = {
 
 // Categories (with subcategories and image)
 export const categoriesApi = {
-  list: () =>
-    request<Array<{ _id: string; name: string; image?: string; subCategories?: Array<any> }>>("/api/categories"),
+  list: async () => {
+    const res = await request<any>("/api/categories");
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.categories)) return res.categories;
+    return [];
+  },
 };
 
 // Attributes
@@ -60,10 +77,11 @@ export const attributesApi = {
 
 // Products
 export const productsApi = {
-  list: (params?: { search?: string; category?: string; brand?: string; minPrice?: number; maxPrice?: number; sort?: string; page?: number; limit?: number }) => {
+  list: (params?: { search?: string; category?: string; subcategory?: string; brand?: string; minPrice?: number; maxPrice?: number; sort?: string; page?: number; limit?: number }) => {
     const sp = new URLSearchParams();
     if (params?.search) sp.set("search", params.search);
     if (params?.category) sp.set("category", params.category);
+    if (params?.subcategory) sp.set("subcategory", params.subcategory);
     if (params?.brand) sp.set("brand", params.brand);
     if (params?.minPrice != null) sp.set("minPrice", String(params.minPrice));
     if (params?.maxPrice != null) sp.set("maxPrice", String(params.maxPrice));
@@ -118,13 +136,16 @@ export const referralsApi = {
 
 // Reviews
 export const reviewsApi = {
-  create: (body: { productId: string; rating: number; comment: string; images?: string[] }) =>
+  create: (body: { productId: string; rating: number; comment: string; title?: string; images?: string[] }) =>
     request<any>("/api/reviews", { method: "POST", body: JSON.stringify(body) }),
   listByProduct: (productId: string) =>
     request<any[]>(`/api/reviews/product/${productId}`),
+  canReview: (productId: string) =>
+    request<{ canReview: boolean; hasOrdered: boolean; alreadyReviewed: boolean }>(`/api/reviews/can-review/${productId}`),
   moderate: () => request<any[]>("/api/reviews/moderate"),
   approve: (id: string, isApproved: boolean) =>
     request<any>(`/api/reviews/${id}/approve`, { method: "PUT", body: JSON.stringify({ isApproved }) }),
+  myReviews: () => request<Array<{ _id: string; rating: number; comment: string; isApproved: boolean; createdAt: string; product?: { title?: string } }>>("/api/reviews/my"),
 };
 
 // Support Tickets
@@ -167,9 +188,9 @@ export const couponsApi = {
 
 // Orders
 export const ordersApi = {
-  create: (body: { addressId?: string; address?: { fullName: string; phone: string; street: string; city: string; state: string; pincode: string }; couponCode?: string }) =>
+  create: (body: { addressId?: string; address?: { fullName: string; phone: string; street: string; city: string; state: string; pincode: string }; couponCode?: string; paymentMethod?: string }) =>
     request<Record<string, unknown>>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
-  myOrders: () => request<unknown[]>("/api/orders/myorders"),
+  myOrders: () => request<Array<{ _id: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>("/api/orders"),
   byId: (id: string) => request<Record<string, unknown>>(`/api/orders/${id}`),
   getById: (id: string) => request<Record<string, unknown>>(`/api/orders/${id}`),
   cancel: (id: string) =>
@@ -193,4 +214,33 @@ export const wishlistApi = {
     request<unknown[]>("/api/wishlist", { method: "POST", body: JSON.stringify({ productId }) }),
   remove: (productId: string) =>
     request<unknown[]>(`/api/wishlist/${productId}`, { method: "DELETE" }),
+};
+
+// Returns
+export const returnsApi = {
+  create: (body: { orderId: string; items: Array<{ productId: string; quantity: number; reason?: string }> }) =>
+    request<any>("/api/returns", { method: "POST", body: JSON.stringify(body) }),
+  myReturns: () => request<Array<{ _id: string; status: string; refundAmount: number; reason?: string; createdAt: string; orderId?: { _id?: string }; items?: Array<{ quantity: number; productId?: { title?: string; images?: string[] } }>; deliveryStatus?: string; tracking?: string }>>("/api/returns/my"),
+  track: (query: string) => request<any>(`/api/returns/track/${encodeURIComponent(query)}`),
+};
+
+// Settings & CMS
+export const settingsApi = {
+  get: () => request<{ codOn?: boolean; codCharge?: number; [key: string]: any }>("/api/settings"),
+};
+
+export const cmsApi = {
+  getPage: (slug: string) => request<any>(`/api/cms/pages/${slug}`),
+  getFaqs: () => request<any[]>("/api/cms/faqs"),
+  getBlogs: () => request<any[]>("/api/cms/blogs"),
+  getBlog: (slug: string) => request<any>(`/api/cms/blogs/${slug}`),
+};
+
+export const homePageApi = {
+  getHomePage: () => request<{ success: boolean; sections: any[] }>("/api/cms/home-page"),
+  subscribeNewsletter: (email: string) =>
+    request<{ success: boolean; message: string }>("/api/cms/newsletter/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
 };

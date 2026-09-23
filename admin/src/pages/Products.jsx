@@ -7,10 +7,10 @@ import {
   Eye, Pencil, Trash2, Star, ShoppingCart, DollarSign,
   TrendingUp, Copy, Edit2, ChevronLeft,
   Heart, Share2, ShoppingBag, CheckCircle, XCircle, Check, ChevronDown,
-  Tag, Store, BarChart2, Box, AlertCircle, Loader2,
+  Tag, Store, BarChart2, Box, AlertCircle, Loader2, List,
 } from "lucide-react";
 import { useProducts, useProduct, useProductMutations } from "../hooks/useProducts";
-import { productsAPI, reviewsAPI, uploadAPI } from "../services/api";
+import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI } from "../services/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 
@@ -32,7 +32,12 @@ const couponStatusStyle = (s) => {
 };
 
 const formatRevenue = (n) =>
-  n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`;
+  n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
+
+const escapeCSV = (value) => {
+  const text = value == null ? "" : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
 
 /** Normalise backend product shape → UI-friendly shape */
 const normalise = (p) => ({
@@ -41,6 +46,7 @@ const normalise = (p) => ({
   name      : p.title,
   sku       : p.variants?.[0]?.sku ?? p._id,
   category  : p.category?.name ?? p.category ?? "—",
+  subCategory: p.subCategory ?? p.subcategory ?? "",
   vendor    : p.variants?.[0]?.currentVendor?.storeName ?? p.brand ?? "—",
   price     : p.variants?.[0]?.sellingPrice ?? 0,
   originalPrice: null,
@@ -50,7 +56,10 @@ const normalise = (p) => ({
     : "pending",
   image     : p.images?.[0] ?? "https://placehold.co/300x300?text=No+Image",
   description: p.description ?? "",
+  paidAmount: Number(p.paidAmount) || 0,
+  deliveryCharge: Number(p.deliveryCharge) || 0,
   referralCoupons: p.referralCoupons ?? [],
+  specifications: Array.isArray(p.specifications) ? p.specifications : [],
 });
 
 // ─────────────────────────────────────────────────
@@ -185,17 +194,18 @@ function CustomDropdown({ value, onChange, options, minWidth = 150 }) {
 // ─────────────────────────────────────────────────
 //  Product Details Page (real data via useProduct)
 // ─────────────────────────────────────────────────
-function ProductDetailsPage({ productId, rawProduct, onBack }) {
+function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete }) {
   const { product: fetched, loading, error } = useProduct(productId);
   const product = fetched ? normalise(fetched) : rawProduct;
-  const [activeTab, setActiveTab] = useState("referral");
+  const [activeTab, setActiveTab] = useState("specifications");
   const [showCreateCoupon, setShowCreateCoupon] = useState(false);
 
   const tabs = [
-    { id:"referral",  Icon:Tag,      label:"Referral Coupons" },
-    { id:"analytics", Icon:BarChart2, label:"Analytics" },
-    { id:"inventory", Icon:Box,       label:"Inventory" },
-    { id:"reviews",   Icon:Star,      label:"Reviews" },
+    { id:"specifications", Icon:List,      label:"Specifications" },
+    { id:"referral",       Icon:Tag,       label:"Referral Coupons" },
+    { id:"analytics",      Icon:BarChart2, label:"Analytics" },
+    { id:"inventory",      Icon:Box,       label:"Inventory" },
+    { id:"reviews",        Icon:Star,      label:"Reviews" },
   ];
 
   if (loading) return (
@@ -216,8 +226,8 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
           <ChevronLeft size={16}/> Back to Products
         </button>
         <div className="topbar-right" style={{ display:"flex",gap:10 }}>
-          <button style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#374151",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Edit2 size={14}/> Edit Product</button>
-          <button style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#ef4444",border:"1px solid #fca5a5",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Trash2 size={14}/> Delete</button>
+          <button onClick={() => onEdit?.(product)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#374151",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Edit2 size={14}/> Edit Product</button>
+          <button onClick={() => onDelete?.(product)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#ef4444",border:"1px solid #fca5a5",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Trash2 size={14}/> Delete</button>
         </div>
       </div>
 
@@ -239,9 +249,9 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
             <p style={{ fontSize:13,color:"#6b7280",lineHeight:1.65,margin:"0 0 20px" }}>{product.description}</p>
             <div className="hero-meta-grid" style={{ display:"grid",gap:16 }}>
               {[
-                { Icon:Tag,      label:"Category", val:product.category },
+                { Icon:Tag,      label:"Category", val:product.subCategory ? `${product.category} › ${product.subCategory}` : product.category },
                 { Icon:Store,    label:"Vendor",   val:product.vendor },
-                { Icon:DollarSign, label:"Price",  val:`$${product.price.toFixed(2)}` },
+                { Icon:DollarSign, label:"Price",  val:`₹${product.price.toFixed(2)}` },
                 { Icon:Box,      label:"Stock",    val:product.stock },
               ].map(m => (
                 <div key={m.label}>
@@ -270,6 +280,45 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
           </div>
         </div>
         <div style={{ padding:24 }}>
+          {activeTab === "specifications" && (
+            <div>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
+                <div>
+                  <h3 style={{ fontSize:15,fontWeight:700,color:"#111827",margin:"0 0 4px" }}>Product Specifications</h3>
+                  <p style={{ fontSize:13,color:"#9ca3af",margin:0 }}>Key-value specifications displayed on the product details page</p>
+                </div>
+                {onEdit && (
+                  <button onClick={() => onEdit?.(product)} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 14px",background:"#fff",border:"1px solid #d1d5db",borderRadius:7,fontSize:12,fontWeight:600,color:"#374151",cursor:"pointer",fontFamily:"inherit" }}>
+                    <Edit2 size={13}/> Edit Specs
+                  </button>
+                )}
+              </div>
+              {(!product.specifications || product.specifications.length === 0) ? (
+                <div style={{ textAlign:"center",padding:"40px 0",color:"#9ca3af",fontSize:13,background:"#f9fafb",borderRadius:10,border:"1px dashed #e5e7eb" }}>
+                  No specifications defined for this product yet. Click "Edit Product" to add specifications.
+                </div>
+              ) : (
+                <div style={{ border:"1px solid #e5e7eb",borderRadius:10,overflow:"hidden" }}>
+                  <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+                    <thead>
+                      <tr style={{ background:"#f3f4f6" }}>
+                        <th style={{ padding:"10px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:"#9ca3af",letterSpacing:"0.05em",width:"35%" }}>SPECIFICATION KEY</th>
+                        <th style={{ padding:"10px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:"#9ca3af",letterSpacing:"0.05em" }}>VALUE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {product.specifications.map((spec, i) => (
+                        <tr key={i} style={{ borderBottom: i < product.specifications.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                          <td style={{ padding:"12px 16px",fontWeight:600,color:"#111827",background:"#fbfbfb" }}>{spec.key}</td>
+                          <td style={{ padding:"12px 16px",color:"#4b5563" }}>{spec.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
           {activeTab === "referral" && (
             <>
               <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:20 }}>
@@ -313,7 +362,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
               <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:20 }}>
                 <div style={{ background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:16 }}>
                   <p style={{ fontSize:12,color:"#6b7280",margin:"0 0 4px" }}>Est. Total Revenue</p>
-                  <p style={{ fontSize:22,fontWeight:700,color:"#10b981",margin:0 }}>${((product.price || 0) * (product.stock || 5)).toFixed(2)}</p>
+                  <p style={{ fontSize:22,fontWeight:700,color:"#10b981",margin:0 }}>₹{((product.price || 0) * (product.stock || 5)).toFixed(2)}</p>
                 </div>
                 <div style={{ background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:16 }}>
                   <p style={{ fontSize:12,color:"#6b7280",margin:"0 0 4px" }}>Available Stock Units</p>
@@ -321,19 +370,12 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
                 </div>
                 <div style={{ background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:16 }}>
                   <p style={{ fontSize:12,color:"#6b7280",margin:"0 0 4px" }}>Customer Rating</p>
-                  <p style={{ fontSize:22,fontWeight:700,color:"#f59e0b",margin:0 }}>4.8 ★</p>
+                  <p style={{ fontSize:22,fontWeight:700,color:"#f59e0b",margin:0 }}>N/A</p>
                 </div>
               </div>
               <div style={{ height:240,width:"100%" }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { month: "Jan", sales: 12 },
-                    { month: "Feb", sales: 19 },
-                    { month: "Mar", sales: 15 },
-                    { month: "Apr", sales: 22 },
-                    { month: "May", sales: 30 },
-                    { month: "Jun", sales: 25 },
-                  ]}>
+                  <BarChart data={[]}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#6b7280" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} />
@@ -374,7 +416,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
               <h3 style={{ fontSize:15,fontWeight:700,color:"#111827",margin:"0 0 16px" }}>Customer Reviews & Ratings</h3>
               <div style={{ border:"1px solid #e5e7eb",borderRadius:10,padding:20,background:"#fff" }}>
                 <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:16 }}>
-                  <div style={{ fontSize:28,fontWeight:800,color:"#111827" }}>4.8</div>
+                  <div style={{ fontSize:28,fontWeight:800,color:"#111827" }}>N/A</div>
                   <div style={{ display:"flex",alignItems:"center",gap:2,color:"#f59e0b" }}>
                     <Star size={18} fill="#f59e0b"/>
                     <Star size={18} fill="#f59e0b"/>
@@ -385,10 +427,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack }) {
                   <span style={{ fontSize:13,color:"#6b7280" }}>(Verified Customer Feedback)</span>
                 </div>
                 <div style={{ borderTop:"1px solid #f3f4f6",paddingTop:16,display:"flex",flexDirection:"column",gap:14 }}>
-                  {[
-                    { user: "Sarah M.", rating: 5, date: "2 days ago", comment: "Excellent quality and fast delivery. Exactly as described!" },
-                    { user: "David K.", rating: 5, date: "1 week ago", comment: "Very satisfied with this product. Would highly recommend." },
-                  ].map((rev, idx) => (
+                    {[].map((rev, idx) => (
                     <div key={idx} style={{ background:"#f9fafb",borderRadius:8,padding:14,border:"1px solid #f3f4f6" }}>
                       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
                         <span style={{ fontSize:13,fontWeight:600,color:"#111827" }}>{rev.user}</span>
@@ -419,21 +458,95 @@ function ProductFormModal({ product, onClose, onSuccess }) {
   const isEdit = !!product;
   const { createProduct, updateProduct, loading, error } = useProductMutations({ onSuccess });
 
+  const getInitialCategory = () => {
+    if (!product?.category) return "";
+    if (typeof product.category === "string" && product.category !== "—") return product.category;
+    return product.category?.name || "";
+  };
+
+  const getInitialSubCategory = () => {
+    return product?.subCategory || product?.subcategory || "";
+  };
+
   const [form, setForm] = useState({
-    title       : product?.name      ?? "",
-    brand       : product?.vendor    ?? "",
-    category    : product?.category  ?? "",
+    title       : product?.name      ?? product?.title ?? "",
+    brand       : product?.vendor    ?? product?.brand ?? "",
+    category    : getInitialCategory(),
+    subCategory : getInitialSubCategory(),
     description : product?.description ?? "",
     price       : product?.price?.toString() ?? "",
     stock       : product?.stock?.toString() ?? "",
     paidAmount  : product?.paidAmount?.toString() ?? "",
+    deliveryCharge: product?.deliveryCharge?.toString() ?? "",
     status      : product?.status === "approved" ? "Approved" : product?.status === "pending" ? "Pending" : "Out of Stock",
   });
   const [images, setImages] = useState(product?.images || (product?.image ? [product.image] : []));
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [specifications, setSpecifications] = useState(
+    Array.isArray(product?.specifications) && product.specifications.length > 0
+      ? product.specifications.map(s => ({ key: s.key || "", value: s.value || "" }))
+      : [{ key: "", value: "" }]
+  );
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  const handleChange  = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
-  const handleFiles   = async (e) => {
+  useEffect(() => {
+    setCategoriesLoading(true);
+    categoriesAPI.getAll()
+      .then((res) => {
+        const cats = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        setCategoriesData(cats);
+      })
+      .catch((err) => {
+        console.error("Failed to load categories for product form:", err);
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
+  // Find category object matching current form.category
+  const selectedCatObj = categoriesData.find(
+    c => c.name?.toLowerCase() === form.category?.toLowerCase() || c._id === form.category
+  );
+  const availableSubcategories = selectedCatObj?.subCategories || [];
+
+  const handleChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+
+  const handleCategoryChange = (e) => {
+    const newCat = e.target.value;
+    const catObj = categoriesData.find(
+      c => c.name?.toLowerCase() === newCat?.toLowerCase() || c._id === newCat
+    );
+    // If current subcategory doesn't belong to the new category, clear it
+    const hasCurrentSub = catObj?.subCategories?.some(
+      sc => sc.name?.toLowerCase() === form.subCategory?.toLowerCase()
+    );
+    setForm(p => ({
+      ...p,
+      category: newCat,
+      subCategory: hasCurrentSub ? p.subCategory : "",
+    }));
+  };
+
+  const handleSpecChange = (index, field, val) => {
+    setSpecifications(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: val };
+      return updated;
+    });
+  };
+
+  const addSpecification = () => {
+    setSpecifications(prev => [...prev, { key: "", value: "" }]);
+  };
+
+  const removeSpecification = (index) => {
+    setSpecifications(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length > 0 ? updated : [{ key: "", value: "" }];
+    });
+  };
+
+  const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     setUploadingImage(true);
@@ -456,21 +569,39 @@ function ProductFormModal({ product, onClose, onSuccess }) {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit  = async () => {
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+    if (!form.category.trim()) {
+      toast.error("Please select a category");
+      return;
+    }
+
+    const cleanSpecs = specifications
+      .map(s => ({ key: (s.key || "").trim(), value: (s.value || "").trim() }))
+      .filter(s => s.key || s.value);
+
     const payload = {
-      title       : form.title,
-      brand       : form.brand,
-      category    : form.category || "Electronics",
-      price       : Number(form.price) || 0,
-      stock       : Number(form.stock) || 0,
-      description : form.description,
-      paidAmount  : Number(form.paidAmount) || 0,
-      isActive    : form.status !== "Out of Stock",
-      images      : images.length > 0 ? images : ["https://placehold.co/300x300?text=No+Image"],
+      title         : form.title,
+      brand         : form.brand,
+      category      : selectedCatObj?._id || form.category,
+      subCategory   : form.subCategory || "",
+      price         : Number(form.price) || 0,
+      stock         : Number(form.stock) || 0,
+      description   : form.description,
+      paidAmount    : Number(form.paidAmount) || 0,
+      deliveryCharge: Number(form.deliveryCharge) || 0,
+      isActive      : form.status !== "Out of Stock",
+      images        : images.length > 0 ? images : ["https://placehold.co/300x300?text=No+Image"],
+      specifications: cleanSpecs,
     };
+
     try {
+      const targetId = product?.id || product?._id;
       if (isEdit) {
-        await updateProduct(product.id, payload);
+        await updateProduct(targetId, payload);
       } else {
         await createProduct(payload);
       }
@@ -496,23 +627,150 @@ function ProductFormModal({ product, onClose, onSuccess }) {
             <div><label style={lS}>Product Name <span style={{ color:"#ef4444" }}>*</span></label><input name="title" value={form.title} onChange={handleChange} placeholder="Enter product name" className="add-modal-input" style={iS}/></div>
             <div><label style={lS}>Brand / Vendor <span style={{ color:"#ef4444" }}>*</span></label><input name="brand" value={form.brand} onChange={handleChange} placeholder="Brand name" className="add-modal-input" style={iS}/></div>
           </div>
+
+          {/* Category and Subcategory Selection */}
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
             <div>
-              <label style={lS}>Category <span style={{ color:"#ef4444" }}>*</span></label>
-              <select name="category" value={form.category} onChange={handleChange} className="add-modal-select" style={{ ...iS,appearance:"none",cursor:"pointer" }}>
-                <option value="">Select category</option>
-                <option>Electronics</option><option>Fashion</option>
-                <option>Home &amp; Garden</option><option>Sports</option><option>Beauty</option>
+              <label style={lS}>
+                Parent Category <span style={{ color:"#ef4444" }}>*</span>
+              </label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleCategoryChange}
+                className="add-modal-select"
+                style={{ ...iS, appearance:"none", cursor:"pointer" }}
+              >
+                <option value="">{categoriesLoading ? "Loading categories..." : "-- Select Category --"}</option>
+                {categoriesData.map(cat => (
+                  <option key={cat._id || cat.name} value={cat.name}>
+                    {cat.icon ? `${cat.icon} ` : ""}{cat.name} {cat.subCategories?.length ? `(${cat.subCategories.length} subcategories)` : ""}
+                  </option>
+                ))}
               </select>
             </div>
-            <div><label style={lS}>Status</label><select name="status" value={form.status} onChange={handleChange} className="add-modal-select" style={{ ...iS,appearance:"none",cursor:"pointer" }}><option>Pending</option><option>Approved</option><option>Out of Stock</option></select></div>
+
+            <div>
+              <label style={lS}>
+                Subcategory {availableSubcategories.length > 0 ? (
+                  <span style={{ color:"#f97316", fontSize:11, fontWeight:600 }}>({availableSubcategories.length} available)</span>
+                ) : null}
+              </label>
+              <select
+                name="subCategory"
+                value={form.subCategory}
+                onChange={handleChange}
+                disabled={!form.category || availableSubcategories.length === 0}
+                className="add-modal-select"
+                style={{
+                  ...iS,
+                  appearance:"none",
+                  cursor: (!form.category || availableSubcategories.length === 0) ? "not-allowed" : "pointer",
+                  background: (!form.category || availableSubcategories.length === 0) ? "#f9fafb" : "#fff",
+                  color: (!form.category || availableSubcategories.length === 0) ? "#9ca3af" : "#374151",
+                }}
+              >
+                {!form.category ? (
+                  <option value="">Select parent category first</option>
+                ) : availableSubcategories.length === 0 ? (
+                  <option value="">No subcategories defined for {form.category}</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Subcategory --</option>
+                    {availableSubcategories.map(sc => (
+                      <option key={sc._id || sc.name} value={sc.name}>
+                        {sc.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
           </div>
+
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
-            <div><label style={lS}>Price ($) <span style={{ color:"#ef4444" }}>*</span></label><input name="price" value={form.price} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+            <div><label style={lS}>Price (₹) <span style={{ color:"#ef4444" }}>*</span></label><input name="price" value={form.price} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
             <div><label style={lS}>Stock Quantity</label><input name="stock" value={form.stock} onChange={handleChange} type="number" placeholder="0" className="add-modal-input" style={iS}/></div>
           </div>
-          <div style={{ marginBottom:16 }}><label style={lS}>Paid Amount ($)</label><input name="paidAmount" value={form.paidAmount} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+
+          <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
+            <div><label style={lS}>Status</label><select name="status" value={form.status} onChange={handleChange} className="add-modal-select" style={{ ...iS,appearance:"none",cursor:"pointer" }}><option>Pending</option><option>Approved</option><option>Out of Stock</option></select></div>
+            <div><label style={lS}>Paid Amount (₹)</label><input name="paidAmount" value={form.paidAmount} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+          </div>
+
+          <div style={{ marginBottom:16 }}><label style={lS}>Cash on Delivery Charge (₹)</label><input name="deliveryCharge" value={form.deliveryCharge} onChange={handleChange} type="number" min="0" step="0.01" placeholder="0.00" className="add-modal-input" style={iS}/><p style={{ margin:"5px 0 0",fontSize:11,color:"#6b7280" }}>Applied per unit only when the customer selects Cash on Delivery.</p></div>
           <div style={{ marginBottom:16 }}><label style={lS}>Description</label><textarea name="description" value={form.description} onChange={handleChange} rows={3} className="add-modal-textarea" style={{ ...iS,resize:"none" }}/></div>
+
+          {/* Product Specifications */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+              <label style={{ ...lS,fontWeight:600,margin:0 }}>Product Specifications</label>
+              <button
+                type="button"
+                onClick={addSpecification}
+                style={{
+                  display:"flex",
+                  alignItems:"center",
+                  gap:4,
+                  fontSize:12,
+                  fontWeight:600,
+                  color:"#f97316",
+                  background:"#fff7ed",
+                  border:"1px solid #fed7aa",
+                  borderRadius:6,
+                  padding:"4px 10px",
+                  cursor:"pointer",
+                  fontFamily:"inherit",
+                }}
+              >
+                <Plus size={13}/> Add Specification
+              </button>
+            </div>
+            <p style={{ margin:"0 0 10px",fontSize:11,color:"#6b7280" }}>
+              Add technical specs or features displayed on the product page (e.g. "Color": "Black", "Material": "Leather").
+            </p>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {specifications.map((spec, idx) => (
+                <div key={idx} style={{ display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8,alignItems:"center" }}>
+                  <input
+                    type="text"
+                    placeholder="Name / Key (e.g. Storage)"
+                    value={spec.key}
+                    onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
+                    className="add-modal-input"
+                    style={iS}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g. 256GB SSD)"
+                    value={spec.value}
+                    onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                    className="add-modal-input"
+                    style={iS}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSpecification(idx)}
+                    title="Remove specification"
+                    style={{
+                      padding:8,
+                      borderRadius:6,
+                      border:"1px solid #fecaca",
+                      background:"#fef2f2",
+                      color:"#ef4444",
+                      cursor:"pointer",
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center",
+                    }}
+                  >
+                    <Trash2 size={14}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p style={{ ...lS,fontWeight:600,marginBottom:8 }}>Product Images</p>
             <label style={{ display:"flex",alignItems:"center",gap:12,cursor:uploadingImage?"not-allowed":"pointer",marginBottom:12 }}>
@@ -576,14 +834,17 @@ function DeleteModal({ product, onClose, onConfirm, loading }) {
 // ─────────────────────────────────────────────────
 export default function Products() {
   // ── State ──
-  const [search, setSearch]             = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [statusFilter, setStatusFilter] = useState("All Status");
-  const [selectedProduct, setSelectedProduct] = useState(null); // { id, raw }
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingProduct, setEditingProduct]   = useState(null);
-  const [deletingProduct, setDeletingProduct] = useState(null);
-  const [openMenuId, setOpenMenuId]           = useState(null);
+  const [search, setSearch]                         = useState("");
+  const [categoriesData, setCategoriesData]         = useState([]);
+  const [categoryFilter, setCategoryFilter]         = useState("All Categories");
+  const [subcategoryFilter, setSubcategoryFilter]   = useState("All Subcategories");
+  const [statusFilter, setStatusFilter]             = useState("All Status");
+  const [selectedProduct, setSelectedProduct]       = useState(null); // { id, raw }
+  const [showAddModal, setShowAddModal]             = useState(false);
+  const [editingProduct, setEditingProduct]         = useState(null);
+  const [deletingProduct, setDeletingProduct]       = useState(null);
+  const [openMenuId, setOpenMenuId]                 = useState(null);
+  const [exporting, setExporting]                   = useState(false);
   const menuRef = useRef(null);
 
   // ── API hooks ──
@@ -593,6 +854,38 @@ export default function Products() {
   // Normalise backend → UI shape
   const products = raw.map(normalise);
 
+  // Load live categories
+  useEffect(() => {
+    categoriesAPI.getAll()
+      .then((res) => {
+        const cats = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        setCategoriesData(cats);
+      })
+      .catch(() => {});
+  }, []);
+
+  // ── Category & Subcategory Filter Options ──
+  const categoryOptions = [
+    "All Categories",
+    ...Array.from(new Set(categoriesData.map(c => c.name).concat(products.map(p => p.category)).filter(c => c && c !== "—")))
+  ];
+
+  const selectedCatForFilter = categoriesData.find(c => c.name?.toLowerCase() === categoryFilter?.toLowerCase());
+  const subsFromCat = selectedCatForFilter?.subCategories?.map(sc => sc.name) || [];
+  const subsFromProds = products
+    .filter(p => categoryFilter === "All Categories" || p.category === categoryFilter)
+    .map(p => p.subCategory)
+    .filter(Boolean);
+  const subcategoryOptions = [
+    "All Subcategories",
+    ...Array.from(new Set([...subsFromCat, ...subsFromProds]))
+  ];
+
+  const handleCategoryFilterChange = (val) => {
+    setCategoryFilter(val);
+    setSubcategoryFilter("All Subcategories");
+  };
+
   // ── Derived filter values applied CLIENT-SIDE for instant UX ──
   const statusMap = { "All Status":null,"Approved":"approved","Pending":"pending","Out of Stock":"out-of-stock" };
   const filtered = products.filter(p => {
@@ -600,6 +893,7 @@ export default function Products() {
     return (
       p.name.toLowerCase().includes(search.toLowerCase()) &&
       (categoryFilter === "All Categories" || p.category === categoryFilter) &&
+      (subcategoryFilter === "All Subcategories" || (p.subCategory && p.subCategory.toLowerCase() === subcategoryFilter.toLowerCase())) &&
       (ms === null || p.status === ms)
     );
   });
@@ -638,18 +932,100 @@ export default function Products() {
     display:"flex",width:"100%",alignItems:"center",gap:9,padding:"9px 14px",fontSize:12,color,background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit",
   });
 
-  const categoryOptions = ["All Categories","Electronics","Fashion","Home & Garden","Sports","Beauty"];
   const statusOptions   = ["All Status","Approved","Pending","Out of Stock"];
+
+  const exportProducts = async () => {
+    setExporting(true);
+    try {
+      const data = await productsAPI.getAll({
+        includeInactive: "true",
+        search,
+        page: 1,
+        limit: 10000,
+      });
+      const exportRows = (data.products ?? [])
+        .map(normalise)
+        .filter((product) => {
+          const status = statusMap[statusFilter];
+          return (
+            (categoryFilter === "All Categories" || product.category === categoryFilter) &&
+            (subcategoryFilter === "All Subcategories" || (product.subCategory && product.subCategory.toLowerCase() === subcategoryFilter.toLowerCase())) &&
+            (status === null || product.status === status)
+          );
+        });
+      const columns = ["Product ID", "Name", "SKU", "Category", "Subcategory", "Vendor", "Price", "Stock", "Status", "Active", "Created At"];
+      const rows = exportRows.map((product) => [
+        product.id,
+        product.name,
+        product.sku,
+        product.category,
+        product.subCategory || "",
+        product.vendor,
+        product.price,
+        product.stock,
+        product.status,
+        product.isActive ? "Yes" : "No",
+        product.createdAt ? new Date(product.createdAt).toLocaleString() : "",
+      ]);
+      const csv = [columns, ...rows].map((row) => row.map(escapeCSV).join(",")).join("\r\n");
+      const blobUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+      toast.success(`Exported ${exportRows.length} product${exportRows.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast.error(err.message || "Unable to export products");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── If viewing a product detail ──
   if (selectedProduct) {
     return (
       <>
         <style>{globalCSS}</style>
+        {editingProduct && (
+          <ProductFormModal
+            product={editingProduct}
+            onClose={() => setEditingProduct(null)}
+            onSuccess={(updated) => {
+              setEditingProduct(null);
+              toast.success("Product updated successfully");
+              if (updated) {
+                setSelectedProduct(prev => prev ? { ...prev, raw: updated } : null);
+              }
+              refetch();
+            }}
+          />
+        )}
+        {deletingProduct && (
+          <DeleteModal
+            product={deletingProduct}
+            loading={deleteLoading}
+            onClose={() => setDeletingProduct(null)}
+            onConfirm={async () => {
+              await deleteProduct(deletingProduct.id || deletingProduct._id);
+              setSelectedProduct(null);
+            }}
+          />
+        )}
         <ProductDetailsPage
           productId={selectedProduct.id}
           rawProduct={selectedProduct.raw}
           onBack={() => setSelectedProduct(null)}
+          onEdit={(p) => {
+            const prod = p || (selectedProduct.raw ? normalise(selectedProduct.raw) : selectedProduct);
+            setEditingProduct(prod);
+          }}
+          onDelete={(p) => {
+            const prod = p || (selectedProduct.raw ? normalise(selectedProduct.raw) : selectedProduct);
+            setDeletingProduct(prod);
+          }}
         />
       </>
     );
@@ -671,7 +1047,11 @@ export default function Products() {
           <ProductFormModal
             product={editingProduct}
             onClose={() => setEditingProduct(null)}
-            onSuccess={() => { setEditingProduct(null); refetch(); }}
+            onSuccess={() => {
+              setEditingProduct(null);
+              toast.success("Product updated successfully");
+              refetch();
+            }}
           />
         )}
         {deletingProduct && (
@@ -690,7 +1070,10 @@ export default function Products() {
             <p style={{ margin:"4px 0 0",fontSize:13,color:"#9ca3af" }}>Manage product listings and inventory</p>
           </div>
           <div style={{ display:"flex",gap:10 }}>
-            <button className="export-btn"><Download size={15}/> Export</button>
+            <button className="export-btn" onClick={exportProducts} disabled={exporting}>
+              {exporting ? <Spinner size={15} /> : <Download size={15} />}
+              {exporting ? "Exporting..." : "Export"}
+            </button>
             <button onClick={() => setShowAddModal(true)} style={{ display:"flex",alignItems:"center",gap:7,padding:"9px 20px",border:"none",borderRadius:9,background:"#f97316",fontSize:13,fontWeight:600,color:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Plus size={15}/> Add Product</button>
           </div>
         </div>
@@ -734,7 +1117,10 @@ export default function Products() {
                   <Search size={15} style={{ position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#9ca3af",pointerEvents:"none" }}/>
                   <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="search-input" style={{ paddingLeft:32,paddingRight:14,paddingTop:8,paddingBottom:8,border:"1px solid #d1d5db",borderRadius:8,fontSize:13,width:210,fontFamily:"inherit",background:"#fff",color:"#374151" }}/>
                 </div>
-                <CustomDropdown value={categoryFilter} onChange={setCategoryFilter} options={categoryOptions} minWidth={160}/>
+                <CustomDropdown value={categoryFilter} onChange={handleCategoryFilterChange} options={categoryOptions} minWidth={160}/>
+                {subcategoryOptions.length > 1 && (
+                  <CustomDropdown value={subcategoryFilter} onChange={setSubcategoryFilter} options={subcategoryOptions} minWidth={160}/>
+                )}
                 <CustomDropdown value={statusFilter}   onChange={setStatusFilter}   options={statusOptions}   minWidth={140}/>
               </div>
             </div>
@@ -744,11 +1130,11 @@ export default function Products() {
           <div className="table-scroll" style={{ overflowX:"auto" }}>
             <table className="prod-table" style={{ width:"100%",borderCollapse:"collapse",tableLayout:"fixed" }}>
               <colgroup>
-                <col style={{ width:"28%" }}/><col style={{ width:"14%" }}/><col style={{ width:"12%" }}/><col style={{ width:"13%" }}/><col style={{ width:"9%" }}/><col style={{ width:"7%" }}/><col style={{ width:"11%" }}/><col style={{ width:"6%" }}/>
+                <col style={{ width:"28%" }}/><col style={{ width:"14%" }}/><col style={{ width:"14%" }}/><col style={{ width:"12%" }}/><col style={{ width:"8%" }}/><col style={{ width:"7%" }}/><col style={{ width:"11%" }}/><col style={{ width:"6%" }}/>
               </colgroup>
               <thead>
                 <tr style={{ borderBottom:"1px solid #e5e7eb" }}>
-                  {["Product","SKU","Category","Vendor","Price","Stock","Status","Actions"].map(h => (
+                  {["Product","SKU","Category / Subcategory","Vendor","Price","Stock","Status","Actions"].map(h => (
                     <th key={h} style={{ padding:"12px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.05em" }}>{h}</th>
                   ))}
                 </tr>
@@ -770,9 +1156,33 @@ export default function Products() {
                         </div>
                       </td>
                       <td style={{ padding:"14px 12px" }}><span style={{ background:"#f1f5f9",borderRadius:6,padding:"2px 8px",fontFamily:"monospace",fontSize:11,color:"#64748b" }}>{product.sku}</span></td>
-                      <td style={{ padding:"14px 12px",fontSize:13,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{product.category}</td>
+                      <td style={{ padding:"14px 12px",fontSize:13,color:"#6b7280" }}>
+                        <div style={{ fontWeight:600,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                          {product.category}
+                        </div>
+                        {product.subCategory ? (
+                          <div style={{ marginTop:3 }}>
+                            <span style={{
+                              display:"inline-block",
+                              background:"#fff7ed",
+                              border:"1px solid #fed7aa",
+                              color:"#c2410c",
+                              fontSize:11,
+                              fontWeight:600,
+                              padding:"1px 8px",
+                              borderRadius:9999,
+                              maxWidth:140,
+                              overflow:"hidden",
+                              textOverflow:"ellipsis",
+                              whiteSpace:"nowrap",
+                            }}>
+                              {product.subCategory}
+                            </span>
+                          </div>
+                        ) : null}
+                      </td>
                       <td style={{ padding:"14px 12px",fontSize:13,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{product.vendor}</td>
-                      <td style={{ padding:"14px 12px",fontSize:14,fontWeight:400,color:"#374151",whiteSpace:"nowrap" }}>${product.price.toLocaleString("en-US",{ minimumFractionDigits:2 })}</td>
+                      <td style={{ padding:"14px 12px",fontSize:14,fontWeight:400,color:"#374151",whiteSpace:"nowrap" }}>₹{product.price.toLocaleString("en-US",{ minimumFractionDigits:2 })}</td>
                       <td style={{ padding:"14px 12px" }}><span style={{ fontSize:14,...sc }}>{product.stock}</span></td>
                       <td style={{ padding:"14px 12px" }}><span style={{ ...ps,borderRadius:9999,padding:"3px 12px",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center" }}>{product.status}</span></td>
                       <td style={{ padding:"14px 12px" }}>

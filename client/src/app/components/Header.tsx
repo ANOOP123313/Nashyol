@@ -42,12 +42,12 @@ export function Header() {
   const isDark = theme === "dark";
   const { wishlistCount } = useWishlist();
   const { items, updateQuantity, removeItem, openDrawer, isDrawerOpen } = useCart();
-  
+
   // Dynamic promotional messages
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
-  
+
   const promoMessages = [
-    "✨ Free shipping on orders over $50",
+    "✨ Free shipping on orders over ₹500",
     "🎉 20% OFF on your first order - Use code: WELCOME20",
     "🔥 Flash Sale! Up to 50% OFF on selected items",
     "💎 New Arrivals - Shop the latest trends now",
@@ -62,7 +62,7 @@ export function Header() {
 
     return () => clearInterval(interval);
   }, []);
-  
+
   const cartItemsCount = items.length;
 
   // const categories = [
@@ -87,25 +87,25 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b glass-navbar shadow-lg">
       {/* Top Bar */}
       <div className="bg-gradient-to-r from-[var(--primary-color)] via-orange-500 to-orange-600 text-white overflow-hidden">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="flex items-center justify-between h-10 text-sm font-medium">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-10 text-sm font-medium">
 
-      <div className="hidden md:block flex-1 overflow-hidden">
-        <p
-          key={currentPromoIndex}
-          className="animate-[slideIn_0.5s_ease-in-out]"
-        >
-          {promoMessages[currentPromoIndex]}
-        </p>
+            <div className="hidden md:block flex-1 overflow-hidden">
+              <p
+                key={currentPromoIndex}
+                className="animate-[slideIn_0.5s_ease-in-out]"
+              >
+                {promoMessages[currentPromoIndex]}
+              </p>
+            </div>
+
+            <p className="md:ml-auto text-white/90">
+              24/7 Customer Support 🎧
+            </p>
+
+          </div>
+        </div>
       </div>
-
-      <p className="md:ml-auto text-white/90">
-        24/7 Customer Support 🎧
-      </p>
-
-    </div>
-  </div>
-</div>
 
       {/* Main Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -114,7 +114,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
             <img
               src={logoImage}
-              alt="N4ASHYOL"
+              alt="NAASHYOL"
               className="h-8 sm:h-10 md:h-12 w-auto object-contain dark:brightness-0 dark:invert"
             />
           </Link>
@@ -253,7 +253,7 @@ export function Header() {
               <SheetContent side="right" className="w-80">
                 <SheetHeader className="sr-only">
                   <SheetTitle>Mobile Menu</SheetTitle>
-                  <SheetDescription>Navigate through N4ASHYOL marketplace</SheetDescription>
+                  <SheetDescription>Navigate through NAASHYOL marketplace</SheetDescription>
                 </SheetHeader>
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between mb-6">
@@ -264,7 +264,7 @@ export function Header() {
                     >
                       <img
                         src={logoImage}
-                        alt="N4ASHYOL"
+                        alt="NAASHYOL"
                         className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
                       />
                     </Link>
@@ -338,9 +338,9 @@ export function Header() {
                           {category}
                         </Link>
                       ))} */}
-                      
+
                       <div className="h-px bg-border dark:bg-card text-card-foreground my-3" />
-                      
+
                       <Link
                         href="/wishlist"
                         className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted dark:hover:bg-card text-card-foreground font-medium text-foreground transition-colors active:scale-95 touch-manipulation"
@@ -358,7 +358,7 @@ export function Header() {
                           </Badge>
                         )}
                       </Link>
-                      
+
                       <Link
                         href="/orders"
                         className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted dark:hover:bg-card text-card-foreground font-medium text-foreground transition-colors active:scale-95 touch-manipulation"
@@ -371,7 +371,7 @@ export function Header() {
                         <Package className="size-5" />
                         My Orders
                       </Link>
-                      
+
                       <Link
                         href="/rewards"
                         className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted dark:hover:bg-card text-card-foreground font-medium text-foreground transition-colors active:scale-95 touch-manipulation"
@@ -384,9 +384,9 @@ export function Header() {
                         <Gift className="size-5" />
                         Rewards & Coupons
                       </Link>
-                      
+
                       <div className="h-px bg-border dark:bg-card text-card-foreground my-3" />
-                      
+
                       <div className="px-4 py-2 text-sm font-semibold text-muted-foreground">
                         Theme
                       </div>
@@ -400,7 +400,7 @@ export function Header() {
             </Sheet>
           </div>
         </div>
-        
+
         {/* Mobile Search Bar - Below logo on mobile only */}
         <div className="md:hidden pb-4">
           <div className="relative">
@@ -432,7 +432,7 @@ export function Header() {
             >
               All Products
             </Link>
-            
+
             {/* {categories.map((category) => (
               <Link key={category}
                 href={`/products?category=${category}`}
@@ -449,41 +449,41 @@ export function Header() {
               Electronics
             </Link>
 
-             <Link
+            <Link
               href="/fashion"
               className="text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap transition-colors py-4"
             >
               Fashion
             </Link>
-            
-             <Link
+
+            <Link
               href="/home-garden"
               className="text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap transition-colors py-4"
             >
               Home & Garden
             </Link>
-            
-             <Link
+
+            <Link
               href="/sports"
               className="text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap transition-colors py-4"
             >
               Sports
             </Link>
-            
-             <Link
+
+            <Link
               href="/beauty"
               className="text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap transition-colors py-4"
             >
               Beauty
             </Link>
-             <Link
+            <Link
               href="/books"
               className="text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap transition-colors py-4"
             >
               Books
             </Link>
-            
-            
+
+
 
           </nav>
         </div>

@@ -8,46 +8,121 @@ import { Button } from "../components/ui/button";
 import { ArrowLeft, ArrowRight, Package, PartyPopper } from "lucide-react";
 import confetti from "canvas-confetti";
 
+import { useAuth } from "../contexts/AuthContext";
+import { ordersApi } from "../../services/api";
+
+function formatOrder(raw: any, currentUser?: any) {
+  if (!raw) return null;
+
+  const rawId = raw._id || raw.id || raw.orderNumber || "";
+  const orderNumber = raw.orderNumber || (rawId ? `ORD-${rawId.slice(-8).toUpperCase()}` : `ORD-${Date.now().toString(36).toUpperCase()}`);
+
+  const addr = raw.shippingAddress || raw.address || {};
+  const name = addr.fullName || addr.name || currentUser?.name || "Valued Customer";
+  const street = addr.street || addr.address || "";
+  const city = addr.city || "";
+  const state = addr.state || "";
+  const zip = addr.pincode || addr.zip || "";
+
+  const rawItems = raw.items || raw.orderItems || [];
+  const items = rawItems.map((it: any) => ({
+    id: it.productId || it.id || it.sku || Math.random().toString(),
+    name: it.title || it.name || "Product Item",
+    price: Number(it.price) || 0,
+    quantity: Number(it.quantity || it.qty) || 1,
+    image: it.image || it.img || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800",
+    variant: it.variant,
+  }));
+
+  const paymentMethod = raw.paymentMethod || (raw.paymentStatus === "pending" ? "Cash on Delivery" : "Credit Card / Online Payment");
+  const productAmount = Number(raw.productAmount) || items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const codCharge = paymentMethod.toLowerCase().includes("cod") || paymentMethod.toLowerCase().includes("cash")
+    ? Number(raw.codCharge ?? raw.deliveryCharge) || items.reduce((sum: number, item: any) => sum + (Number(item.deliveryCharge) || 0), 0)
+    : 0;
+  const shippingCharge = Number(raw.shippingCharge) || 0;
+  const amount = Number(raw.amount) || productAmount + shippingCharge + codCharge;
+
+  const createdDate = raw.createdAt ? new Date(raw.createdAt) : new Date();
+  const deliveryDate = new Date(createdDate);
+  deliveryDate.setDate(deliveryDate.getDate() + 4);
+  const estimatedDelivery = deliveryDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return {
+    orderNumber,
+    amount,
+    productAmount,
+    codCharge,
+    shippingCharge,
+    paymentMethod,
+    estimatedDelivery,
+    shippingAddress: {
+      name,
+      address: street,
+      city,
+      state,
+      zip,
+    },
+    itemCount: items.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0),
+    items,
+  };
+}
+
 export function OrderSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  // Get order data from URL params or localStorage
-  const [orderData, setOrderData] = useState({
-    orderNumber: "ORD-2026-KH7PIF8",
-    amount: 680.37,
-    paymentMethod: "cod",
-    estimatedDelivery: "Feb 25, 2026",
-    shippingAddress: {
-      name: "Rahul Bose",
-      address: "National highway",
-      city: "Thiruvananthapuram",
-      state: "Kerala",
-      zip: "695004",
-    },
-    itemCount: 0,
-    items: [] as any[],
-  });
+  const [orderData, setOrderData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const lastOrder = localStorage.getItem("lastOrder");
-    if (lastOrder) {
+    async function loadOrder() {
+      setLoading(true);
+      const lastOrderStr = localStorage.getItem("lastOrder");
+      
+      let parsedRaw: any = null;
+      if (lastOrderStr) {
+        try {
+          parsedRaw = JSON.parse(lastOrderStr);
+        } catch (e) {
+          console.error("Failed to parse lastOrder", e);
+        }
+      }
+
+      if (parsedRaw && (parsedRaw.items?.length || parsedRaw.orderItems?.length)) {
+        setOrderData(formatOrder(parsedRaw, user));
+        setLoading(false);
+        return;
+      }
+
+      // Fallback to latest API order
       try {
-        const parsed = JSON.parse(lastOrder);
-        setOrderData({
-          orderNumber: parsed.orderNumber || parsed.id || "ORD-2026-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
-          amount: parsed.amount || parsed.total || 0,
-          paymentMethod: parsed.paymentMethod || "Credit Card",
-          estimatedDelivery: parsed.estimatedDelivery || "Feb 28, 2026",
-          shippingAddress: parsed.shippingAddress || orderData.shippingAddress,
-          itemCount: parsed.items?.length || parsed.itemCount || 0,
-          items: parsed.items || [],
-        });
+        const myOrders: any = await ordersApi.myOrders();
+        const ordersList = Array.isArray(myOrders) ? myOrders : myOrders?.orders || [];
+        if (ordersList.length > 0) {
+          setOrderData(formatOrder(ordersList[0], user));
+        } else if (parsedRaw) {
+          setOrderData(formatOrder(parsedRaw, user));
+        } else {
+          setOrderData(null);
+        }
       } catch (err) {
-        console.error("Failed to parse lastOrder", err);
+        console.error("Failed to fetch recent order", err);
+        if (parsedRaw) {
+          setOrderData(formatOrder(parsedRaw, user));
+        }
+      } finally {
+        setLoading(false);
       }
     }
-  }, []);
+
+    loadOrder();
+  }, [user]);
+
 
   const handleClose = () => {
     router.push("/");
@@ -130,7 +205,20 @@ export function OrderSuccessPage() {
 
       {/* Order Success Card */}
       <div className="container mx-auto">
-        <OrderSuccessCard orderData={orderData} onClose={handleClose} />
+        {loading ? (
+          <div className="p-12 text-center text-muted-foreground animate-pulse">Loading order confirmation...</div>
+        ) : orderData ? (
+          <OrderSuccessCard orderData={orderData} onClose={handleClose} />
+        ) : (
+          <div className="max-w-xl mx-auto my-8 p-12 bg-card rounded-3xl shadow-xl text-center border border-border">
+            <Package className="size-16 mx-auto text-[var(--primary-color)] mb-4" />
+            <h2 className="text-2xl font-bold text-foreground mb-2">No Recent Order Found</h2>
+            <p className="text-muted-foreground mb-6">Browse our store and place an order to see order details here.</p>
+            <Button onClick={() => router.push("/products")} className="bg-[var(--primary-color)] text-white hover:bg-orange-600">
+              Explore Products
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Additional Info */}

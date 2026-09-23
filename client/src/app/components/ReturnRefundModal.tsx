@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { returnsApi } from "../../services/api";
 
 interface ReturnRefundModalProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ export function ReturnRefundModal({
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedItems.length === 0) {
       toast.error("Please select at least one item");
       return;
@@ -101,9 +102,21 @@ export function ReturnRefundModal({
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const itemsPayload = selectedItems.map((itemId) => {
+        const itemObj = orderData.items.find((i) => i.id === itemId);
+        return {
+          productId: itemId,
+          quantity: itemObj ? itemObj.quantity : 1,
+          reason: `${reason}${additionalInfo ? `: ${additionalInfo}` : ""}`,
+        };
+      });
+
+      await returnsApi.create({
+        orderId: (orderData as any)._id || orderData.orderNumber,
+        items: itemsPayload,
+      });
+
       toast.success(
         `${requestType === "return" ? "Return" : "Refund"} request submitted successfully!`,
         {
@@ -117,7 +130,11 @@ export function ReturnRefundModal({
       setReason("");
       setAdditionalInfo("");
       setUploadedImages([]);
-    }, 1500);
+    } catch (err: any) {
+      toast.error("Failed to submit request: " + (err.message || "Error"));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const calculateRefundAmount = () => {
@@ -401,7 +418,7 @@ export function ReturnRefundModal({
                   <li>Items must be in original condition</li>
                   <li>Free return shipping for defective items</li>
                   <li>
-                    For other returns, shipping costs may apply ($4.99)
+                    For other returns, shipping costs may apply (₹49)
                   </li>
                 </ul>
               </div>

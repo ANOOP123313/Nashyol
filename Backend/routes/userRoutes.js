@@ -5,6 +5,7 @@ import {
   toggleBlockUser,
   updateUserRole,
   deleteUser,
+  createUser,
 } from "../controllers/userController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
@@ -14,6 +15,7 @@ router.use(protect);
 router.use(authorize("admin", "superadmin"));
 
 router.get("/", getUsers);
+router.post("/", createUser);
 router.get("/:id", getUserById);
 router.put("/:id/block", toggleBlockUser);
 router.put("/:id/role", updateUserRole);

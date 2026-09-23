@@ -6,8 +6,10 @@ import { authApi } from "@/services/api";
 type User = { 
   _id: string; 
   name: string; 
-  email: string; 
+  email?: string; 
+  phone?: string;
   role: string;
+  isPhoneVerified?: boolean;
   referralCode?: string;
   walletBalance?: number;
 } | null;
@@ -17,7 +19,17 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithPhone: (phone: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  registerWithPhoneOtp: (data: {
+    phone: string;
+    otp: string;
+    name: string;
+    email: string;
+    password: string;
+    referralCode?: string;
+  }) => Promise<void>;
+  updateUser: (name: string, email: string) => Promise<void>;
   logout: () => void;
   setToken: (t: string | null) => void;
 }
@@ -73,6 +85,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
   }, []);
 
+  const loginWithPhone = useCallback(async (phone: string, password: string) => {
+    const data = await authApi.phoneLogin({ phone, password });
+    const userObj = data.user || data;
+    if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, data.token);
+    setTokenState(data.token);
+    setUser({
+      _id: userObj._id,
+      name: userObj.name,
+      phone: userObj.phone,
+      email: userObj.email,
+      role: userObj.role,
+      isPhoneVerified: userObj.isPhoneVerified,
+      referralCode: userObj.referralCode,
+      walletBalance: userObj.walletBalance,
+    });
+  }, []);
+
   const register = useCallback(async (name: string, email: string, password: string) => {
     const data = await authApi.register({ name, email, password });
     if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, data.token);
@@ -80,12 +109,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
   }, []);
 
+  const registerWithPhoneOtp = useCallback(
+    async (payload: {
+      phone: string;
+      otp: string;
+      name: string;
+      email: string;
+      password: string;
+      referralCode?: string;
+    }) => {
+      const data = await authApi.verifyRegistrationOTP(payload);
+      const userObj = data.user || data;
+      if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, data.token);
+      setTokenState(data.token);
+      setUser({
+        _id: userObj._id,
+        name: userObj.name,
+        phone: userObj.phone,
+        email: userObj.email,
+        role: userObj.role,
+        isPhoneVerified: userObj.isPhoneVerified,
+        referralCode: userObj.referralCode,
+        walletBalance: userObj.walletBalance,
+      });
+    },
+    []
+  );
+
+  const updateUser = useCallback(async (name: string, email: string) => {
+    const updated = await authApi.updateMe({ name, email });
+    setUser(updated);
+  }, []);
+
   const logout = useCallback(() => {
     setToken(null);
   }, [setToken]);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, setToken }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        loginWithPhone,
+        register,
+        registerWithPhoneOtp,
+        updateUser,
+        logout,
+        setToken,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -96,4 +170,3 @@ export function useAuth() {
   if (ctx === undefined) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

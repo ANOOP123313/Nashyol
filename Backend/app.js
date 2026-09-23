@@ -6,6 +6,7 @@ import compression from "compression";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import authRoutes from "./routes/authRoutes.js";
+import whatsappAuthRoutes from "./routes/whatsappAuthRoutes.js";
 import bannerRoutes from "./routes/bannerRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
@@ -21,10 +22,15 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 import supportTicketRoutes from "./routes/supportTicketRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import Vendor from "./routes/vendorRoutes.js";
+import returnRoutes from "./routes/returnRoutes.js";
+import settingRoutes from "./routes/settingRoutes.js";
+import cmsRoutes from "./routes/cmsRoutes.js";
+import homePageRoutes from "./routes/homePageRoutes.js";
 
 const app = express();
 
@@ -71,6 +77,7 @@ app.get("/", (req, res) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+app.use("/api/auth", whatsappAuthRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/banners", bannerRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -88,8 +95,14 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/support-tickets", supportTicketRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/returns", returnRoutes);
+app.use("/api/settings", settingRoutes);
+app.use("/api/cms", cmsRoutes);
+app.use("/api/cms", homePageRoutes);
+app.use("/api/newsletter", homePageRoutes);
 
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {

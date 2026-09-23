@@ -1,6 +1,11 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import dns from "dns";
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (_) {}
+
 import { execSync } from "child_process";
 import mongoose from "mongoose";
 import Category from "./models/Category.js";
@@ -51,22 +56,26 @@ async function startServer() {
     const count = await Category.countDocuments();
     console.log("✅ Categories count on startup:", count);
 
-    const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server running on port ${PORT} [Ready]`);
-    });
+    const listenWithRetry = (retries = 3) => {
+      const server = app.listen(PORT, "0.0.0.0", () => {
+        console.log(`🚀 Server running on port ${PORT} [Ready]`);
+      });
 
-    server.on("error", (err) => {
-      if (err.code === "EADDRINUSE") {
-        console.warn(`⚠️ Port ${PORT} busy. Auto-clearing and restarting server...`);
-        freePort(PORT);
-        setTimeout(() => {
-          try { server.close(); } catch (_) {}
-          app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Server running on port ${PORT} [Ready]`));
-        }, 1000);
-      } else {
-        console.error("Server error:", err);
-      }
-    });
+      server.on("error", (err) => {
+        if (err.code === "EADDRINUSE" && retries > 0) {
+          console.warn(`⚠️ Port ${PORT} busy. Retrying in 1s (${retries} retries left)...`);
+          freePort(PORT);
+          setTimeout(() => {
+            try { server.close(); } catch (_) {}
+            listenWithRetry(retries - 1);
+          }, 1000);
+        } else {
+          console.error("Server error:", err);
+        }
+      });
+    };
+
+    listenWithRetry();
   } catch (err) {
     console.error("❌ DB Connection Failed", err);
   }

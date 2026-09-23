@@ -20,7 +20,7 @@ const returnSchema = new mongoose.Schema(
           required: true,
         },
         quantity: { type: Number, required: true, min: 1 },
-        reason: { type: String },
+        reason: { type: String, default: "" },
         condition: {
           type: String,
           enum: ["new", "used", "damaged"],
@@ -36,6 +36,27 @@ const returnSchema = new mongoose.Schema(
     refundAmount: {
       type: Number,
       default: 0,
+    },
+    refundMethod: {
+      type: String,
+      default: "Original Payment Method",
+    },
+    deliveryStatus: {
+      type: String,
+      enum: ["Pickup Pending", "In Transit", "Delivered to Warehouse", "Delivered", "N/A"],
+      default: "Pickup Pending",
+    },
+    tracking: {
+      type: String,
+      default: "",
+    },
+    adminNotes: {
+      type: String,
+      default: "",
+    },
+    reason: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
@@ -27,117 +27,70 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import { useAuth } from "../contexts/AuthContext";
+import { ordersApi } from "../../services/api";
 
 export function OrdersPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [orderPlacedModalOpen, setOrderPlacedModalOpen] = useState(false);
   const [demoOrderData, setDemoOrderData] = useState<any>(null);
 
-  const orders = [
-    {
-      id: "#12345",
-      orderNumber: "ORD-2026-12345",
-      date: "Feb 15, 2026",
-      dateTime: "2026-02-15",
-      status: "Delivered",
-      deliveryDate: "Feb 18, 2026",
-      total: 629.97,
-      items: [
-        {
-          id: "1",
-          name: "Wireless Headphones Pro Max",
-          quantity: 1,
-          price: 349.99,
-          image:
-            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100",
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/login?redirect=/orders");
+      setOrdersLoading(false);
+      return;
+    }
+
+    setOrdersLoading(true);
+    ordersApi.myOrders()
+      .then((data) => setOrders(data.map((order: any) => ({
+        id: `#${order._id.slice(-8)}`,
+        orderNumber: order._id,
+        date: new Date(order.createdAt).toLocaleDateString(),
+        dateTime: order.createdAt,
+        status: formatStatus(order.orderStatus),
+        deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
+        total: order.totalAmount || 0,
+        productAmount: (order.items || []).reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0),
+        codCharge: order.paymentMethod === "cod" ? Number(order.deliveryCharge) || 0 : 0,
+        items: (order.items || []).map((item: any) => ({
+          id: item.productId,
+          name: item.title?.replace(/ \([^)]*\)$/, "") || "Product",
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image || null,
+        })),
+        shippingAddress: {
+          name: order.address?.fullName || "",
+          address: order.address?.street || "",
+          city: order.address?.city || "",
+          state: order.address?.state || "",
+          zip: order.address?.pincode || "",
         },
-        {
-          id: "2",
-          name: "Smart Watch Series 8",
-          quantity: 1,
-          price: 199.99,
-          image:
-            "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100",
-        },
-        {
-          id: "3",
-          name: "Phone Case Premium",
-          quantity: 2,
-          price: 39.99,
-          image:
-            "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=100",
-        },
-      ],
-      shippingAddress: {
-        name: "John Doe",
-        address: "123 Main Street",
-        city: "San Francisco",
-        state: "CA",
-        zip: "94103",
-      },
-      paymentMethod: "Credit Card (•••• 4242)",
-      trackingNumber: "1Z999AA10123456784",
-    },
-    {
-      id: "#12344",
-      orderNumber: "ORD-2026-12344",
-      date: "Feb 10, 2026",
-      dateTime: "2026-02-10",
-      status: "In Transit",
-      deliveryDate: "Feb 22, 2026 (Est.)",
-      total: 299.99,
-      items: [
-        {
-          id: "4",
-          name: "Bluetooth Speaker",
-          quantity: 1,
-          price: 299.99,
-          image:
-            "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=100",
-        },
-      ],
-      shippingAddress: {
-        name: "John Doe",
-        address: "123 Main Street",
-        city: "San Francisco",
-        state: "CA",
-        zip: "94103",
-      },
-      paymentMethod: "PayPal",
-      trackingNumber: "1Z999AA10123456785",
-    },
-    {
-      id: "#12343",
-      orderNumber: "ORD-2026-12343",
-      date: "Feb 5, 2026",
-      dateTime: "2026-02-05",
-      status: "Processing",
-      deliveryDate: "Feb 25, 2026 (Est.)",
-      total: 449.99,
-      items: [
-        {
-          id: "5",
-          name: "Laptop Stand Pro",
-          quantity: 1,
-          price: 449.99,
-          image:
-            "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=100",
-        },
-      ],
-      shippingAddress: {
-        name: "John Doe",
-        address: "123 Main Street",
-        city: "San Francisco",
-        state: "CA",
-        zip: "94103",
-      },
-      paymentMethod: "Credit Card (•••• 4242)",
-      trackingNumber: null,
-    },
-  ];
+        paymentMethod: order.paymentMethod || "Not specified",
+        trackingNumber: order.trackingNumber || null,
+      }))))
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load your orders"))
+      .finally(() => setOrdersLoading(false));
+  }, [authLoading, user, router]);
+
+  const formatStatus = (status: string) => {
+    if (!status) return "Processing";
+    return status.replace(/(^|_)(\w)/g, (_, separator, character) => `${separator ? " " : ""}${character.toUpperCase()}`);
+  };
+
+  if (authLoading || (!user && ordersLoading)) {
+    return <div className="min-h-screen flex items-center justify-center">Loading orders...</div>;
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -172,10 +125,73 @@ export function OrdersPage() {
     setReturnModalOpen(true);
   };
 
-  const handleDownloadInvoice = (orderNumber: string) => {
-    toast.success("Invoice downloaded!", {
-      description: `Invoice for ${orderNumber}`,
+  const handleDownloadInvoice = (order: any) => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let y = 22;
+
+    pdf.setTextColor(249, 115, 22);
+    pdf.setFontSize(22);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Global Premium", 20, y);
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Customer Invoice", 20, y + 8);
+    pdf.text(`Order: ${order.orderNumber}`, pageWidth - 20, y, { align: "right" });
+    pdf.text(`Date: ${order.date}`, pageWidth - 20, y + 7, { align: "right" });
+    pdf.text(`Status: ${order.status}`, pageWidth - 20, y + 14, { align: "right" });
+
+    y += 30;
+    pdf.setDrawColor(249, 115, 22);
+    pdf.line(20, y, pageWidth - 20, y);
+    y += 15;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Shipping Address", 20, y);
+    pdf.setFont("helvetica", "normal");
+    y += 7;
+    const address = order.shippingAddress;
+    pdf.text(address.name || "", 20, y);
+    pdf.text(address.address || "", 20, y + 6);
+    pdf.text(`${address.city || ""}, ${address.state || ""} ${address.zip || ""}`, 20, y + 12);
+    pdf.text(`Payment: ${order.paymentMethod || "Not specified"}`, pageWidth - 20, y, { align: "right" });
+
+    y += 28;
+    pdf.setFillColor(255, 247, 237);
+    pdf.rect(20, y - 6, pageWidth - 40, 10, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Product", 24, y);
+    pdf.text("Qty", 125, y);
+    pdf.text("Unit Price", 145, y);
+    pdf.text("Amount", pageWidth - 24, y, { align: "right" });
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+
+    order.items.forEach((item: any) => {
+      const name = pdf.splitTextToSize(item.name || "Product", 92)[0];
+      pdf.text(name, 24, y);
+      pdf.text(String(item.quantity), 125, y);
+      pdf.text(`Rs. ${Number(item.price).toFixed(2)}`, 145, y);
+      pdf.text(`Rs. ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      y += 9;
     });
+
+    pdf.setDrawColor(210, 210, 210);
+    pdf.line(20, y, pageWidth - 20, y);
+    y += 14;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.setFontSize(10);
+    pdf.text(`Products: Rs. ${Number(order.productAmount ?? order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    if (order.codCharge) {
+      y += 7;
+      pdf.text(`COD charge: Rs. ${Number(order.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
+    y += 9;
+    pdf.setFontSize(14);
+    pdf.text(`Total: Rs. ${Number(order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.save(`invoice-${String(order.orderNumber).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
+    toast.success("Invoice PDF downloaded", { description: `Invoice for ${order.orderNumber}` });
   };
 
   const handleOrderPlaced = (order: any) => {
@@ -183,6 +199,8 @@ export function OrdersPage() {
       orderId: order.id,
       orderNumber: order.orderNumber,
       amount: order.total,
+      productAmount: order.productAmount,
+      codCharge: order.codCharge,
       paymentMethod: order.paymentMethod,
       estimatedDelivery: order.deliveryDate,
       shippingAddress: order.shippingAddress,
@@ -222,7 +240,9 @@ export function OrdersPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-4">
-          {orders.map((order) => (
+          {ordersLoading ? <div className="glass-card p-8 text-center text-muted-foreground">Loading your orders...</div> : orders.length === 0 ? (
+            <div className="glass-card p-8 text-center text-muted-foreground">You have no orders yet.</div>
+          ) : orders.map((order) => (
             <div
               key={order.id}
               className="glass-card p-6 hover:shadow-xl transition-all duration-300"
@@ -255,7 +275,7 @@ export function OrdersPage() {
                     Total Amount
                   </p>
                   <p className="text-2xl font-bold text-[var(--primary-color)]">
-                    ${order.total.toFixed(2)}
+                    ₹{order.total.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -266,12 +286,18 @@ export function OrdersPage() {
               <div className="mb-4">
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {order.items.slice(0, 4).map((item, idx) => (
-                    <img
-                      key={idx}
-                      src={item.image}
-                      alt={item.name}
-                      className="size-16 object-cover rounded-lg border dark:border-gray-700 flex-shrink-0"
-                    />
+                    item.image ? (
+                      <img
+                        key={idx}
+                        src={item.image}
+                        alt={item.name}
+                        className="size-16 object-cover rounded-lg border dark:border-gray-700 flex-shrink-0"
+                      />
+                    ) : (
+                      <div key={idx} className="size-16 bg-muted rounded-lg border dark:border-gray-700 flex items-center justify-center flex-shrink-0">
+                        <Package className="size-6 text-muted-foreground" />
+                      </div>
+                    )
                   ))}
                   {order.items.length > 4 && (
                     <div className="size-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
@@ -281,6 +307,15 @@ export function OrdersPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {order.items.map((item: any) => (
+                  <div key={`${order.id}-${item.id}-${item.name}`} className="flex items-center justify-between gap-4 text-sm">
+                    <span className="font-medium text-foreground truncate">{item.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
+                    <span className="text-muted-foreground flex-shrink-0">₹{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
               </div>
 
               {/* Action Buttons */}
@@ -305,7 +340,7 @@ export function OrdersPage() {
                 )}
                 <Button
                   variant="outline"
-                  onClick={() => handleDownloadInvoice(order.orderNumber)}
+                  onClick={() => handleDownloadInvoice(order)}
                   className="h-11"
                 >
                   <Download className="size-4 mr-2" />
@@ -401,11 +436,17 @@ export function OrdersPage() {
                       key={item.id}
                       className="flex items-center gap-4 p-4 bg-muted rounded-xl"
                     >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="size-20 object-cover rounded-lg"
-                      />
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="size-20 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="size-20 bg-background rounded-lg flex items-center justify-center">
+                          <Package className="size-7 text-muted-foreground" />
+                        </div>
+                      )}
                       <div className="flex-1">
                         <p className="font-semibold text-foreground">
                           {item.name}
@@ -415,7 +456,7 @@ export function OrdersPage() {
                         </p>
                       </div>
                       <p className="font-bold text-foreground">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        ₹{(item.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   ))}
@@ -458,7 +499,7 @@ export function OrdersPage() {
                       Total Paid
                     </span>
                     <span className="text-xl font-bold text-[var(--primary-color)]">
-                      ${selectedOrder.total.toFixed(2)}
+                      ₹{selectedOrder.total.toFixed(2)}
                     </span>
                   </div>
                 </div>

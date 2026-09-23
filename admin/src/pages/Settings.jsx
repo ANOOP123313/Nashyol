@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
+import { settingsAPI } from "../services/api";
 
 function CustomSelect({ label, options, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -238,34 +240,70 @@ function ApiKeyItem({ api, onDelete }) {
 }
 
 export default function SettingsPage() {
-  const [platformName, setPlatformName] = useState("NAADIYOL");
-  const [supportEmail, setSupportEmail] = useState("support@naadiyol.com");
-  const [currency, setCurrency] = useState("USD - US Dollar");
-  const [language, setLanguage] = useState("English");
-  const [timezone, setTimezone] = useState("UTC");
+  const [platformName, setPlatformName] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [language, setLanguage] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [maintenance, setMaintenance] = useState(false);
 
-  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
-  const [smtpPort, setSmtpPort] = useState("587");
-  const [smtpUser, setSmtpUser] = useState("noreply@naadiyol.com");
-  const [smtpPass, setSmtpPass] = useState("secretpassword");
-  const [encryption, setEncryption] = useState("TLS");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState("");
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [encryption, setEncryption] = useState("");
 
-  const [stripeOn, setStripeOn] = useState(true);
-  const [paypalOn, setPaypalOn] = useState(true);
+  const [stripeOn, setStripeOn] = useState(false);
+  const [paypalOn, setPaypalOn] = useState(false);
   const [codOn, setCodOn] = useState(false);
+  const [codCharge, setCodCharge] = useState("0");
 
-  const [twoFA, setTwoFA] = useState(true);
-  const [gdpr, setGdpr] = useState(true);
-  const [passExpiry, setPassExpiry] = useState("90");
-  const [sessionTimeout, setSessionTimeout] = useState("20");
-  const [ipWhitelist, setIpWhitelist] = useState("192.168.1.1\n10.0.0.1");
+  const [twoFA, setTwoFA] = useState(false);
+  const [gdpr, setGdpr] = useState(false);
+  const [passExpiry, setPassExpiry] = useState("");
+  const [sessionTimeout, setSessionTimeout] = useState("");
+  const [ipWhitelist, setIpWhitelist] = useState("");
 
-  const [apiKeys, setApiKeys] = useState([
-    { name: "Production API", status: "active", key: "sk_n4ash_live_4Ts8dR_k4nb8Mate9r8rf3eq1", date: "2026-01-15", last: "2026-02-17" },
-    { name: "Mobile App API", status: "active", key: "sk_n4ash_live_8Kp3xQ_4ep4gn1Mter4vrnd4j", date: "2026-02-01", last: "2026-02-16" },
-    { name: "Testing API", status: "sandbox", key: "sk_n4ash_test_2Bn7vL_bNt_MeN1p4t_3qn1d3", date: "2025-10-20", last: "2026-01-10" },
-  ]);
+  const [apiKeys, setApiKeys] = useState([]);
+
+  useEffect(() => {
+    settingsAPI.get().then((res) => {
+      if (!res) return;
+      if (res.platformName !== undefined) setPlatformName(res.platformName);
+      if (res.supportEmail !== undefined) setSupportEmail(res.supportEmail);
+      if (res.currency !== undefined) setCurrency(res.currency);
+      if (res.language !== undefined) setLanguage(res.language);
+      if (res.timezone !== undefined) setTimezone(res.timezone);
+      if (res.maintenance !== undefined) setMaintenance(res.maintenance);
+      if (res.smtpHost !== undefined) setSmtpHost(res.smtpHost);
+      if (res.smtpPort !== undefined) setSmtpPort(res.smtpPort);
+      if (res.smtpUser !== undefined) setSmtpUser(res.smtpUser);
+      if (res.smtpPass !== undefined) setSmtpPass(res.smtpPass);
+      if (res.encryption !== undefined) setEncryption(res.encryption);
+      if (res.stripeOn !== undefined) setStripeOn(res.stripeOn);
+      if (res.paypalOn !== undefined) setPaypalOn(res.paypalOn);
+      if (res.codOn !== undefined) setCodOn(res.codOn);
+      if (res.codCharge !== undefined) setCodCharge(String(res.codCharge));
+      if (res.twoFA !== undefined) setTwoFA(res.twoFA);
+      if (res.gdpr !== undefined) setGdpr(res.gdpr);
+      if (res.passExpiry !== undefined) setPassExpiry(res.passExpiry);
+      if (res.sessionTimeout !== undefined) setSessionTimeout(res.sessionTimeout);
+      if (res.ipWhitelist !== undefined) setIpWhitelist(res.ipWhitelist);
+    }).catch((err) => toast.error("Failed to load settings: " + err.message));
+  }, []);
+
+  const handleSaveSettings = async () => {
+    try {
+      await settingsAPI.update({
+        platformName, supportEmail, currency, language, timezone, maintenance,
+        smtpHost, smtpPort, smtpUser, smtpPass, encryption, stripeOn, paypalOn,
+        codOn, codCharge: Number(codCharge) || 0, twoFA, gdpr, passExpiry, sessionTimeout, ipWhitelist,
+      });
+      toast.success("Settings saved successfully!");
+    } catch (err) {
+      toast.error("Failed to save settings: " + err.message);
+    }
+  };
 
   const deleteApiKey = (name) => setApiKeys(prev => prev.filter(k => k.name !== name));
 
@@ -289,7 +327,7 @@ export default function SettingsPage() {
             <InputField label="Support Email" value={supportEmail} onChange={setSupportEmail} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, marginBottom: 24 }}>
-            <CustomSelect label="Currency" value={currency} onChange={setCurrency} options={["USD - US Dollar","EUR - Euro","GBP - British Pound","JPY - Japanese Yen","AUD - Australian Dollar"]} />
+            <CustomSelect label="Currency" value={currency} onChange={setCurrency} options={["INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","JPY - Japanese Yen","AUD - Australian Dollar"]} />
             <CustomSelect label="Language" value={language} onChange={setLanguage} options={["English","Spanish","French","German","Japanese"]} />
             <CustomSelect label="Timezone" value={timezone} onChange={setTimezone} options={["UTC","Eastern Time (US)","Pacific Time (US)","London","Tokyo"]} />
           </div>
@@ -300,7 +338,7 @@ export default function SettingsPage() {
             </div>
             <Toggle checked={maintenance} onChange={setMaintenance} />
           </div>
-          <OrangeBtn>Save Settings</OrangeBtn>
+          <OrangeBtn onClick={handleSaveSettings}>Save Settings</OrangeBtn>
         </Card>
 
         {/* Tax Configuration */}
@@ -335,9 +373,9 @@ export default function SettingsPage() {
         <Card>
           <SectionTitle title="Shipping Zones" btn={<OrangeBtn small icon="+">Add Shipping Zone</OrangeBtn>} />
           {[
-            { name: "United States", tag: "Active", countries: "US", flat: "$9.00", free: "$50" },
-            { name: "Europe", tag: "Active", countries: "DE, FR, NL, IT, ES", flat: "$15.00", free: "$75" },
-            { name: "Rest of World", tag: "Active", countries: "—", flat: "$25.00", free: "$100" },
+            { name: "India (Domestic)", tag: "Active", countries: "IN", flat: "₹99.00", free: "₹500" },
+            { name: "International", tag: "Active", countries: "US, EU, UK", flat: "₹999.00", free: "₹5,000" },
+            { name: "Rest of World", tag: "Active", countries: "—", flat: "₹1,499.00", free: "₹7,500" },
           ].map((z, i) => (
             <div key={i}>
               {i > 0 && <Divider />}
@@ -378,7 +416,7 @@ export default function SettingsPage() {
             <CustomSelect label="Encryption" value={encryption} onChange={setEncryption} options={["TLS","SSL","None"]} />
           </div>
           <div style={{ display: "flex", gap: 16 }}>
-            <OrangeBtn>Save Settings</OrangeBtn>
+            <OrangeBtn onClick={handleSaveSettings}>Save Settings</OrangeBtn>
             <OutlineBtn>✉ Send Test Email</OutlineBtn>
           </div>
         </Card>
@@ -410,7 +448,7 @@ export default function SettingsPage() {
           <div style={{ border: "1px solid #f0f0f0", borderRadius: 13, padding: 26, marginBottom: 30 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 50, height: 50, borderRadius: 12, background: "#4caf50", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 19 }}>$</div>
+                <div style={{ width: 50, height: 50, borderRadius: 12, background: "#4caf50", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 19 }}>₹</div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 16 }}>Cash on Delivery</div>
                   <div style={{ fontSize: 14, color: "#aaa" }}>Payment on delivery</div>
@@ -418,8 +456,21 @@ export default function SettingsPage() {
               </div>
               <Toggle checked={codOn} onChange={setCodOn} />
             </div>
+            <div style={{ marginTop: 20, maxWidth: 360 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>COD Charge (₹)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={codCharge}
+                onChange={(event) => setCodCharge(event.target.value)}
+                placeholder="0.00"
+                style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", color: "#374151" }}
+              />
+              <div style={{ marginTop: 5, fontSize: 11, color: "#6b7280" }}>Added to each COD order when COD is enabled.</div>
+            </div>
           </div>
-          <OrangeBtn>Save Settings</OrangeBtn>
+          <OrangeBtn onClick={handleSaveSettings}>Save Settings</OrangeBtn>
         </Card>
 
         {/* API Keys */}
@@ -462,17 +513,13 @@ export default function SettingsPage() {
             }} />
             <div style={{ fontSize: 14, color: "#bbb" }}>Only allow admin access from these IP addresses</div>
           </div>
-          <OrangeBtn>Save Security Settings</OrangeBtn>
+          <OrangeBtn onClick={handleSaveSettings}>Save Security Settings</OrangeBtn>
         </Card>
 
         {/* Audit Logs */}
         <Card>
           <div style={{ fontWeight: 700, fontSize: 21, marginBottom: 26 }}>Audit Logs</div>
-          {[
-            { action: "Admin login", user: "admin@naadiyol.com", ip: "192.168.1.1", time: "2026-02-17 14:52:16" },
-            { action: "Product updated", user: "vendor@example.com", ip: "10.0.2.9", time: "2026-02-17 11:15:41" },
-            { action: "Settings changed", user: "admin@policy.com", ip: "192.168.1.162", time: "2026-02-17 12:06:23" },
-          ].map((log, i) => (
+          {[].map((log, i) => (
             <div key={i}>
               {i > 0 && <Divider />}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

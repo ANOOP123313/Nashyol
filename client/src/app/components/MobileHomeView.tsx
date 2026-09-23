@@ -12,11 +12,19 @@ import { ThemeToggle } from "./ThemeToggle";
 import { FeaturedProductsSection, CategoryGridSection } from "./MobileHomeSections";
 import { useWishlist } from "../contexts/WishlistContext";
 import Slider from "react-slick";
-import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 const heroBanner = null;
 
-export function MobileHomeView() {
+export function MobileHomeView({
+  sections = [],
+  featuredProducts: propFeaturedProducts = [],
+  heroSlides: propHeroSlides = []
+}: {
+  sections?: any[];
+  featuredProducts?: any[];
+  heroSlides?: any[];
+}) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +32,14 @@ export function MobileHomeView() {
   const [selectedLocation, setSelectedLocation] = useState("Thiruvananthapuram");
   const navigate = useRouter();
   const { toggleWishlist, isInWishlist } = useWishlist();
+
+  const clearanceSection = sections.find(s => s.sectionKey === "clearance_offers" || s.sectionType === "clearance_offers");
+  const panchamiSection = sections.find(s => s.sectionKey === "panchami_specials" || s.sectionType === "promotional_cards");
+  const lovedOnesSection = sections.find(s => s.sectionKey === "loved_ones" || s.sectionType === "loved_ones");
+  const featuresSection = sections.find(s => s.sectionKey === "service_features" || s.sectionType === "service_features");
+  const shopByCategorySection = sections.find(s => s.sectionKey === "shop_by_category" || s.sectionType === "shop_by_category");
+  const specialOffersSection = sections.find(s => s.sectionKey === "special_offers" || s.sectionType === "special_offers");
+  const rewardsSection = sections.find(s => s.sectionKey === "rewards" || s.sectionType === "rewards");
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -46,10 +62,10 @@ export function MobileHomeView() {
     "Malappuram"
   ];
 
-  const heroSlides = [
+  const defaultHeroSlides = [
     {
       badge: "New Season Arrivals",
-      title: "Discover Your Style with N4ASHYOL",
+      title: "Discover Your Style with NAASHYOL",
       description: "Shop the latest trends in electronics, fashion, home decor, and more. Quality products at unbeatable prices.",
       buttons: [
         { text: "Shop Now", icon: ShoppingBag, primary: true, link: "/products" },
@@ -76,6 +92,19 @@ export function MobileHomeView() {
     },
   ];
 
+  const heroSlides = (propHeroSlides && propHeroSlides.length > 0)
+    ? propHeroSlides.map((s: any) => ({
+      badge: s.badge || "Featured",
+      title: s.title || "Exclusive Collection",
+      description: s.description || "Discover premium products handpicked for you.",
+      image: s.image,
+      buttons: s.buttons || [
+        { text: s.buttonText || "Shop Now", icon: ShoppingBag, primary: true, link: s.buttonLink || "/products" },
+        { text: "View Trending", icon: TrendingUp, primary: false, link: "/products?sort=trending" },
+      ],
+    }))
+    : defaultHeroSlides;
+
   // Auto-rotate carousel
   useEffect(() => {
     const timer = setInterval(() => {
@@ -89,7 +118,7 @@ export function MobileHomeView() {
     {
       icon: Truck,
       title: "Free Shipping",
-      description: "On orders over $50",
+      description: "On orders over ₹500",
     },
     {
       icon: Headphones,
@@ -189,114 +218,19 @@ export function MobileHomeView() {
     },
   ];
 
-  const featuredProducts = [
-    {
-      id: "1",
-      name: "Samsung Galaxy S10",
-      image: "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=300&h=300&fit=crop",
-      price: 860.00,
-      originalPrice: 1000.00,
-      category: "Electronics",
-      rating: 4.5,
-      reviews: 128,
-      badge: "Best Seller",
-    },
-    {
-      id: "2",
-      name: "Stone Plante",
-      image: "https://images.unsplash.com/photo-1509937528035-ad76254b0356?w=300&h=300&fit=crop",
-      price: 16.00,
-      originalPrice: 30.00,
-      category: "Home & Garden",
-      rating: 4.8,
-      reviews: 89,
-      badge: "Hot Deal",
-    },
-    {
-      id: "3",
-      name: "Xiaomi Mi Airdots",
-      image: "https://images.unsplash.com/photo-1606841837239-c5a1a4a07af7?w=300&h=300&fit=crop",
-      price: 30.00,
-      originalPrice: 50.00,
-      category: "Electronics",
-      rating: 4.3,
-      reviews: 234,
-    },
-    {
-      id: "4",
-      name: "Wireless Headphones",
-      image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop",
-      price: 120.00,
-      originalPrice: 180.00,
-      category: "Electronics",
-      rating: 4.7,
-      reviews: 456,
-      badge: "New",
-    },
-    {
-      id: "5",
-      name: "Apple Watch Series 7",
-      image: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=300&h=300&fit=crop",
-      price: 399.00,
-      originalPrice: 529.00,
-      category: "Electronics",
-      rating: 4.9,
-      reviews: 892,
-      badge: "Trending",
-    },
-    {
-      id: "6",
-      name: "Nike Air Max 2023",
-      image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop",
-      price: 159.00,
-      originalPrice: 220.00,
-      category: "Fashion",
-      rating: 4.6,
-      reviews: 567,
-    },
-    {
-      id: "7",
-      name: "Canon EOS R6",
-      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=300&h=300&fit=crop",
-      price: 2299.00,
-      originalPrice: 2899.00,
-      category: "Electronics",
-      rating: 4.8,
-      reviews: 342,
-      badge: "Limited",
-    },
-    {
-      id: "8",
-      name: "Leather Sofa Set",
-      image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300&h=300&fit=crop",
-      price: 899.00,
-      originalPrice: 1299.00,
-      category: "Home & Garden",
-      rating: 4.7,
-      reviews: 201,
-    },
-    {
-      id: "9",
-      name: "Sony WH-1000XM5",
-      image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=300&h=300&fit=crop",
-      price: 349.00,
-      originalPrice: 449.00,
-      category: "Electronics",
-      rating: 4.9,
-      reviews: 1234,
-      badge: "Popular",
-    },
-    {
-      id: "10",
-      name: "Designer Handbag",
-      image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300&h=300&fit=crop",
-      price: 189.00,
-      originalPrice: 299.00,
-      category: "Fashion",
-      rating: 4.5,
-      reviews: 345,
-    },
-  ];
+  const featuredProducts = (propFeaturedProducts && propFeaturedProducts.length > 0)
+    ? propFeaturedProducts.map((p: any) => ({
+      id: p._id || p.id,
+      name: p.name || p.title || "Product",
+      image: p.image || (p.images && p.images[0]) || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop",
+      price: typeof p.price === "number" ? p.price : 0,
+      originalPrice: typeof p.originalPrice === "number" ? p.originalPrice : undefined,
+      category: typeof p.category === "object" ? p.category?.name : (p.category || "General"),
+      rating: typeof p.rating === "number" ? p.rating : 4.8,
+      reviews: typeof p.reviews === "number" ? p.reviews : (p.reviewsCount || 0),
+      badge: p.badge || (p.isFeatured ? "Featured" : undefined),
+    }))
+    : [];
 
   const carouselSettings = {
     dots: true,
@@ -332,7 +266,7 @@ export function MobileHomeView() {
       {/* Mobile Header with Glass Effect */}
       <div className="bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse px-4 py-4 sticky top-0 z-50 shadow-xl">
         <div className="flex items-center justify-center">
-          <h1 className="text-xl font-bold tracking-wide text-inverse" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>N4ASHYOL</h1>
+          <h1 className="text-xl font-bold tracking-wide text-inverse" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>NAASHYOL</h1>
         </div>
       </div>
 
@@ -367,7 +301,7 @@ export function MobileHomeView() {
                 <span className="text-foreground font-medium text-sm">Cancel</span>
               </button>
             </div>
-            
+
             {/* Quick Search Suggestions */}
             <div className="mt-4 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground px-2">Popular Searches</p>
@@ -389,7 +323,7 @@ export function MobileHomeView() {
 
       {/* Location Bar with Glass Effect */}
       <div className="px-4 py-3 bg-card border-b border-border shadow-sm">
-        <button 
+        <button
           onClick={() => setShowLocationModal(true)}
           className="w-full flex items-center gap-3 px-4 py-2.5 bg-muted border border-gray-200 dark:border-gray-700 rounded-full hover:bg-muted dark:hover:bg-card text-card-foreground transition-all duration-300"
         >
@@ -434,16 +368,14 @@ export function MobileHomeView() {
                       setSelectedLocation(location);
                       setShowLocationModal(false);
                     }}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${
-                      selectedLocation === location
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${selectedLocation === location
                         ? "bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse shadow-lg"
                         : "bg-muted hover:bg-muted dark:hover:bg-card text-card-foreground text-foreground"
-                    }`}
+                      }`}
                   >
-                    <MapPin 
-                      className={`size-5 flex-shrink-0 ${
-                        selectedLocation === location ? "text-inverse" : "text-[var(--primary-color)]"
-                      }`} 
+                    <MapPin
+                      className={`size-5 flex-shrink-0 ${selectedLocation === location ? "text-inverse" : "text-[var(--primary-color)]"
+                        }`}
                     />
                     <span className="flex-1 text-left font-medium">{location}</span>
                     {selectedLocation === location && (
@@ -462,7 +394,7 @@ export function MobileHomeView() {
       {/* Hero Banner Carousel */}
       <div className="relative bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-700">
         <div className="overflow-hidden">
-          <div 
+          <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
@@ -486,11 +418,10 @@ export function MobileHomeView() {
                         return (
                           <Link key={btnIndex} href={button.link}>
                             <button
-                              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                                button.primary
+                              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${button.primary
                                   ? "bg-background text-[var(--primary-color)] hover:bg-muted"
                                   : "bg-background/20 backdrop-blur-sm text-inverse border border-white/30 hover:bg-background/30"
-                              }`}
+                                }`}
                             >
                               <Icon className="size-4" />
                               {button.text}
@@ -505,18 +436,17 @@ export function MobileHomeView() {
             ))}
           </div>
         </div>
-        
+
         {/* Carousel Indicators */}
         <div className="flex justify-center gap-2 pb-6">
           {heroSlides.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`h-2 rounded-full transition-all ${
-                currentSlide === index
+              className={`h-2 rounded-full transition-all ${currentSlide === index
                   ? "w-8 bg-background"
                   : "w-2 bg-background/40 hover:bg-background/60"
-              }`}
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -524,493 +454,602 @@ export function MobileHomeView() {
       </div>
 
       {/* Clearance Offers Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">🔥</span>
-          <h2 className="text-2xl font-bold text-foreground">Clearance offers</h2>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-          {[
-            {
-              name: "Kurta sets",
-              discount: "Min. 60% Off",
-              image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
-              gradient: "from-yellow-500/80 to-orange-500/80"
-            },
-            {
-              name: "Killer, Spykar...",
-              discount: "Min. 70% Off",
-              image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
-              gradient: "from-blue-500/80 to-indigo-500/80"
-            },
-            {
-              name: "Allen Solly, USPA...",
-              discount: "Min. 60% Off",
-              image: "https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=400&h=500&fit=crop",
-              gradient: "from-teal-500/80 to-cyan-500/80"
-            },
-            {
-              name: "Abros & Action",
-              discount: "Min. 65% Off",
-              image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop",
-              gradient: "from-purple-500/80 to-pink-500/80"
-            },
-            {
-              name: "Campus",
-              discount: "Min. 50% Off",
-              image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=500&fit=crop",
-              gradient: "from-gray-500/80 to-slate-500/80"
-            }
-          ].map((item, index) => (
-            <Link key={index}
-              href={`/products?category=${item.name}`}
-              className="flex-shrink-0 w-[160px] group"
-            >
-              <div className="relative rounded-2xl overflow-hidden h-[240px] shadow-lg hover:shadow-xl transition-all duration-300">
-                <ImageWithFallback
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient} opacity-60`} />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
-                  <h3 className="font-bold text-base mb-1">{item.name}</h3>
-                  <span className="text-sm font-semibold text-green-300">{item.discount}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Basant Panchami Specials Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">🌸</span>
-          <h2 className="text-2xl font-bold text-foreground">Basant Panchami Specials</h2>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-          {[
-            {
-              name: "Kurtas",
-              price: "From ₹299",
-              image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
-              gradient: "from-cyan-500/70 to-blue-500/70"
-            },
-            {
-              name: "Dress, co-ords",
-              price: "Min. 70% Off",
-              image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=500&fit=crop",
-              gradient: "from-yellow-500/70 to-orange-500/70"
-            },
-            {
-              name: "Floral Kurtas",
-              price: "From ₹299",
-              image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
-              gradient: "from-pink-500/70 to-rose-500/70"
-            },
-            {
-              name: "Ethnic sets",
-              price: "Min. 70% Off",
-              image: "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&h=500&fit=crop",
-              gradient: "from-purple-500/70 to-indigo-500/70"
-            },
-            {
-              name: "Jhumkas",
-              price: "From ₹99",
-              image: "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=400&h=500&fit=crop",
-              gradient: "from-amber-500/70 to-yellow-500/70"
-            }
-          ].map((item, index) => (
-            <Link key={index}
-              href={`/products?category=${item.name}`}
-              className="flex-shrink-0 w-[180px] group"
-            >
-              <div className="relative rounded-2xl overflow-hidden h-[260px] shadow-lg hover:shadow-xl transition-all duration-300">
-                <ImageWithFallback
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient} opacity-50`} />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
-                  <h3 className="font-bold text-base mb-1">{item.name}</h3>
-                  <span className="text-sm font-semibold">{item.price}</span>
-                  <span className="inline-block ml-2 text-xl">🌸</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Shop for Loved Ones Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <h2 className="text-2xl font-bold text-foreground mb-4">Shop for Loved Ones</h2>
-        <div className="grid grid-cols-1 gap-4">
-          {[
-            {
-              name: "Men",
-              description: "Discover men's collection",
-              image: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&h=400&fit=crop",
-              gradient: "from-blue-600/80 to-blue-800/80"
-            },
-            {
-              name: "Women",
-              description: "Explore women's collection",
-              image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=400&fit=crop",
-              gradient: "from-pink-600/80 to-rose-800/80"
-            },
-            {
-              name: "Gen Z Drips",
-              description: "Trending Gen-Z styles",
-              image: "https://images.unsplash.com/photo-1523381294911-8d3cead13475?w=800&h=400&fit=crop",
-              gradient: "from-purple-600/80 to-indigo-800/80"
-            }
-          ].map((item, index) => (
-            <Link key={index}
-              href={`/products?category=${item.name}`}
-              className="group"
-            >
-              <div className="relative rounded-2xl overflow-hidden h-[180px] shadow-lg hover:shadow-xl transition-all duration-300">
-                <ImageWithFallback
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} opacity-70`} />
-                <div className="absolute inset-0 flex flex-col justify-center px-6 text-inverse">
-                  <h3 className="font-bold text-3xl mb-2">{item.name}</h3>
-                  <p className="text-sm font-medium text-inverse/90">{item.description}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Featured Products Section */}
-      <FeaturedProductsSection />
-
-      {/* Fashion Products Section */}
-      <CategoryGridSection 
-        title="Fashion Products"
-        category="Fashion"
-        items={[
-          { name: "T-Shirts", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=200&fit=crop" },
-          { name: "Jeans", image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop" },
-          { name: "Dresses", image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=200&h=200&fit=crop" },
-          { name: "Jackets", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200&h=200&fit=crop" },
-          { name: "Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
-          { name: "Bags", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200&h=200&fit=crop" },
-          { name: "Watches", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop" },
-          { name: "Sunglasses", image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200&h=200&fit=crop" },
-          { name: "Sweaters", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200&h=200&fit=crop" },
-          { name: "Skirts", image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=200&h=200&fit=crop" },
-          { name: "Shorts", image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&h=200&fit=crop" },
-          { name: "Caps", image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=200&h=200&fit=crop" },
-          { name: "Belts", image: "https://images.unsplash.com/photo-1624222247344-550fb60583aa?w=200&h=200&fit=crop" },
-          { name: "Scarves", image: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=200&h=200&fit=crop" },
-          { name: "Suits", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200&h=200&fit=crop" },
-          { name: "Hoodies", image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* Home & Garden Section */}
-      <CategoryGridSection 
-        title="Home & Garden"
-        category="Home"
-        items={[
-          { name: "Furniture", image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop" },
-          { name: "Bedding", image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=200&h=200&fit=crop" },
-          { name: "Lighting", image: "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&h=200&fit=crop" },
-          { name: "Decor", image: "https://images.unsplash.com/photo-1615873968403-89e068629265?w=200&h=200&fit=crop" },
-          { name: "Kitchen", image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=200&h=200&fit=crop" },
-          { name: "Storage", image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=200&h=200&fit=crop" },
-          { name: "Rugs", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=200&h=200&fit=crop" },
-          { name: "Curtains", image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop" },
-          { name: "Plants", image: "https://images.unsplash.com/photo-1509937528035-ad76254b0356?w=200&h=200&fit=crop" },
-          { name: "Garden Tools", image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200&h=200&fit=crop" },
-          { name: "Outdoor", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=200&fit=crop" },
-          { name: "Bathroom", image: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=200&h=200&fit=crop" },
-          { name: "Tableware", image: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=200&h=200&fit=crop" },
-          { name: "Mirrors", image: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=200&h=200&fit=crop" },
-          { name: "Wall Art", image: "https://images.unsplash.com/photo-1582738411706-bfc8e691d1c2?w=200&h=200&fit=crop" },
-          { name: "Cushions", image: "https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* Electronics Products Section */}
-      <CategoryGridSection 
-        title="Electronics Products"
-        category="Electronics"
-        items={[
-          { name: "Smartphones", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop" },
-          { name: "Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=200&h=200&fit=crop" },
-          { name: "Headphones", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop" },
-          { name: "Cameras", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=200&h=200&fit=crop" },
-          { name: "Smartwatches", image: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=200&h=200&fit=crop" },
-          { name: "Tablets", image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=200&h=200&fit=crop" },
-          { name: "TVs", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=200&h=200&fit=crop" },
-          { name: "Speakers", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=200&h=200&fit=crop" },
-          { name: "Drones", image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=200&h=200&fit=crop" },
-          { name: "Keyboards", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=200&h=200&fit=crop" },
-          { name: "Gaming Mouse", image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=200&h=200&fit=crop" },
-          { name: "Storage", image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=200&h=200&fit=crop" },
-          { name: "Cables", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
-          { name: "Power Banks", image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=200&h=200&fit=crop" },
-          { name: "Webcams", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
-          { name: "Routers", image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* Sports Products Section */}
-      <CategoryGridSection 
-        title="Sports Products"
-        category="Sports"
-        items={[
-          { name: "Running Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
-          { name: "Yoga Mats", image: "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=200&h=200&fit=crop" },
-          { name: "Dumbbells", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop" },
-          { name: "Sports Wear", image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&h=200&fit=crop" },
-          { name: "Bicycles", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=200&h=200&fit=crop" },
-          { name: "Basketballs", image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&h=200&fit=crop" },
-          { name: "Fitness Trackers", image: "https://images.unsplash.com/photo-1575053267983-b4ed21ff8931?w=200&h=200&fit=crop" },
-          { name: "Protein Shakes", image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=200&h=200&fit=crop" },
-          { name: "Gym Bags", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200&h=200&fit=crop" },
-          { name: "Resistance Bands", image: "https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=200&h=200&fit=crop" },
-          { name: "Tennis Rackets", image: "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=200&h=200&fit=crop" },
-          { name: "Swimming Gear", image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=200&h=200&fit=crop" },
-          { name: "Boxing Gloves", image: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=200&h=200&fit=crop" },
-          { name: "Skateboards", image: "https://images.unsplash.com/photo-1547447134-cd3f5c716030?w=200&h=200&fit=crop" },
-          { name: "Golf Clubs", image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=200&h=200&fit=crop" },
-          { name: "Water Bottles", image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* Beauty Products Section */}
-      <CategoryGridSection 
-        title="Beauty Products"
-        category="Beauty"
-        items={[
-          { name: "Skincare", image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=200&h=200&fit=crop" },
-          { name: "Makeup", image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=200&h=200&fit=crop" },
-          { name: "Perfumes", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop" },
-          { name: "Hair Care", image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=200&h=200&fit=crop" },
-          { name: "Nail Polish", image: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=200&h=200&fit=crop" },
-          { name: "Face Masks", image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=200&h=200&fit=crop" },
-          { name: "Lip Balm", image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=200&h=200&fit=crop" },
-          { name: "Eye Shadow", image: "https://images.unsplash.com/photo-1583241800698-3a8965d70ad9?w=200&h=200&fit=crop" },
-          { name: "Foundation", image: "https://images.unsplash.com/photo-1631214524020-7e18db9a8f92?w=200&h=200&fit=crop" },
-          { name: "Brushes", image: "https://images.unsplash.com/photo-1596704017254-9b121068ec31?w=200&h=200&fit=crop" },
-          { name: "Moisturizers", image: "https://images.unsplash.com/photo-1620916297804-c5f0e5aa291b?w=200&h=200&fit=crop" },
-          { name: "Serums", image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&h=200&fit=crop" },
-          { name: "Lipstick", image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=200&h=200&fit=crop" },
-          { name: "Blush", image: "https://images.unsplash.com/photo-1617897903246-719242758050?w=200&h=200&fit=crop" },
-          { name: "Mascara", image: "https://images.unsplash.com/photo-1631730486572-226d1f595b68?w=200&h=200&fit=crop" },
-          { name: "Body Lotion", image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* Books Section */}
-      <CategoryGridSection 
-        title="Books"
-        category="Books"
-        items={[
-          { name: "Fiction", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
-          { name: "Non-Fiction", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-          { name: "Self-Help", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
-          { name: "Biographies", image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=200&h=200&fit=crop" },
-          { name: "Science", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
-          { name: "History", image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=200&h=200&fit=crop" },
-          { name: "Children", image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=200&h=200&fit=crop" },
-          { name: "Comics", image: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=200&h=200&fit=crop" },
-          { name: "Poetry", image: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=200&h=200&fit=crop" },
-          { name: "Mystery", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-          { name: "Romance", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
-          { name: "Thriller", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
-          { name: "Fantasy", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
-          { name: "Horror", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-          { name: "Cookbooks", image: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=200&h=200&fit=crop" },
-          { name: "Travel", image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200&h=200&fit=crop" }
-        ]}
-      />
-
-      {/* For You Section */}
-      <div className="py-6 bg-transparent">
-        <div className="px-4 flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-foreground">For You</h2>
-          <Link href="/products" className="text-[var(--primary-color)] text-sm font-semibold hover:underline transition-all">
-            View All →
-          </Link>
-        </div>
-
-        {/* Featured Badge */}
-        <div className="px-4 mb-6">
-          <span className="inline-flex items-center gap-2 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse text-xs font-semibold px-6 py-2.5 rounded-full shadow-lg pulse-glow">
-            ✨ Featured
-          </span>
-        </div>
-
-        {/* Product Carousel */}
-        <div className="featured-products-carousel">
-          <Slider {...carouselSettings}>
-            {featuredProducts.map((product, index) => (
-              <div key={product.id} className="px-1">
-                <Link href={`/products/${product.id}`}
-                  className="block"
-                >
-                  <div className="glass-card rounded-2xl p-5 mx-2 hover:shadow-2xl transition-all duration-300">
-                    {/* Product Image Container */}
-                    <div className="relative mb-4 rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
-                      <div className="aspect-square">
-                        {product.badge && (
-                          <Badge className="absolute top-3 left-3 z-10 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse text-xs font-semibold px-3 py-1 shadow-lg">
-                            {product.badge}
-                          </Badge>
-                        )}
-                        <ImageWithFallback
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                        />
-                        <button
-                          className="absolute top-3 right-3 bg-background dark:bg-card text-card-foreground p-2 rounded-full shadow-md hover:opacity-100 transition-all active:scale-95"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            toggleWishlist({
-                              id: product.id,
-                              name: product.name,
-                              price: product.price,
-                              originalPrice: product.originalPrice,
-                              image: product.image,
-                              category: product.category,
-                              rating: product.rating,
-                              reviews: product.reviews,
-                            });
-                          }}
-                        >
-                          <Heart
-                            className="size-4 text-[var(--primary-color)]"
-                            fill={isInWishlist(product.id) ? "var(--primary-color)" : "none"}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="space-y-3">
-                      {/* Product Name */}
-                      <h3 className="text-base font-semibold text-foreground line-clamp-2 min-h-[3rem]">
-                        {product.name}
-                      </h3>
-                      
-                      {/* Rating */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`size-3.5 ${
-                                i < Math.floor(product.rating)
-                                  ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
-                                  : "text-muted dark:text-muted-foreground"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground font-medium">
-                          ({product.reviews})
-                        </span>
-                      </div>
-                      
-                      {/* Price Section */}
-                      <div className="flex items-end justify-between pt-2">
-                        <div className="flex flex-col">
-                          <span className="text-2xl font-bold text-[var(--primary-color)]">
-                            ${product.price.toFixed(2)}
-                          </span>
-                          <span className="text-sm text-muted-foreground dark:text-muted-foreground line-through">
-                            ${product.originalPrice.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg">
-                          <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                            {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            ))}
-          </Slider>
-        </div>
-      </div>
-
-      {/* Features Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <Card className="p-5 bg-card border border-border shadow-sm">
-          <h2 className="text-xl font-bold text-foreground mb-5">Why Choose Us?</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {features.map((feature, index) => (
-              <div key={index} className="flex flex-col items-center text-center p-3 bg-muted rounded-xl">
-                <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full mb-2">
-                  <feature.icon className="size-5 text-inverse" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">
-                  {feature.title}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
+      {clearanceSection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">🔥</span>
+            <h2 className="text-2xl font-bold text-foreground">
+              {clearanceSection?.title || "Clearance offers"}
+            </h2>
           </div>
-        </Card>
-      </div>
-
-      {/* Categories Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <Card className="p-5 bg-card border border-border shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xl font-bold text-foreground">Shop by Category</h2>
-            <Link href="/products" className="text-[var(--primary-color)] text-sm font-semibold hover:underline">
-              See All →
-            </Link>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {categories.map((category) => (
-              <Link key={category.name}
-                href={`/products?category=${category.name}`}
-                className="group"
+          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+            {(clearanceSection?.items?.length
+              ? clearanceSection.items
+              : [
+                {
+                  name: "Kurta sets",
+                  discount: "Min. 60% Off",
+                  image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
+                  gradient: "from-yellow-500/80 to-orange-500/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Killer, Spykar...",
+                  discount: "Min. 70% Off",
+                  image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
+                  gradient: "from-blue-500/80 to-indigo-500/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Allen Solly, USPA...",
+                  discount: "Min. 60% Off",
+                  image: "https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=400&h=500&fit=crop",
+                  gradient: "from-teal-500/80 to-cyan-500/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Abros & Action",
+                  discount: "Min. 65% Off",
+                  image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop",
+                  gradient: "from-purple-500/80 to-pink-500/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Campus",
+                  discount: "Min. 50% Off",
+                  image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=500&fit=crop",
+                  gradient: "from-gray-500/80 to-slate-500/80",
+                  link: "/products?category=Fashion",
+                },
+              ]
+            ).map((item: any, index: number) => (
+              <Link
+                key={item._id || index}
+                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
+                className="flex-shrink-0 w-[160px] group"
               >
-                <div className="relative rounded-xl overflow-hidden aspect-square shadow-sm hover:shadow-md transition-all">
+                <div className="relative rounded-2xl overflow-hidden h-[240px] shadow-lg hover:shadow-xl transition-all duration-300">
                   <ImageWithFallback
-                    src={category.image}
-                    alt={category.name}
+                    src={item.image}
+                    alt={item.name || item.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${category.color} flex flex-col items-center justify-center text-inverse`}>
-                    <h3 className="text-sm font-bold mb-1 text-center px-2 line-clamp-2">
-                      {category.name}
-                    </h3>
-                    <span className="text-xs opacity-90">{category.count}</span>
+                  <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient || "from-orange-500/80 to-amber-500/80"} opacity-60`} />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
+                    <h3 className="font-bold text-base mb-1">{item.name || item.title}</h3>
+                    <span className="text-sm font-semibold text-green-300">
+                      {item.discount || item.price || item.offer}
+                    </span>
                   </div>
                 </div>
               </Link>
             ))}
           </div>
-        </Card>
-      </div>
+        </div>
+      )}
+
+      {/* Basant Panchami Specials Section */}
+      {panchamiSection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">🌸</span>
+            <h2 className="text-2xl font-bold text-foreground">
+              {panchamiSection?.title || "Basant Panchami Specials"}
+            </h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+            {(panchamiSection?.items?.length
+              ? panchamiSection.items
+              : [
+                {
+                  name: "Kurtas",
+                  price: "From ₹299",
+                  image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
+                  gradient: "from-cyan-500/70 to-blue-500/70",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Dress, co-ords",
+                  price: "Min. 70% Off",
+                  image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=500&fit=crop",
+                  gradient: "from-yellow-500/70 to-orange-500/70",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Floral Kurtas",
+                  price: "From ₹299",
+                  image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
+                  gradient: "from-pink-500/70 to-rose-500/70",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Ethnic sets",
+                  price: "Min. 70% Off",
+                  image: "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&h=500&fit=crop",
+                  gradient: "from-purple-500/70 to-indigo-500/70",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Jhumkas",
+                  price: "From ₹99",
+                  image: "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=400&h=500&fit=crop",
+                  gradient: "from-amber-500/70 to-yellow-500/70",
+                  link: "/products?category=Fashion",
+                },
+              ]
+            ).map((item: any, index: number) => (
+              <Link
+                key={item._id || index}
+                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
+                className="flex-shrink-0 w-[180px] group"
+              >
+                <div className="relative rounded-2xl overflow-hidden h-[260px] shadow-lg hover:shadow-xl transition-all duration-300">
+                  <ImageWithFallback
+                    src={item.image}
+                    alt={item.name || item.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient || "from-yellow-500/70 to-orange-500/70"} opacity-50`} />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
+                    <h3 className="font-bold text-base mb-1">{item.name || item.title}</h3>
+                    <span className="text-sm font-semibold">{item.price || item.discount}</span>
+                    <span className="inline-block ml-2 text-xl">{item.emoji || "🌸"}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Shop for Loved Ones Section */}
+      {lovedOnesSection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            {lovedOnesSection?.title || "Shop for Loved Ones"}
+          </h2>
+          <div className="grid grid-cols-1 gap-4">
+            {(lovedOnesSection?.items?.length
+              ? lovedOnesSection.items
+              : [
+                {
+                  name: "Men",
+                  description: "Discover men's collection",
+                  image: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&h=400&fit=crop",
+                  gradient: "from-blue-600/80 to-blue-800/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Women",
+                  description: "Explore women's collection",
+                  image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=400&fit=crop",
+                  gradient: "from-pink-600/80 to-rose-800/80",
+                  link: "/products?category=Fashion",
+                },
+                {
+                  name: "Gen Z Drips",
+                  description: "Trending Gen-Z styles",
+                  image: "https://images.unsplash.com/photo-1523381294911-8d3cead13475?w=800&h=400&fit=crop",
+                  gradient: "from-purple-600/80 to-indigo-800/80",
+                  link: "/products?category=Fashion",
+                },
+              ]
+            ).map((item: any, index: number) => (
+              <Link
+                key={item._id || index}
+                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
+                className="group"
+              >
+                <div className="relative rounded-2xl overflow-hidden h-[180px] shadow-lg hover:shadow-xl transition-all duration-300">
+                  <ImageWithFallback
+                    src={item.image}
+                    alt={item.name || item.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient || "from-blue-600/80 to-blue-800/80"} opacity-70`} />
+                  <div className="absolute inset-0 flex flex-col justify-center px-6 text-inverse">
+                    <h3 className="font-bold text-3xl mb-2">{item.name || item.title}</h3>
+                    <p className="text-sm font-medium text-inverse/90">{item.description || item.subtitle}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Featured Products Section */}
+      <FeaturedProductsSection />
+
+      {/* Category Products Sections (Dynamic from Home Page Section Manager) */}
+      {(() => {
+        const dynamicCatSections = (sections || []).filter(
+          (s: any) =>
+            (s.sectionType === "category_products" || s.sectionType === "shop_by_category") &&
+            s.isActive !== false &&
+            Array.isArray(s.items) &&
+            s.items.length > 0
+        );
+
+        if (dynamicCatSections.length > 0) {
+          return dynamicCatSections.map((sec: any) => (
+            <CategoryGridSection
+              key={sec._id || sec.sectionKey}
+              title={sec.title || sec.sectionKey}
+              category={sec.settings?.categoryName || sec.title || "Category"}
+              items={sec.items}
+            />
+          ));
+        }
+
+        return (
+          <>
+            {/* Fashion Products Section */}
+            <CategoryGridSection
+              title="Fashion Products"
+              category="Fashion"
+              items={[
+                { name: "T-Shirts", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=200&fit=crop" },
+                { name: "Jeans", image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop" },
+                { name: "Dresses", image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=200&h=200&fit=crop" },
+                { name: "Jackets", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200&h=200&fit=crop" },
+                { name: "Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
+                { name: "Bags", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200&h=200&fit=crop" },
+                { name: "Watches", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop" },
+                { name: "Sunglasses", image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200&h=200&fit=crop" },
+                { name: "Sweaters", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200&h=200&fit=crop" },
+                { name: "Skirts", image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=200&h=200&fit=crop" },
+                { name: "Shorts", image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&h=200&fit=crop" },
+                { name: "Caps", image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=200&h=200&fit=crop" },
+                { name: "Belts", image: "https://images.unsplash.com/photo-1624222247344-550fb60583aa?w=200&h=200&fit=crop" },
+                { name: "Scarves", image: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=200&h=200&fit=crop" },
+                { name: "Suits", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200&h=200&fit=crop" },
+                { name: "Hoodies", image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=200&h=200&fit=crop" }
+              ]}
+            />
+
+            {/* Home & Garden Section */}
+            <CategoryGridSection
+              title="Home & Garden"
+              category="Home"
+              items={[
+                { name: "Furniture", image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop" },
+                { name: "Bedding", image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=200&h=200&fit=crop" },
+                { name: "Lighting", image: "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&h=200&fit=crop" },
+                { name: "Decor", image: "https://images.unsplash.com/photo-1615873968403-89e068629265?w=200&h=200&fit=crop" },
+                { name: "Kitchen", image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=200&h=200&fit=crop" },
+                { name: "Storage", image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=200&h=200&fit=crop" },
+                { name: "Rugs", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=200&h=200&fit=crop" },
+                { name: "Curtains", image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop" },
+                { name: "Plants", image: "https://images.unsplash.com/photo-1509937528035-ad76254b0356?w=200&h=200&fit=crop" },
+                { name: "Garden Tools", image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200&h=200&fit=crop" },
+                { name: "Outdoor", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=200&fit=crop" },
+                { name: "Bathroom", image: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=200&h=200&fit=crop" },
+                { name: "Tableware", image: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=200&h=200&fit=crop" },
+                { name: "Mirrors", image: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=200&h=200&fit=crop" },
+                { name: "Wall Art", image: "https://images.unsplash.com/photo-1582738411706-bfc8e691d1c2?w=200&h=200&fit=crop" },
+                { name: "Cushions", image: "https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=200&h=200&fit=crop" }
+              ]}
+            />
+
+            {/* Electronics Products Section */}
+            <CategoryGridSection
+              title="Electronics Products"
+              category="Electronics"
+              items={[
+                { name: "Smartphones", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop" },
+                { name: "Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=200&h=200&fit=crop" },
+                { name: "Headphones", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop" },
+                { name: "Cameras", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=200&h=200&fit=crop" },
+                { name: "Smartwatches", image: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=200&h=200&fit=crop" },
+                { name: "Tablets", image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=200&h=200&fit=crop" },
+                { name: "TVs", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=200&h=200&fit=crop" },
+                { name: "Speakers", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=200&h=200&fit=crop" },
+                { name: "Drones", image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=200&h=200&fit=crop" },
+                { name: "Keyboards", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=200&h=200&fit=crop" },
+                { name: "Gaming Mouse", image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=200&h=200&fit=crop" },
+                { name: "Storage", image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=200&h=200&fit=crop" },
+                { name: "Cables", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
+                { name: "Power Banks", image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=200&h=200&fit=crop" },
+                { name: "Webcams", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
+                { name: "Routers", image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=200&h=200&fit=crop" }
+              ]}
+            />
+
+            {/* Sports Products Section */}
+            <CategoryGridSection
+              title="Sports Products"
+              category="Sports"
+              items={[
+                { name: "Running Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
+                { name: "Yoga Mats", image: "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=200&h=200&fit=crop" },
+                { name: "Dumbbells", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop" },
+                { name: "Sports Wear", image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&h=200&fit=crop" },
+                { name: "Bicycles", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=200&h=200&fit=crop" },
+                { name: "Basketballs", image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&h=200&fit=crop" },
+                { name: "Fitness Trackers", image: "https://images.unsplash.com/photo-1575053267983-b4ed21ff8931?w=200&h=200&fit=crop" },
+                { name: "Protein Shakes", image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=200&h=200&fit=crop" },
+                { name: "Gym Bags", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200&h=200&fit=crop" },
+                { name: "Resistance Bands", image: "https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=200&h=200&fit=crop" },
+                { name: "Tennis Rackets", image: "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=200&h=200&fit=crop" },
+                { name: "Swimming Gear", image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=200&h=200&fit=crop" },
+                { name: "Boxing Gloves", image: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=200&h=200&fit=crop" },
+                { name: "Skateboards", image: "https://images.unsplash.com/photo-1547447134-cd3f5c716030?w=200&h=200&fit=crop" },
+                { name: "Golf Clubs", image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=200&h=200&fit=crop" },
+                { name: "Water Bottles", image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=200&h=200&fit=crop" }
+              ]}
+            />
+
+            {/* Beauty Products Section */}
+            <CategoryGridSection
+              title="Beauty Products"
+              category="Beauty"
+              items={[
+                { name: "Skincare", image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=200&h=200&fit=crop" },
+                { name: "Makeup", image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=200&h=200&fit=crop" },
+                { name: "Perfumes", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop" },
+                { name: "Hair Care", image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=200&h=200&fit=crop" },
+                { name: "Nail Polish", image: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=200&h=200&fit=crop" },
+                { name: "Face Masks", image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=200&h=200&fit=crop" },
+                { name: "Lip Balm", image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=200&h=200&fit=crop" },
+                { name: "Eye Shadow", image: "https://images.unsplash.com/photo-1583241800698-3a8965d70ad9?w=200&h=200&fit=crop" },
+                { name: "Foundation", image: "https://images.unsplash.com/photo-1631214524020-7e18db9a8f92?w=200&h=200&fit=crop" },
+                { name: "Brushes", image: "https://images.unsplash.com/photo-1596704017254-9b121068ec31?w=200&h=200&fit=crop" },
+                { name: "Moisturizers", image: "https://images.unsplash.com/photo-1620916297804-c5f0e5aa291b?w=200&h=200&fit=crop" },
+                { name: "Serums", image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&h=200&fit=crop" },
+                { name: "Lipstick", image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=200&h=200&fit=crop" },
+                { name: "Blush", image: "https://images.unsplash.com/photo-1617897903246-719242758050?w=200&h=200&fit=crop" },
+                { name: "Mascara", image: "https://images.unsplash.com/photo-1631730486572-226d1f595b68?w=200&h=200&fit=crop" },
+                { name: "Body Lotion", image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=200&h=200&fit=crop" }
+              ]}
+            />
+
+            {/* Books Section */}
+            <CategoryGridSection
+              title="Books"
+              category="Books"
+              items={[
+                { name: "Fiction", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
+                { name: "Non-Fiction", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
+                { name: "Self-Help", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
+                { name: "Biographies", image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=200&h=200&fit=crop" },
+                { name: "Science", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
+                { name: "History", image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=200&h=200&fit=crop" },
+                { name: "Children", image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=200&h=200&fit=crop" },
+                { name: "Comics", image: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=200&h=200&fit=crop" },
+                { name: "Poetry", image: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=200&h=200&fit=crop" },
+                { name: "Mystery", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
+                { name: "Romance", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
+                { name: "Thriller", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
+                { name: "Fantasy", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
+                { name: "Horror", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
+                { name: "Cookbooks", image: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=200&h=200&fit=crop" },
+                { name: "Travel", image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200&h=200&fit=crop" }
+              ]}
+            />
+          </>
+        );
+      })()}
+
+      {/* For You Section */}
+      {featuredProducts.length > 0 && (
+        <div className="py-6 bg-transparent">
+          <div className="px-4 flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-foreground">For You</h2>
+            <Link href="/products" className="text-[var(--primary-color)] text-sm font-semibold hover:underline transition-all">
+              View All →
+            </Link>
+          </div>
+
+          {/* Featured Badge */}
+          <div className="px-4 mb-6">
+            <span className="inline-flex items-center gap-2 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse text-xs font-semibold px-6 py-2.5 rounded-full shadow-lg pulse-glow">
+              ✨ Featured
+            </span>
+          </div>
+
+          {/* Product Carousel */}
+          <div className="featured-products-carousel">
+            <Slider {...carouselSettings}>
+              {featuredProducts.map((product, index) => (
+                <div key={product.id} className="px-1">
+                  <Link href={`/products/${product.id}`}
+                    className="block"
+                  >
+                    <div className="glass-card rounded-2xl p-5 mx-2 hover:shadow-2xl transition-all duration-300">
+                      {/* Product Image Container */}
+                      <div className="relative mb-4 rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                        <div className="aspect-square">
+                          {product.badge && (
+                            <Badge className="absolute top-3 left-3 z-10 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse text-xs font-semibold px-3 py-1 shadow-lg">
+                              {product.badge}
+                            </Badge>
+                          )}
+                          <ImageWithFallback
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                          />
+                          <button
+                            className="absolute top-3 right-3 bg-background dark:bg-card text-card-foreground p-2 rounded-full shadow-md hover:opacity-100 transition-all active:scale-95"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleWishlist({
+                                id: product.id,
+                                name: product.name,
+                                price: product.price,
+                                originalPrice: product.originalPrice,
+                                image: product.image,
+                                category: product.category,
+                                rating: product.rating,
+                                reviews: product.reviews,
+                              });
+                            }}
+                          >
+                            <Heart
+                              className="size-4 text-[var(--primary-color)]"
+                              fill={isInWishlist(product.id) ? "var(--primary-color)" : "none"}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="space-y-3">
+                        {/* Product Name */}
+                        <h3 className="text-base font-semibold text-foreground line-clamp-2 min-h-[3rem]">
+                          {product.name}
+                        </h3>
+
+                        {/* Rating */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`size-3.5 ${i < Math.floor(product.rating)
+                                    ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
+                                    : "text-muted dark:text-muted-foreground"
+                                  }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-muted-foreground font-medium">
+                            ({product.reviews})
+                          </span>
+                        </div>
+
+                        {/* Price Section */}
+                        <div className="flex items-end justify-between pt-2">
+                          <div className="flex flex-col">
+                            <span className="text-2xl font-bold text-[var(--primary-color)]">
+                              ${product.price.toFixed(2)}
+                            </span>
+                            {product.originalPrice != null && product.originalPrice > product.price && (
+                              <span className="text-sm text-muted-foreground dark:text-muted-foreground line-through">
+                                ${product.originalPrice.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          {product.originalPrice != null && product.originalPrice > product.price && (
+                            <div className="bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg">
+                              <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                                {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </Slider>
+          </div>
+        </div>
+      )}
+
+      {/* Features Section */}
+      {featuresSection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <Card className="p-5 bg-card border border-border shadow-sm">
+            <h2 className="text-xl font-bold text-foreground mb-5">
+              {featuresSection?.title || "Why Choose Us?"}
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {(featuresSection?.items?.length
+                ? featuresSection.items
+                : features
+              ).map((feature: any, index: number) => {
+                const IconComp = feature.icon === "Truck" ? Truck : feature.icon === "RotateCcw" ? RotateCcw : feature.icon === "Shield" ? Shield : Headphones;
+                return (
+                  <div key={feature._id || index} className="flex flex-col items-center text-center p-3 bg-muted rounded-xl">
+                    <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full mb-2">
+                      <IconComp className="size-5 text-inverse" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">
+                      {feature.title || feature.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {feature.description || feature.subtitle}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Categories Section */}
+      {shopByCategorySection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <Card className="p-5 bg-card border border-border shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-foreground">
+                {shopByCategorySection?.title || "Shop by Category"}
+              </h2>
+              <Link href={shopByCategorySection?.settings?.viewAllLink || "/products"} className="text-[var(--primary-color)] text-sm font-semibold hover:underline">
+                See All →
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {(shopByCategorySection?.items?.length
+                ? shopByCategorySection.items
+                : categories
+              ).map((category: any, index: number) => (
+                <Link key={category._id || index}
+                  href={category.link || `/products?category=${encodeURIComponent(category.name || category.title)}`}
+                  className="group"
+                >
+                  <div className="relative rounded-xl overflow-hidden aspect-square shadow-sm hover:shadow-md transition-all">
+                    <ImageWithFallback
+                      src={category.image}
+                      alt={category.name || category.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-t ${category.gradient || category.color || "from-orange-500/70 to-amber-600/70"} flex flex-col items-center justify-center text-inverse`}>
+                      <h3 className="text-sm font-bold mb-1 text-center px-2 line-clamp-2">
+                        {category.name || category.title}
+                      </h3>
+                      {(category.count || category.subtitle) && (
+                        <span className="text-xs opacity-90">{category.count || category.subtitle}</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Ad Banner Section */}
-      <div className="px-4 py-6 bg-transparent">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Special Offers</h2>
-        <AdBanner ads={ads} />
-      </div>
+      {specialOffersSection?.isActive !== false && (
+        <div className="px-4 py-6 bg-transparent">
+          <h2 className="text-2xl font-bold text-foreground mb-6">
+            {specialOffersSection?.title || "Special Offers"}
+          </h2>
+          <AdBanner
+            ads={
+              specialOffersSection?.items?.length
+                ? specialOffersSection.items.map((it: any, i: number) => ({
+                  id: it._id || String(i),
+                  title: it.title || it.name || "",
+                  description: it.description || it.subtitle || "",
+                  discount: it.discount || it.offer,
+                  image: it.image,
+                  buttonText: it.buttonText || "Shop Now",
+                  buttonLink: it.buttonLink || it.link || "/category",
+                  type: it.type || "hero",
+                  backgroundColor: it.backgroundColor || it.gradient,
+                }))
+                : ads
+            }
+          />
+        </div>
+      )}
 
       {/* Promo Carousel Section */}
       <div className="py-6 bg-transparent">
@@ -1019,30 +1058,33 @@ export function MobileHomeView() {
       </div>
 
       {/* CTA Banner for Rewards */}
-      <div className="px-4 py-6 pb-24 bg-transparent">
-        <Card className="bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse p-6 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 rounded-full -mr-16 -mt-16" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-background/10 rounded-full -ml-12 -mb-12" />
-          <div className="relative z-10 text-center">
-            <h2 className="text-2xl font-bold mb-3">
-              Join Our Rewards Program
-            </h2>
-            <p className="text-sm text-orange-100 mb-6">
-              Earn points with every purchase and get exclusive discounts. Refer friends and get even more rewards!
-            </p>
-            <Button
-              size="lg"
-              className="bg-background text-[var(--primary-color)] hover:bg-muted"
-              asChild
-            >
-              <Link href="/rewards">
-                Learn More
-                <ArrowRight className="size-4 ml-2" />
-              </Link>
-            </Button>
-          </div>
-        </Card>
-      </div>
+      {rewardsSection?.isActive !== false && (
+        <div className="px-4 py-6 pb-24 bg-transparent">
+          <Card className="bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse p-6 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 rounded-full -mr-16 -mt-16" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-background/10 rounded-full -ml-12 -mb-12" />
+            <div className="relative z-10 text-center">
+              <h2 className="text-2xl font-bold mb-3">
+                {rewardsSection?.title || "Join Our Rewards Program"}
+              </h2>
+              <p className="text-sm text-orange-100 mb-6">
+                {rewardsSection?.description ||
+                  "Earn points with every purchase and get exclusive discounts. Refer friends and get even more rewards!"}
+              </p>
+              <Button
+                size="lg"
+                className="bg-background text-[var(--primary-color)] hover:bg-muted"
+                asChild
+              >
+                <Link href={rewardsSection?.settings?.buttonLink || "/rewards"}>
+                  {rewardsSection?.settings?.buttonText || "Learn More"}
+                  <ArrowRight className="size-4 ml-2" />
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { TrendingUp, Download, Pencil, Star,
   MapPin, 
   Mail , CheckCircle, AlertCircle ,Eye, Trash2, Plus, CreditCard} from "lucide-react";
   import { Search } from "lucide-react";
+import { downloadCSV } from "../utils/exportCSV";
 
 
 const AMBER = "#d97706";
@@ -193,6 +194,14 @@ export default function VendorDashboard() {
     return matchSearch && matchStatus;
   });
 
+  const exportVendors = () => {
+    downloadCSV(
+      `vendors-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Store Name", "Owner", "Email", "Status", "Products", "Total Sales", "Phone", "Address"],
+      filtered.map((vendor) => [vendor.name, vendor.owner, vendor.email, vendor.status, vendor.products, vendor.sales, vendor.phone, vendor.address])
+    );
+  };
+
   const handleAdd = async () => {
     if (!form.storeName || !form.ownerName || !form.email) return;
     try {
@@ -261,7 +270,7 @@ export default function VendorDashboard() {
 </p>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
-          <button style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={exportVendors} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
             ↓ Export
           </button>
           <button onClick={() => setShowAdd(true)} style={{ background: AMBER, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 700, fontSize: 15 }}>
@@ -274,18 +283,18 @@ export default function VendorDashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginBottom: 28 }}>
         <div style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <p style={{ margin: "0 0 10px", fontSize: 14, color: "#6b7280" }}>Total Vendors</p>
-          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{248}</p>
-          <p style={{ margin: 0, fontSize: 13, color: GREEN, fontWeight: 500 }}>+8.2% this month</p>
+          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{totalVendors}</p>
+          <p style={{ margin: 0, fontSize: 13, color: GREEN, fontWeight: 500 }}>Live backend count</p>
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <p style={{ margin: "0 0 10px", fontSize: 14, color: "#6b7280" }}>Active Vendors</p>
-          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{235}</p>
-          <p style={{ margin: 0, fontSize: 13, color: GREEN, fontWeight: 500 }}>94.8% active rate</p>
+          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{activeVendors}</p>
+          <p style={{ margin: 0, fontSize: 13, color: GREEN, fontWeight: 500 }}>{activeRate}% active rate</p>
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <p style={{ margin: "0 0 10px", fontSize: 14, color: "#6b7280" }}>Pending Verification</p>
-          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{8}</p>
-          <span style={{ background: AMBER, color: "#fff", padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>Requires Action</span>
+          <p style={{ margin: "0 0 8px", fontSize: 42, fontWeight: 500, color: "#111", lineHeight: 1 }}>{pendingCount}</p>
+          <span style={{ background: AMBER, color: "#fff", padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>Backend count</span>
         </div>
       </div>
 
@@ -357,7 +366,7 @@ export default function VendorDashboard() {
                   <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 2 }}>{v.email}</div>
                 </td>
                 <td style={{ padding: "16px 24px" }}><StatusBadge status={v.status} /></td>
-                <td style={{ padding: "16px 24px", fontWeight: 700, fontSize: 16, color: "#111" }}>${v.sales.toLocaleString()}</td>
+                <td style={{ padding: "16px 24px", fontWeight: 700, fontSize: 16, color: "#111" }}>₹{v.sales.toLocaleString()}</td>
                 <td style={{ padding: "16px 24px", position: "relative" }}>
                   <button
                     onClick={(e) => {
@@ -482,7 +491,7 @@ export default function VendorDashboard() {
               ["Owner", detailVendor.owner],
               ["Email", detailVendor.email],
               ["Products", detailVendor.products],
-              ["Total Sales", `$${detailVendor.sales.toLocaleString()}`],
+              ["Total Sales", `₹${detailVendor.sales.toLocaleString()}`],
               ...(detailVendor.phone ? [["Phone", detailVendor.phone]] : []),
               ...(detailVendor.license ? [["License No.", detailVendor.license]] : []),
               ...(detailVendor.address ? [["Address", detailVendor.address]] : []),

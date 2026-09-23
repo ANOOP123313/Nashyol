@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import RevenueChart from "../components/RevenueChart";
 import OrdersChart from "../components/OrdersChart";
 import ReferralChart from "../components/ReferralChart";
-import { dashboardAPI, ordersAPI, vendorsAPI, customersAPI } from "../services/api";
+import { dashboardAPI } from "../services/api";
 
 import {
   DollarSign,
@@ -20,42 +20,26 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [topVendorsList, setTopVendorsList] = useState([]);
+  const [charts, setCharts] = useState({ revenue: [], orders: [], referrals: [] });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [dashRes, ordersRes, vendorsRes, customersRes] = await Promise.allSettled([
-          dashboardAPI.getAdminStats(),
-          ordersAPI.getAll(),
-          vendorsAPI.getAll(),
-          customersAPI.getAll(),
-        ]);
+        setError("");
+        const dashboardData = await dashboardAPI.getAdminStats();
 
-        const dashData = dashRes.status === "fulfilled" ? dashRes.value : {};
-        const ordersData = ordersRes.status === "fulfilled" ? (ordersRes.value?.orders || ordersRes.value || []) : [];
-        const vendorsData = vendorsRes.status === "fulfilled" ? (vendorsRes.value?.vendors || vendorsRes.value || []) : [];
-        const customersData = customersRes.status === "fulfilled" ? (customersRes.value?.users || customersRes.value || []) : [];
-
-        const totalRev = dashData.totalSales ?? ordersData.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
-        const totalOrds = dashData.totalOrders ?? ordersData.length;
-        const totalVends = dashData.totalVendors ?? vendorsData.length;
-        const totalCusts = dashData.totalCustomers ?? customersData.length;
-
-        setStats({
-          totalRevenue: totalRev,
-          totalOrders: totalOrds,
-          totalVendors: totalVends,
-          totalCustomers: totalCusts,
-          referralRevenue: dashData.referralRevenue || 0,
-          pendingApprovals: vendorsData.filter(v => v.approvalStatus === "pending").length,
-        });
-
-        setRecentOrders(ordersData.slice(0, 5));
-        setTopVendorsList(vendorsData.slice(0, 5));
+        setStats(dashboardData.stats || {});
+        setCharts(dashboardData.charts || { revenue: [], orders: [], referrals: [] });
+        setRecentOrders(dashboardData.recentOrders || []);
+        setTopVendorsList(dashboardData.topVendors || []);
+        setLeaderboard(dashboardData.leaderboard || []);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
+        setError(err.message || "Unable to load dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -69,6 +53,14 @@ const Dashboard = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500">
         <Loader2 className="w-8 h-8 animate-spin text-orange-500 mb-2" />
         <p className="text-sm font-medium">Loading live dashboard metrics...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 min-h-[60vh] flex items-center justify-center">
+        <p className="text-sm text-red-600">{error}</p>
       </div>
     );
   }
@@ -89,7 +81,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Revenue"
-          value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
+          value={`₹${(stats?.revenue || 0).toLocaleString()}`}
           change="+15.3%"
           icon={DollarSign}
           iconBg="bg-orange-500"
@@ -97,7 +89,7 @@ const Dashboard = () => {
 
         <StatCard
           title="Total Orders"
-          value={(stats?.totalOrders || 0).toLocaleString()}
+          value={(stats?.orders || 0).toLocaleString()}
           change="+12.5%"
           icon={ShoppingBag}
           iconBg="bg-blue-500"
@@ -105,7 +97,7 @@ const Dashboard = () => {
 
         <StatCard
           title="Total Vendors"
-          value={(stats?.totalVendors || 0).toLocaleString()}
+          value={(stats?.vendors || 0).toLocaleString()}
           change="+8.2%"
           icon={Store}
           iconBg="bg-green-500"
@@ -113,7 +105,7 @@ const Dashboard = () => {
 
         <StatCard
           title="Total Customers"
-          value={(stats?.totalCustomers || 0).toLocaleString()}
+          value={(stats?.customers || 0).toLocaleString()}
           change="+18.7%"
           icon={Users}
           iconBg="bg-purple-500"
@@ -121,7 +113,7 @@ const Dashboard = () => {
 
         <StatCard
           title="Referral Revenue"
-          value={`$${(stats?.referralRevenue || 0).toLocaleString()}`}
+          value={`₹${(stats?.referralRevenue || 0).toLocaleString()}`}
           change="+24.1%"
           icon={Gift}
           iconBg="bg-orange-400"
@@ -140,11 +132,11 @@ const Dashboard = () => {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartWrapper title="Revenue Overview" subtitle="Monthly revenue trend">
-          <RevenueChart />
+          <RevenueChart chartData={formatRevenueChartData(charts.revenue)} />
         </ChartWrapper>
 
         <ChartWrapper title="Orders Analytics" subtitle="Monthly order volume">
-          <OrdersChart />
+          <OrdersChart chartData={formatOrdersChartData(charts.orders)} />
         </ChartWrapper>
       </div>
 
@@ -152,7 +144,7 @@ const Dashboard = () => {
         title="Referral Growth"
         subtitle="Referral signups vs conversions"
       >
-        <ReferralChart />
+        <ReferralChart chartData={formatReferralChartData(charts.referrals)} />
       </ChartWrapper>
 
       {/* Bottom Section */}
@@ -161,12 +153,30 @@ const Dashboard = () => {
         <TopVendors vendorsList={topVendorsList} />
       </div>
 
-      <Leaderboard />
+      <Leaderboard leaderboard={leaderboard} />
     </div>
   );
 };
 
 export default Dashboard;
+
+const monthNames = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const formatRevenueChartData = (data) =>
+  data.map(({ _id, total }) => ({ month: monthNames[_id - 1] || _id, revenue: total }));
+
+const formatOrdersChartData = (data) =>
+  data.map(({ _id, count }) => ({ month: monthNames[_id - 1] || _id, orders: count }));
+
+const formatReferralChartData = (data) =>
+  data.map(({ _id, totalReferrals, conversions }) => ({
+    month: monthNames[_id - 1] || _id,
+    referrals: totalReferrals,
+    conversions,
+  }));
 
 /* ================= STAT CARD ================= */
 
@@ -321,11 +331,31 @@ const TopVendors = ({ vendorsList }) => {
 
 /* ================= LEADERBOARD ================= */
 
-const Leaderboard = () => (
+const Leaderboard = ({ leaderboard }) => (
   <div className="bg-white rounded-xl p-5 border overflow-x-auto">
     <h3 className="text-[18px] font-semibold text-gray-900 mb-5">Top Referrers Leaderboard</h3>
-    <div className="py-8 text-center text-sm text-gray-400">
-      No referrer leaderboard data available yet.
-    </div>
+    {leaderboard.length === 0 ? (
+      <div className="py-8 text-center text-sm text-gray-400">
+        No referrer leaderboard data available yet.
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs uppercase text-gray-500 border-b">
+            <tr><th className="py-3">Referrer</th><th>Referrals</th><th>Conversions</th><th>Rate</th></tr>
+          </thead>
+          <tbody>
+            {leaderboard.map((entry) => (
+              <tr key={entry._id} className="border-b last:border-0">
+                <td className="py-3 text-gray-700">{entry._id || "Unknown"}</td>
+                <td>{entry.referrals}</td>
+                <td>{entry.conversions}</td>
+                <td>{Number(entry.rate || 0).toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
   </div>
 );

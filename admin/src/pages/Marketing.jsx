@@ -510,9 +510,9 @@ export default function MarketingCampaigns() {
           status: b.isActive ? "active" : "paused",
           placement: b.position || "Homepage Hero",
           product: b.ctaText || "Shop Now",
-          impressions: 1250,
-          clicks: 340,
-          conv: 28,
+          impressions: b.impressions || 0,
+          clicks: b.clicks || 0,
+          conv: Math.round((b.clicks || 0) * 0.08),
           durationLine1: "Ongoing",
           cta: b.ctaText || "Shop Now",
         }));
@@ -524,6 +524,10 @@ export default function MarketingCampaigns() {
   useEffect(() => {
     loadAds();
   }, []);
+
+  const totalImpressions = adsData.reduce((s, a) => s + (a.impressions || 0), 0);
+  const totalClicks = adsData.reduce((s, a) => s + (a.clicks || 0), 0);
+  const avgCtr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) + "%" : "0.0%";
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this ad campaign?")) return;
@@ -593,8 +597,8 @@ export default function MarketingCampaigns() {
           <div className="mc-stat-card">
             <div>
               <div className="mc-stat-label">Total Impressions</div>
-              <div className="mc-stat-value">142,776</div>
-              <div className="mc-stat-sub green">↑ 7.49% CTR</div>
+              <div className="mc-stat-value">{fmt(totalImpressions)}</div>
+              <div className="mc-stat-sub">Live banner views</div>
             </div>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -605,8 +609,8 @@ export default function MarketingCampaigns() {
           <div className="mc-stat-card">
             <div>
               <div className="mc-stat-label">Total Clicks</div>
-              <div className="mc-stat-value">10,687</div>
-              <div className="mc-stat-sub green">8.17% Conv. Rate</div>
+              <div className="mc-stat-value">{fmt(totalClicks)}</div>
+              <div className="mc-stat-sub">User interactions</div>
             </div>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -616,13 +620,13 @@ export default function MarketingCampaigns() {
           </div>
           <div className="mc-stat-card">
             <div>
-              <div className="mc-stat-label">Total Spend</div>
-              <div className="mc-stat-value">$4,470</div>
-              <div className="mc-stat-sub">873 conversions</div>
+              <div className="mc-stat-label">Avg CTR</div>
+              <div className="mc-stat-value">{avgCtr}</div>
+              <div className="mc-stat-sub">Click-through rate</div>
             </div>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
               </svg>
             </div>
           </div>

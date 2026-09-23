@@ -17,11 +17,14 @@ const logoImage = null;
 import { toast } from "sonner";
 import { useState } from "react";
 
+import { homePageApi } from "@/services/api";
+
 export function Footer() {
   const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     if (!email.trim()) {
       toast.error("Please enter your email address");
       return;
@@ -30,10 +33,16 @@ export function Footer() {
       toast.error("Please enter a valid email address");
       return;
     }
-    toast.success("Thank you for subscribing!", {
-      description: "You'll receive our latest updates and offers.",
-    });
-    setEmail("");
+    setSubmitting(true);
+    try {
+      const res = await homePageApi.subscribeNewsletter(email.trim());
+      toast.success(res.message || "Thank you for subscribing!");
+      setEmail("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to subscribe");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -84,7 +93,7 @@ export function Footer() {
             <Link href="/" className="flex items-center mb-4">
               <img
                 src={logoImage}
-                alt="N4ASHYOL"
+                alt="NAASHYOL"
                 className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
               />
             </Link>
@@ -208,7 +217,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="size-5 text-[var(--primary-color)] flex-shrink-0" />
-                <span className="text-muted-foreground">support@n4ashyol.com</span>
+                <span className="text-muted-foreground">support@NAASHYOL.com</span>
               </li>
             </ul>
           </div>
@@ -220,7 +229,7 @@ export function Footer() {
       {/* Bottom Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© {currentYear} N4ASHYOL. All rights reserved.</p>
+          <p>© {currentYear} NAASHYOL. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/privacy-policy" className="hover:text-primary transition-colors">
               Privacy

@@ -43,7 +43,6 @@ import Slider1 from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { FashionAdCarousel } from "../components/FashionAdCarousel";
-import { allProducts } from "../data/products";
 
 // ─── Category Metadata ───────────────────────────────────────────────────────
 
@@ -279,6 +278,8 @@ const allCategories = [
 
 import { productsApi } from "@/services/api";
 import { useEffect } from "react";
+import { categoriesApi } from "@/services/api";
+import { useCategorySubcategories } from "@/services/categorySubcategories";
 
 function mapBackendProduct(p: any) {
   const v = p.variants?.[0] || {};
@@ -287,6 +288,7 @@ function mapBackendProduct(p: any) {
     _id: p._id,
     name: p.title || p.name,
     category: p.category?.name || p.category || "",
+    subcategory: p.subCategory || p.subcategory || "",
     price: v.sellingPrice || p.offerPrice || p.price || 0,
     originalPrice: p.offerPrice ? v.sellingPrice : undefined,
     image: v.image || p.images?.[0] || "https://placehold.co/400x400?text=No+Image",
@@ -302,14 +304,14 @@ function CategoryPageInner() {
   const categoryParam = searchParams.get("category") ?? "Fashion";
   const subcategoryParam = searchParams.get("subcategory");
 
+  const { subcategories } = useCategorySubcategories(categoryParam);
+
   const meta = categoryMeta[categoryParam] || {
     title: categoryParam,
     subtitle: "Explore our collection of quality products",
     gradient: "from-orange-600 via-amber-500 to-yellow-400",
     accentColor: "#F97316",
   };
-
-  const subcategories = subcategoryData[categoryParam] || [];
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,25 +324,40 @@ function CategoryPageInner() {
 
   useEffect(() => {
     setLoading(true);
-    productsApi.list()
+    productsApi.list({
+      category: categoryParam,
+      subcategory: subcategoryParam || undefined,
+    })
       .then((res) => {
         const raw = Array.isArray(res) ? res : res.products || [];
-        const mapped = raw.map(mapBackendProduct);
-        const filtered = mapped.filter((p) => 
-          !categoryParam || p.category.toLowerCase().includes(categoryParam.toLowerCase())
-        );
-        setProducts(filtered.length > 0 ? filtered : mapped);
+        let mapped = raw.map(mapBackendProduct);
+        if (subcategoryParam) {
+          const normalize = (s: string) => (s || "").toLowerCase().replace(/[\s\-_&,]+/g, "");
+          const subNorm = normalize(subcategoryParam);
+          const subFiltered = mapped.filter((p) => {
+            const prodSubNorm = normalize(p.subcategory);
+            const prodNameNorm = normalize(p.name);
+            return prodSubNorm.includes(subNorm) || subNorm.includes(prodSubNorm) || prodNameNorm.includes(subNorm);
+          });
+          if (subFiltered.length > 0) {
+            mapped = subFiltered;
+          }
+        }
+        setProducts(mapped);
       })
-      .catch((err) => console.error("Category products fetch error:", err))
+      .catch((err) => {
+        console.error("Category products fetch error:", err);
+        setProducts([]);
+      })
       .finally(() => setLoading(false));
   }, [categoryParam, subcategoryParam]);
 
   const priceRanges = [
-    { label: "Under $25", value: "0-25" },
-    { label: "$25 – $50", value: "25-50" },
-    { label: "$50 – $100", value: "50-100" },
-    { label: "$100 – $200", value: "100-200" },
-    { label: "Over $200", value: "200-9999" },
+    { label: "Under ₹25", value: "0-25" },
+    { label: "₹25 – ₹50", value: "25-50" },
+    { label: "₹50 – ₹100", value: "50-100" },
+    { label: "₹100 – ₹200", value: "100-200" },
+    { label: "Over ₹200", value: "200-9999" },
   ];
 
   const sliderSettings = {
@@ -473,22 +490,35 @@ function CategoryPageInner() {
         {subcategories.length > 0 && (
           <section className="py-8 bg-background border-b border-white/5">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xl font-bold text-inverse">Browse {categoryParam}</h2>
-                <span className="text-muted-foreground text-sm">{subcategories.length} categories</span>
+              <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-inverse">Browse {categoryParam}</h2>
+                  {subcategoryParam && (
+                    <Link
+                      href={`/category?category=${encodeURIComponent(categoryParam)}`}
+                      className="text-xs bg-[var(--primary-color)]/20 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/30 border border-[var(--primary-color)]/30 px-3 py-1 rounded-full font-semibold transition-colors inline-flex items-center gap-1"
+                    >
+                      Showing: {subcategoryParam} <span className="opacity-70">✕ Clear</span>
+                    </Link>
+                  )}
+                </div>
+                <span className="text-muted-foreground text-sm font-medium">{subcategories.length} categories</span>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 sm:gap-3">
                 {subcategories.map((cat) => {
-                  const isActive = subcategoryParam === cat.name;
+                  const isActive = subcategoryParam?.toLowerCase() === cat.name.toLowerCase();
+                  const targetHref = isActive
+                    ? `/category?category=${encodeURIComponent(categoryParam)}`
+                    : `/category?category=${encodeURIComponent(categoryParam)}&subcategory=${encodeURIComponent(cat.name)}`;
                   return (
                     <Link
                       key={cat.name}
-                      href={`/category?category=${encodeURIComponent(categoryParam)}&subcategory=${encodeURIComponent(cat.name)}`}
+                      href={targetHref}
                       className="group flex flex-col items-center"
                     >
                       <div className={`relative w-full aspect-square rounded-xl overflow-hidden mb-1.5 transition-all duration-300 hover:scale-105
                         ${isActive
-                          ? "ring-2 ring-[var(--primary-color)] shadow-lg shadow-orange-500/30"
+                          ? "ring-2 ring-[var(--primary-color)] shadow-lg shadow-orange-500/40 scale-105"
                           : "hover:shadow-lg hover:shadow-white/10"
                         }`}
                       >
@@ -498,13 +528,13 @@ function CategoryPageInner() {
                           className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
                         />
                         {isActive && (
-                          <div className="absolute inset-0 bg-[var(--primary-color)]/20 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-[var(--primary-color)]" />
+                          <div className="absolute inset-0 bg-[var(--primary-color)]/25 flex items-center justify-center">
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--primary-color)] ring-2 ring-white" />
                           </div>
                         )}
                       </div>
                       <p className={`text-[10px] sm:text-xs text-center font-medium line-clamp-2 leading-tight transition-colors
-                        ${isActive ? "text-[var(--primary-color)]" : "text-muted group-hover:text-inverse"}`}
+                        ${isActive ? "text-[var(--primary-color)] font-bold" : "text-muted group-hover:text-inverse"}`}
                       >
                         {cat.name}
                       </p>
@@ -790,26 +820,30 @@ function CategoryPageInner() {
                       <span className="text-[10px] text-muted-foreground">({product.reviews})</span>
                     </div>
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm font-bold text-[var(--primary-color)]">${product.price}</span>
+                      <span className="text-sm font-bold text-[var(--primary-color)]">₹{product.price}</span>
                       {product.originalPrice && (
-                        <span className="text-[10px] text-muted-foreground line-through">${product.originalPrice}</span>
+                        <span className="text-[10px] text-muted-foreground line-through">₹{product.originalPrice}</span>
                       )}
                     </div>
                     <Button
                       className="w-full bg-[var(--primary-color)] hover:bg-orange-600 h-7 text-xs border-0"
                       disabled={!product.inStock}
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (product.inStock) {
-                          addItem(product.id, (product as any).sku || product.id, 1, {
-                            id: product.id,
-                            sku: (product as any).sku || product.id,
-                            name: product.name,
-                            price: product.price,
-                            image: product.image,
-                          });
-                          toast.success(`${product.name} added to cart!`);
+                          try {
+                            await addItem(product.id, (product as any).sku || product.id, 1, {
+                              id: product.id,
+                              sku: (product as any).sku || product.id,
+                              name: product.name,
+                              price: product.price,
+                              image: product.image,
+                            });
+                            toast.success(`${product.name} added to cart!`);
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+                          }
                         }
                       }}
                     >

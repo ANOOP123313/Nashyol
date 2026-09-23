@@ -34,11 +34,11 @@ import { productsApi } from "@/services/api";
 const categories = ["Electronics", "Fashion", "Beauty", "Home & Garden", "Sports", "Books"];
 
 const priceRanges = [
-  { label: "Under $25", value: "0-25" },
-  { label: "$25 – $50", value: "25-50" },
-  { label: "$50 – $100", value: "50-100" },
-  { label: "$100 – $200", value: "100-200" },
-  { label: "Over $200", value: "200-9999" },
+  { label: "Under ₹25", value: "0-25" },
+  { label: "₹25 – ₹50", value: "25-50" },
+  { label: "₹50 – ₹100", value: "50-100" },
+  { label: "₹100 – ₹200", value: "100-200" },
+  { label: "Over ₹200", value: "200-9999" },
 ];
 
 function mapBackendProduct(p: any) {
@@ -46,6 +46,7 @@ function mapBackendProduct(p: any) {
   return {
     id: p._id,
     _id: p._id,
+    sku: v.sku,
     name: p.title || p.name,
     category: p.category?.name || p.category || "",
     price: v.sellingPrice || p.offerPrice || p.price || 0,
@@ -54,7 +55,7 @@ function mapBackendProduct(p: any) {
     rating: 4.8,
     reviewsCount: p.reviews?.length || 12,
     badge: p.offerPrice ? "Sale" : p.featured ? "Featured" : undefined,
-    inStock: (v.currentStock ?? 1) > 0,
+    inStock: v.isActive !== false && (v.currentStock ?? 0) > 0,
   };
 }
 
@@ -98,14 +99,62 @@ export function ProductsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (categoryParam) {
+      setSelectedCategories([categoryParam]);
+    }
+  }, [categoryParam]);
+
   let products = productList;
 
-  if (categoryParam) {
-    products = products.filter(product => product.category === categoryParam);
+  // Filter by category: URL categoryParam or selectedCategories checkbox
+  const activeCategories = selectedCategories.length > 0 
+    ? selectedCategories 
+    : (categoryParam ? [categoryParam] : []);
+
+  if (activeCategories.length > 0) {
+    products = products.filter(product => {
+      const prodCat = (product.category || "").toLowerCase();
+      return activeCategories.some(cat => {
+        const c = cat.toLowerCase();
+        const firstWord = c.split(/[\s&]+/)[0];
+        return prodCat.includes(c) || prodCat.includes(firstWord);
+      });
+    });
   }
 
+  // Filter by subcategory
   if (subcategoryParam) {
-    products = products.filter(product => product.subcategory === subcategoryParam);
+    const subLower = subcategoryParam.toLowerCase();
+    products = products.filter(product => 
+      product.subcategory?.toLowerCase().includes(subLower) ||
+      product.name?.toLowerCase().includes(subLower)
+    );
+  }
+
+  // Filter by price range
+  if (selectedPriceRange) {
+    const [min, max] = selectedPriceRange.split("-").map(Number);
+    products = products.filter(product => {
+      const price = product.price || 0;
+      return price >= min && (max ? price <= max : true);
+    });
+  }
+
+  // Filter by min rating
+  if (selectedMinRating != null) {
+    products = products.filter(product => (product.rating || 0) >= selectedMinRating);
+  }
+
+  // Sort products
+  if (sortBy === "price-low") {
+    products = [...products].sort((a, b) => a.price - b.price);
+  } else if (sortBy === "price-high") {
+    products = [...products].sort((a, b) => b.price - a.price);
+  } else if (sortBy === "rating") {
+    products = [...products].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  } else if (sortBy === "newest") {
+    products = [...products].reverse();
   }
 
   const FilterContent = () => (
@@ -1235,29 +1284,33 @@ export function ProductsPage() {
                       </div>
                       <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                         <span className="text-sm sm:text-lg font-bold text-[var(--primary-color)]">
-                          ${product.price}
+                          ₹{product.price}
                         </span>
                         {product.originalPrice && (
                           <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
-                            ${product.originalPrice}
+                            ₹{product.originalPrice}
                           </span>
                         )}
                       </div>
                       <Button
   className="w-full bg-[var(--primary-color)] text-white hover:bg-orange-600 h-9 text-sm font-semibold transition-all duration-200 border-0"
   disabled={!product.inStock}
-  onClick={(e) => {
+  onClick={async (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (product.inStock) {
-      addItem(product.id, (product as any).sku || product.id, 1, {
-        id: product.id,
-        sku: (product as any).sku || product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-      });
-      toast.success(`${product.name} added to cart!`);
+      try {
+        await addItem(product.id, (product as any).sku || product.id, 1, {
+          id: product.id,
+          sku: (product as any).sku || product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+        });
+        toast.success(`${product.name} added to cart!`);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+      }
     }
   }}
 >

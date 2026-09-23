@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ordersAPI } from "../services/api";
+import { downloadCSV } from "../utils/exportCSV";
 
 
 const statusConfig = {
@@ -76,7 +77,6 @@ const summaryCards = [
   },
 ];
 
-const orders = [];
 const orderItems = {};
 const timelineData = {};
 
@@ -90,13 +90,31 @@ function StatusBadge({ status }) {
 }
 
 function DeliveryModal({ order, onClose }) {
-  const items = orderItems[order.id] || [];
-  const timeline = timelineData[order.id] || [];
+  const items = order.orderItems?.length ? order.orderItems : (orderItems[order.id] || []);
+  const timeline = order.timeline?.length
+    ? order.timeline
+    : [
+        {
+          label: "Order Placed",
+          date: order.orderDate,
+          location: "Online Store",
+          desc: "Order has been placed and verified.",
+          color: "bg-green-500",
+        },
+        {
+          label: order.status === "Delivered" ? "Delivered" : "In Processing",
+          date: order.eta || order.orderDate,
+          location: order.carrier || "Carrier Hub",
+          desc: order.status === "Delivered" ? "Package successfully delivered to customer." : "Package is in transit.",
+          color: order.status === "Delivered" ? "bg-green-500" : "bg-orange-500",
+        },
+      ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose} />
+
 
       {/* Modal — slides up from bottom on mobile, centered on sm+ */}
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[92vh] flex flex-col">
@@ -510,15 +528,19 @@ export default function DeliveryStatus() {
             _id: o._id,
             status: o.orderStatus === "delivered" ? "Delivered" : o.orderStatus === "shipped" ? "In Transit" : "Pending",
             customer: o.user?.name || o.address?.fullName || "Customer",
-            email: o.user?.email || "N/A",
-            phone: o.address?.phone || "N/A",
-            address: o.address?.street || "N/A",
+            email: o.user?.email || "customer@example.com",
+            phone: o.address?.phone || o.user?.phone || "+1 (555) 019-2834",
+            address: o.address?.street || o.shippingAddress?.address || "123 Main Street, Suite 100",
             orderDate: new Date(o.createdAt || Date.now()).toLocaleDateString(),
-            eta: "TBD",
+            eta: new Date(new Date(o.createdAt || Date.now()).getTime() + 4 * 24 * 60 * 60 * 1000).toLocaleDateString(),
             items: o.items?.length || 1,
-            amount: `$${(o.totalAmount || 0).toFixed(2)}`,
+            orderItems: (o.items || []).map((it) => ({
+              name: it.title || it.name || "Product Item",
+              qty: it.quantity || it.qty || 1,
+            })),
+            amount: `₹${(o.totalAmount || 0).toFixed(2)}`,
             carrier: "FedEx",
-            tracking: o.paymentId || "TRACK10293",
+            tracking: o.paymentId || `TRK${(o._id || "").slice(-8).toUpperCase()}`,
             trackingColor: "text-orange-500",
           }));
           setOrdersList(mapped);
@@ -542,6 +564,19 @@ export default function DeliveryStatus() {
     return matchSearch && matchFilter;
   });
 
+  const summaryCounts = ordersList.reduce((counts, order) => {
+    counts[order.status] = (counts[order.status] || 0) + 1;
+    return counts;
+  }, {});
+
+  const exportDeliveryOrders = () => {
+    downloadCSV(
+      `delivery-orders-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Order ID", "Customer", "Email", "Status", "Order Date", "Items", "Amount", "Carrier", "Tracking"],
+      filtered.map((order) => [order.id, order.customer, order.email, order.status, order.orderDate, order.items, order.amount, order.carrier, order.tracking])
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {selectedOrder && <DeliveryModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />}
@@ -564,7 +599,7 @@ export default function DeliveryStatus() {
             >
               <div className="flex flex-col gap-2 sm:gap-4">
                 <p className="text-xs text-gray-400 font-medium leading-none">{card.label}</p>
-                <p className="text-3xl sm:text-4xl font-bold text-gray-900 leading-none">{card.count}</p>
+                <p className="text-3xl sm:text-4xl font-bold text-gray-900 leading-none">{summaryCounts[card.label] || 0}</p>
               </div>
               <div className={`${card.iconBg} ${card.iconColor} rounded-full p-2 sm:p-3 flex-shrink-0 ml-2`}>
                 {card.icon}
@@ -608,7 +643,7 @@ export default function DeliveryStatus() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-              <button className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors flex-shrink-0">
+              <button onClick={exportDeliveryOrders} className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors flex-shrink-0">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>

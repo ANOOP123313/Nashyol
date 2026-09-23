@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCart } from "../contexts/CartContext";
+import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -22,7 +20,11 @@ import { toast } from "sonner";
 
 interface PaymentGatewayProps {
   amount: number;
-  onPaymentComplete?: (paymentData: any) => void;
+  onPaymentComplete?: (paymentData: any) => void | Promise<void>;
+  onBeforePayment?: () => boolean;
+  onPaymentMethodChange?: (method: string) => void;
+  codEnabled?: boolean;
+  codCharge?: number;
   showTitle?: boolean;
   disabled?: boolean;
 }
@@ -30,16 +32,19 @@ interface PaymentGatewayProps {
 export function PaymentGateway({
   amount,
   onPaymentComplete,
+  onBeforePayment,
+  onPaymentMethodChange,
+  codEnabled = true,
+  codCharge = 0,
   showTitle = true,
   disabled = false,
 }: PaymentGatewayProps) {
-  const router = useRouter();
-  const { clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [cardNumber, setCardNumber] = useState("");
   const [cardName, setCardName] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [cvv, setCvv] = useState("");
+  const [onlineIdentifier, setOnlineIdentifier] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Payment gateway options
@@ -84,15 +89,22 @@ export function PaymentGateway({
       badge: "India",
       logos: ["💰"],
     },
-    {
+    ...(codEnabled ? [{
       id: "cod",
       name: "Cash on Delivery",
       icon: Banknote,
-      description: "Pay when you receive",
+      description: codCharge > 0 ? `Pay when you receive (+$${codCharge.toFixed(2)} COD fee)` : "Pay when you receive",
       badge: "Available",
       logos: ["💵"],
-    },
+    }] : []),
   ];
+
+  useEffect(() => {
+    if (!codEnabled && paymentMethod === "cod") {
+      setPaymentMethod("card");
+      onPaymentMethodChange?.("card");
+    }
+  }, [codEnabled, paymentMethod, onPaymentMethodChange]);
 
   const formatCardNumber = (value: string) => {
     const cleaned = value.replace(/\s/g, "");
@@ -143,33 +155,51 @@ export function PaymentGateway({
     return true;
   };
 
+  const onlinePaymentDetails: Record<string, { label: string; placeholder: string }> = {
+    paypal: { label: "PayPal email", placeholder: "demo@example.com" },
+    applepay: { label: "Apple Pay phone or email", placeholder: "+1 555 000 0000" },
+    googlepay: { label: "Google Pay phone or email", placeholder: "+1 555 000 0000" },
+    razorpay: { label: "UPI ID", placeholder: "demo@upi" },
+  };
+
+  const validatePaymentMethod = () => {
+    if (paymentMethod === "card") return validateCard();
+    if (paymentMethod === "cod") return true;
+    if (!onlineIdentifier.trim()) {
+      toast.error(`Please enter your ${onlinePaymentDetails[paymentMethod].label}`);
+      return false;
+    }
+    if (paymentMethod === "razorpay" && !onlineIdentifier.includes("@")) {
+      toast.error("Please enter a valid demo UPI ID");
+      return false;
+    }
+    return true;
+  };
+
   const processPayment = async () => {
     setIsProcessing(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      const paymentData = {
+        method: paymentMethod,
+        amount,
+        identifier: onlineIdentifier || undefined,
+        timestamp: new Date().toISOString(),
+        transactionId: `TXN${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+      };
 
-    const paymentData = {
-      method: paymentMethod,
-      amount: amount,
-      timestamp: new Date().toISOString(),
-      transactionId: `TXN${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-    };
+      toast.success(paymentMethod === "cod" ? "Order confirmed!" : "Demo payment successful!", {
+        description: `Transaction ID: ${paymentData.transactionId}`,
+        duration: 5000,
+      });
 
-    setIsProcessing(false);
-
-    toast.success("Payment successful!", {
-      description: `Transaction ID: ${paymentData.transactionId}`,
-      duration: 5000,
-    });
-
-    if (onPaymentComplete) {
-      onPaymentComplete(paymentData);
+      if (onPaymentComplete) await onPaymentComplete(paymentData);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to complete payment");
+    } finally {
+      setIsProcessing(false);
     }
-
-    // Clear cart and redirect
-    clearCart();
-    router.push("/order-success");
   };
 
   const handlePayment = () => {
@@ -178,9 +208,9 @@ export function PaymentGateway({
       return;
     }
 
-    if (paymentMethod === "card") {
-      if (!validateCard()) return;
-    }
+    if (onBeforePayment && !onBeforePayment()) return;
+
+    if (!validatePaymentMethod()) return;
 
     processPayment();
   };
@@ -224,7 +254,7 @@ export function PaymentGateway({
         <Label className="text-sm font-semibold mb-3 sm:mb-4 block text-foreground">
           Select Payment Method
         </Label>
-        <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+        <RadioGroup value={paymentMethod} onValueChange={(method) => { setPaymentMethod(method); onPaymentMethodChange?.(method); }}>
           <div className="grid grid-cols-1 gap-2 sm:gap-3">
             {paymentMethods.map((method) => {
               const Icon = method.icon;
@@ -373,6 +403,10 @@ export function PaymentGateway({
                 You will be redirected to PayPal to complete your payment
                 securely.
               </p>
+              <div className="space-y-2 text-left">
+                <Label htmlFor="paypalIdentifier">PayPal email *</Label>
+                <Input id="paypalIdentifier" type="email" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="demo@example.com" />
+              </div>
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Shield className="size-4" />
                 <span>Protected by PayPal Buyer Protection</span>
@@ -388,6 +422,10 @@ export function PaymentGateway({
               <p className="text-sm mb-4">
                 Use Touch ID or Face ID to complete your purchase
               </p>
+              <div className="space-y-2 text-left mb-3">
+                <Label htmlFor="applepayIdentifier" className="text-inverse">Apple Pay phone or email *</Label>
+                <Input id="applepayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="+1 555 000 0000" />
+              </div>
               <div className="flex items-center justify-center gap-2 text-xs text-muted">
                 <Shield className="size-4" />
                 <span>Secured by Apple</span>
@@ -403,6 +441,10 @@ export function PaymentGateway({
               <p className="text-sm text-muted-foreground mb-4">
                 Complete your payment with Google Pay for a faster checkout
               </p>
+              <div className="space-y-2 text-left mb-3">
+                <Label htmlFor="googlepayIdentifier">Google Pay phone or email *</Label>
+                <Input id="googlepayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="+1 555 000 0000" />
+              </div>
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Shield className="size-4" />
                 <span>Secured by Google</span>
@@ -422,6 +464,10 @@ export function PaymentGateway({
                 <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">UPI</div>
                 <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">Cards</div>
                 <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">Wallets</div>
+              </div>
+              <div className="space-y-2 text-left mb-3">
+                <Label htmlFor="razorpayIdentifier">UPI ID *</Label>
+                <Input id="razorpayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="demo@upi" />
               </div>
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Shield className="size-4" />
@@ -489,7 +535,7 @@ export function PaymentGateway({
         ) : (
           <>
             <Lock className="size-5 mr-2" />
-            Pay ${amount.toFixed(2)} Securely
+            Pay ₹{amount.toFixed(2)} Securely
           </>
         )}
       </Button>

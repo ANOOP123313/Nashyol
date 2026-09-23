@@ -20,31 +20,76 @@ export default function AdminUsers() {
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [adminList, setAdminList] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    role: "Admin",
+    password: "",
+  });
   const dropdownRefs = useRef({});
 
   const toggleDropdown = (index) => {
     setOpenDropdown(openDropdown === index ? null : index);
   };
 
-  useEffect(() => {
+  const loadAdmins = () => {
     customersAPI.getAll()
       .then((res) => {
         const data = res.users || res || [];
         if (Array.isArray(data)) {
           const adminsOnly = data.filter((u) => u.role === "admin" || u.role === "superadmin").map((u) => ({
+            id: u._id,
+            _id: u._id,
             name: u.name || "Admin User",
             email: u.email,
             role: u.role === "superadmin" ? "Super Admin" : "Admin",
-            status: "active",
+            status: u.isBlocked ? "blocked" : "active",
             twoFA: true,
-            lastActive: "Recently",
+            lastActive: u.updatedAt ? new Date(u.updatedAt).toLocaleDateString() : "Recently",
             initials: (u.name || "AD").slice(0, 2).toUpperCase(),
           }));
           setAdminList(adminsOnly);
         }
       })
       .catch((err) => console.error("Admin users fetch error:", err));
+  };
+
+  useEffect(() => {
+    loadAdmins();
   }, []);
+
+  const handleDeleteAdmin = async (id) => {
+    try {
+      await customersAPI.delete(id);
+      toast.success("Admin removed successfully");
+      loadAdmins();
+    } catch (err) {
+      toast.error("Failed to remove admin: " + err.message);
+    }
+  };
+
+  const handleCreateAdmin = async () => {
+    if (!formData.name || !formData.email) {
+      toast.error("Name and email are required");
+      return;
+    }
+    try {
+      const roleToSave = formData.role === "Super Admin" ? "superadmin" : "admin";
+      await customersAPI.create({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password || "123456",
+        role: roleToSave,
+      });
+      setShowModal(false);
+      setFormData({ name: "", email: "", role: "Admin", password: "" });
+      toast.success("Admin user created successfully!");
+      loadAdmins();
+    } catch (err) {
+      toast.error("Failed to create admin: " + err.message);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -57,6 +102,12 @@ export default function AdminUsers() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openDropdown]);
+
+  const filteredAdmins = adminList.filter(
+    (a) =>
+      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const superAdminsCount = adminList.filter((a) => a.role === "Super Admin").length;
 
@@ -94,6 +145,8 @@ export default function AdminUsers() {
             <input
               type="text"
               placeholder="Search admins..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
             />
           </div>
@@ -113,7 +166,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {adminList.map((admin, index) => (
+              {filteredAdmins.map((admin, index) => (
                 <tr key={index} className="border-b last:border-none hover:bg-gray-50 transition">
                   <td className="py-4">
                     <div className="flex items-center gap-3">
@@ -153,13 +206,7 @@ export default function AdminUsers() {
                           <button onClick={() => { setSelectedAdmin(admin); setOpenDropdown(null); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
                             <Eye size={14} /> View Details
                           </button>
-                          <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
-                            <Edit size={14} /> Edit Permissions
-                          </button>
-                          <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
-                            <Shield size={14} /> Reset 2FA
-                          </button>
-                          <button className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left text-sm">
+                          <button onClick={() => handleDeleteAdmin(admin._id)} className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left text-sm">
                             <Trash2 size={14} /> Remove Admin
                           </button>
                         </div>
@@ -168,7 +215,7 @@ export default function AdminUsers() {
                   </td>
                 </tr>
               ))}
-              {adminList.length === 0 && (
+              {filteredAdmins.length === 0 && (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-gray-400">
                     No admin users found
@@ -181,7 +228,7 @@ export default function AdminUsers() {
 
         {/* Mobile Cards — shown only on small screens */}
         <div className="md:hidden space-y-4">
-          {adminList.map((admin, index) => (
+          {filteredAdmins.map((admin, index) => (
             <div key={index} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
               {/* Top row: avatar + name + actions */}
               <div className="flex items-start justify-between mb-3">
@@ -206,13 +253,7 @@ export default function AdminUsers() {
                       <button onClick={() => { setSelectedAdmin(admin); setOpenDropdown(null); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
                         <Eye size={14} /> View Details
                       </button>
-                      <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
-                        <Edit size={14} /> Edit Permissions
-                      </button>
-                      <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
-                        <Shield size={14} /> Reset 2FA
-                      </button>
-                      <button className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left text-sm">
+                      <button onClick={() => handleDeleteAdmin(admin._id)} className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left text-sm">
                         <Trash2 size={14} /> Remove Admin
                       </button>
                     </div>
@@ -252,19 +293,23 @@ export default function AdminUsers() {
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-6">Recent Activity</h2>
         <div className="space-y-4">
-          {recentActivity.map((item, index) => (
-            <div key={index} className="flex items-start gap-4 bg-gray-50 p-4 rounded-lg">
-              <div className="w-9 h-9 bg-gray-200 flex items-center justify-center rounded-full text-sm font-semibold text-gray-600 flex-shrink-0">
-                {item.initials}
+          {recentActivity.length === 0 ? (
+            <p className="text-sm text-gray-400">No recent activity logged.</p>
+          ) : (
+            recentActivity.map((item, index) => (
+              <div key={index} className="flex items-start gap-4 bg-gray-50 p-4 rounded-lg">
+                <div className="w-9 h-9 bg-gray-200 flex items-center justify-center rounded-full text-sm font-semibold text-gray-600 flex-shrink-0">
+                  {item.initials}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-800">
+                    <span className="font-medium">{item.name}</span> {item.action}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">{item.name}</span> {item.action}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -291,26 +336,44 @@ export default function AdminUsers() {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium mb-1">Full Name</label>
-                <input type="text" placeholder="Enter full name" className="w-full px-4 py-2.5 border border-orange-400 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" />
+                <input
+                  type="text"
+                  placeholder="Enter full name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-orange-400 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email Address</label>
-                <input type="email" placeholder="Enter email" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" />
+                <input
+                  type="email"
+                  placeholder="Enter email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Role</label>
-                <select className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none">
-                  <option>Select role</option>
-                  <option>Super Admin</option>
-                  <option>Admin</option>
-                  <option>Support Manager</option>
-                  <option>Finance Manager</option>
-                  <option>Marketing Manager</option>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none"
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Super Admin">Super Admin</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Temporary Password</label>
-                <input type="password" placeholder="Enter password" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" />
+                <input
+                  type="password"
+                  placeholder="Enter password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none"
+                />
               </div>
               <div className="flex items-center justify-between pt-2">
                 <span className="text-sm">Require 2FA</span>
@@ -329,15 +392,7 @@ export default function AdminUsers() {
                 Cancel
               </button>
               <button
-                onClick={async () => {
-                  try {
-                    await authAPI.register({ name: "Admin", email: "admin" + Date.now() + "@naashyol.com", password: "password123", role: "admin" });
-                    setShowModal(false);
-                    toast.success("Admin user created successfully!");
-                  } catch (err) {
-                    toast.error("Failed to create admin: " + err.message);
-                  }
-                }}
+                onClick={handleCreateAdmin}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600"
               >
                 Create Admin

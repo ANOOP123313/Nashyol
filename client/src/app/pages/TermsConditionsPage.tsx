@@ -12,7 +12,7 @@ export function TermsConditionsPage() {
       icon: Scale,
       title: "Acceptance of Terms",
       content:
-        "By accessing and using the N4ASHYOL website and services, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services. We reserve the right to modify these terms at any time, and your continued use constitutes acceptance of any changes.",
+        "By accessing and using the NAASHYOL website and services, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services. We reserve the right to modify these terms at any time, and your continued use constitutes acceptance of any changes.",
     },
     {
       icon: ShoppingCart,
@@ -68,7 +68,7 @@ export function TermsConditionsPage() {
         {
           subtitle: "Our Content",
           description:
-            "All content on the N4ASHYOL website, including text, graphics, logos, images, and software, is our property or that of our licensors and is protected by copyright, trademark, and other intellectual property laws.",
+            "All content on the NAASHYOL website, including text, graphics, logos, images, and software, is our property or that of our licensors and is protected by copyright, trademark, and other intellectual property laws.",
         },
         {
           subtitle: "License",
@@ -78,7 +78,7 @@ export function TermsConditionsPage() {
         {
           subtitle: "Trademarks",
           description:
-            "N4ASHYOL and our logo are trademarks. You may not use our trademarks without our prior written consent.",
+            "NAASHYOL and our logo are trademarks. You may not use our trademarks without our prior written consent.",
         },
       ],
     },
@@ -99,12 +99,12 @@ export function TermsConditionsPage() {
         {
           subtitle: "Limitation of Liability",
           description:
-            "To the maximum extent permitted by law, N4ASHYOL shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for the product or service in question.",
+            "To the maximum extent permitted by law, NAASHYOL shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for the product or service in question.",
         },
         {
           subtitle: "Indemnification",
           description:
-            "You agree to indemnify and hold harmless N4ASHYOL and its affiliates from any claims, damages, or expenses arising from your violation of these terms or your use of our services.",
+            "You agree to indemnify and hold harmless NAASHYOL and its affiliates from any claims, damages, or expenses arising from your violation of these terms or your use of our services.",
         },
       ],
     },
@@ -157,7 +157,7 @@ export function TermsConditionsPage() {
             </h1>
           </div>
           <p className="text-lg text-muted-foreground mb-4">
-            Please read these terms carefully before using N4ASHYOL's services. These
+            Please read these terms carefully before using NAASHYOL's services. These
             terms govern your access to and use of our website and services.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export function TermsConditionsPage() {
               </h3>
               <p className="text-muted-foreground leading-relaxed">
                 These Terms and Conditions constitute a legally binding agreement between
-                you and N4ASHYOL. By using our website or services, you acknowledge that
+                you and NAASHYOL. By using our website or services, you acknowledge that
                 you have read, understood, and agree to be bound by these terms. If you do
                 not agree, you must discontinue use of our services immediately.
               </p>
@@ -255,14 +255,14 @@ export function TermsConditionsPage() {
           <div className="space-y-2 text-muted-foreground">
             <p>
               <strong className="text-foreground">Email:</strong>{" "}
-              legal@n4ashyol.com
+              legal@NAASHYOL.com
             </p>
             <p>
               <strong className="text-foreground">Phone:</strong>{" "}
-              1-800-N4ASHYOL
+              1-800-NAASHYOL
             </p>
             <p>
-              <strong className="text-foreground">Mail:</strong> N4ASHYOL
+              <strong className="text-foreground">Mail:</strong> NAASHYOL
               Legal Department, 123 Commerce Street, Suite 100, New York, NY 10001
             </p>
           </div>
@@ -274,11 +274,11 @@ export function TermsConditionsPage() {
             Your Agreement
           </h3>
           <p className="text-muted-foreground leading-relaxed">
-            By continuing to use N4ASHYOL's services, you acknowledge that you have read
+            By continuing to use NAASHYOL's services, you acknowledge that you have read
             these Terms and Conditions, understand them, and agree to be bound by them.
             You also acknowledge that you have read and agree to our Privacy Policy. These
             terms supersede all prior agreements and understandings between you and
-            N4ASHYOL.
+            NAASHYOL.
           </p>
         </Card>
       </div>

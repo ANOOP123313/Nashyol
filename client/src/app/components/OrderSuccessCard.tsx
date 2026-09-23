@@ -17,6 +17,9 @@ interface OrderSuccessCardProps {
   orderData: {
     orderNumber: string;
     amount: number;
+    productAmount?: number;
+    codCharge?: number;
+    shippingCharge?: number;
     paymentMethod: string;
     estimatedDelivery: string;
     shippingAddress: {
@@ -190,13 +193,17 @@ export function OrderSuccessCard({
                 Paid
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-lg font-medium text-muted-foreground">
-                {orderData.paymentMethod}
-              </span>
-              <span className="text-4xl font-bold text-[var(--primary-color)]">
-                ${orderData.amount.toFixed(2)}
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Products</span>
+                <span>₹{(orderData.productAmount ?? orderData.amount).toFixed(2)}</span>
+              </div>
+              {orderData.shippingCharge ? <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Shipping</span><span>₹{orderData.shippingCharge.toFixed(2)}</span></div> : null}
+              {orderData.codCharge ? <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Cash on Delivery charge</span><span>₹{orderData.codCharge.toFixed(2)}</span></div> : null}
+              <div className="flex items-center justify-between border-t border-orange-200/60 pt-3">
+                <span className="text-lg font-medium text-muted-foreground">{orderData.paymentMethod}</span>
+                <span className="text-4xl font-bold text-[var(--primary-color)]">₹{(orderData?.amount || 0).toFixed(2)}</span>
+              </div>
             </div>
           </motion.div>
 
@@ -217,13 +224,16 @@ export function OrderSuccessCard({
             </div>
             <div className="text-base text-muted-foreground space-y-1 pl-[52px]">
               <p className="font-semibold text-foreground">
-                {orderData.shippingAddress.name}
+                {orderData?.shippingAddress?.name || "Customer"}
               </p>
-              <p>{orderData.shippingAddress.address}</p>
-              <p>
-                {orderData.shippingAddress.city}, {orderData.shippingAddress.state}{" "}
-                {orderData.shippingAddress.zip}
-              </p>
+              {orderData?.shippingAddress?.address && (
+                <p>{orderData.shippingAddress.address}</p>
+              )}
+              {(orderData?.shippingAddress?.city || orderData?.shippingAddress?.state || orderData?.shippingAddress?.zip) && (
+                <p>
+                  {[orderData?.shippingAddress?.city, orderData?.shippingAddress?.state, orderData?.shippingAddress?.zip].filter(Boolean).join(", ")}
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -234,11 +244,11 @@ export function OrderSuccessCard({
             transition={{ delay: 0.7 }}
           >
             <h3 className="text-xl font-semibold text-foreground mb-6">
-              Order Items ({orderData.itemCount})
+              Order Items ({orderData?.itemCount || orderData?.items?.length || 0})
             </h3>
 
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {orderData.items?.map((item, index) => (
+              {orderData?.items?.map((item, index) => (
                 <motion.div
                   key={`${item.id}-${index}`}
                   initial={{ opacity: 0, x: -20 }}
@@ -247,7 +257,7 @@ export function OrderSuccessCard({
                   className="flex items-center gap-4 p-4 bg-muted/30 rounded-2xl border border-border/50 hover:bg-muted/50 transition-colors"
                 >
                   <div className="size-16 sm:size-20 rounded-xl bg-muted overflow-hidden flex-shrink-0">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    <img src={item.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800"} alt={item.name || "Product"} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-foreground mb-1 truncate">
@@ -255,7 +265,7 @@ export function OrderSuccessCard({
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="text-[10px] bg-muted py-0 px-2">
-                        Qty: {item.quantity}
+                        Qty: {item.quantity || 1}
                       </Badge>
                       {item.variant?.attributes?.map((attr: any) => (
                         <Badge key={attr.name} variant="outline" className="text-[10px] py-0 px-2">
@@ -266,10 +276,10 @@ export function OrderSuccessCard({
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-[var(--primary-color)]">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ₹{((Number(item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      ${item.price.toFixed(2)} / unit
+                      ₹{(Number(item.price) || 0).toFixed(2)} / unit
                     </p>
                   </div>
                 </motion.div>

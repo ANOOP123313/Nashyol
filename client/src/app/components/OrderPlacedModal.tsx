@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
 
 interface OrderPlacedModalProps {
   isOpen: boolean;
@@ -32,6 +33,9 @@ interface OrderPlacedModalProps {
     orderId: string;
     orderNumber: string;
     amount: number;
+    productAmount?: number;
+    codCharge?: number;
+    shippingCharge?: number;
     paymentMethod: string;
     estimatedDelivery: string;
     shippingAddress: {
@@ -64,11 +68,75 @@ export function OrderPlacedModal({
   }, [isOpen, orderData]);
 
   const handleDownloadReceipt = () => {
-    console.log("Download Receipt clicked");
-    alert("Download Receipt button clicked!"); // Visual confirmation
-    toast.success("Receipt downloaded!", {
-      description: `Order ${orderData?.orderNumber}`,
+    if (!orderData) return;
+
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let y = 22;
+
+    pdf.setTextColor(249, 115, 22);
+    pdf.setFontSize(22);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Global Premium", 20, y);
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Order Receipt", 20, y + 8);
+    pdf.text(`Order: ${orderData.orderNumber}`, pageWidth - 20, y, { align: "right" });
+    pdf.text(`Delivery: ${orderData.estimatedDelivery}`, pageWidth - 20, y + 7, { align: "right" });
+
+    y += 30;
+    pdf.setDrawColor(249, 115, 22);
+    pdf.line(20, y, pageWidth - 20, y);
+    y += 15;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Shipping Address", 20, y);
+    pdf.setFont("helvetica", "normal");
+    y += 7;
+    pdf.text(orderData.shippingAddress.name || "", 20, y);
+    pdf.text(orderData.shippingAddress.address || "", 20, y + 6);
+    pdf.text(`${orderData.shippingAddress.city || ""}, ${orderData.shippingAddress.state || ""} ${orderData.shippingAddress.zip || ""}`, 20, y + 12);
+    pdf.text(`Payment: ${orderData.paymentMethod || "Not specified"}`, pageWidth - 20, y, { align: "right" });
+
+    y += 28;
+    pdf.setFillColor(255, 247, 237);
+    pdf.rect(20, y - 6, pageWidth - 40, 10, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Product", 24, y);
+    pdf.text("Qty", 125, y);
+    pdf.text("Unit Price", 145, y);
+    pdf.text("Amount", pageWidth - 24, y, { align: "right" });
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+
+    orderData.items.forEach((item) => {
+      pdf.text(pdf.splitTextToSize(item.name || "Product", 92)[0], 24, y);
+      pdf.text(String(item.quantity), 125, y);
+      pdf.text(`Rs. ${Number(item.price).toFixed(2)}`, 145, y);
+      pdf.text(`Rs. ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      y += 9;
     });
+
+    pdf.setDrawColor(210, 210, 210);
+    pdf.line(20, y, pageWidth - 20, y);
+    y += 14;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.setFontSize(10);
+    pdf.text(`Products: Rs. ${Number(orderData.productAmount ?? orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    if (orderData.shippingCharge) {
+      y += 7;
+      pdf.text(`Shipping: Rs. ${Number(orderData.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
+    if (orderData.codCharge) {
+      y += 7;
+      pdf.text(`COD charge: Rs. ${Number(orderData.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
+    y += 9;
+    pdf.setFontSize(14);
+    pdf.text(`Total: Rs. ${Number(orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.save(`receipt-${String(orderData.orderNumber).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
+    toast.success("Receipt PDF downloaded", { description: `Order ${orderData.orderNumber}` });
   };
 
   const handleShare = () => {
@@ -212,7 +280,7 @@ export function OrderPlacedModal({
                 {orderData.paymentMethod}
               </span>
               <span className="text-2xl font-bold text-[var(--primary-color)]">
-                ${orderData.amount.toFixed(2)}
+                ₹{orderData.amount.toFixed(2)}
               </span>
             </div>
           </div>
@@ -257,7 +325,7 @@ export function OrderPlacedModal({
                     </p>
                   </div>
                   <span className="font-semibold text-foreground">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ₹{(item.price * item.quantity).toFixed(2)}
                   </span>
                 </div>
               ))}

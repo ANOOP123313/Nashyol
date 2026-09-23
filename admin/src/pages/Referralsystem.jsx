@@ -1,12 +1,10 @@
 import React, { useState } from "react";
+import { useEffect } from "react";
+import { dashboardAPI, referralsAPI } from "../services/api";
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
 } from "recharts";
-
-const data = [];
-
-const topReferrers = [];
 
 const styles = `
   .rs-page { background: #f8f9fb; min-height: 100vh; padding: 44px 56px; font-family: 'Segoe UI', sans-serif; box-sizing: border-box; }
@@ -98,6 +96,44 @@ export default function ReferralSystem() {
   const [activeTab, setActiveTab] = useState("general");
   const [generalEnabled, setGeneralEnabled] = useState(true);
   const [productEnabled, setProductEnabled] = useState(false);
+  const [referralData, setReferralData] = useState([]);
+  const [referralStats, setReferralStats] = useState({ referrals: 0, conversions: 0, revenue: 0, activeCoupons: 0 });
+  const [activeReferrers, setActiveReferrers] = useState(0);
+  const [couponsDistributed, setCouponsDistributed] = useState(0);
+  const [topReferrers, setTopReferrers] = useState([]);
+
+  useEffect(() => {
+    dashboardAPI.getAdminStats().then((response) => {
+      const referrals = response.stats?.referrals || 0;
+      const conversionCount = (response.charts?.referrals || []).reduce((sum, month) => sum + (month.conversions || 0), 0);
+      setReferralStats({
+        referrals,
+        conversions: conversionCount,
+        revenue: response.stats?.referralRevenue || 0,
+        activeCoupons: response.stats?.activeCoupons || 0,
+      });
+      setReferralData((response.charts?.referrals || []).map((month) => ({
+        month: month._id,
+        referrals: month.totalReferrals || 0,
+        conversions: month.conversions || 0,
+        coupons: 0,
+      })));
+      setTopReferrers((response.leaderboard || []).map((entry) => ({
+        name: entry._id || "N/A",
+        code: "",
+        referrals: entry.referrals || 0,
+        coupons: entry.conversions || 0,
+      })));
+    }).catch(() => {});
+
+    referralsAPI.getAll().then((res) => {
+      if (Array.isArray(res)) {
+        setActiveReferrers(res.filter(r => r.status === "active").length || res.length);
+        const totalCoupons = res.reduce((sum, r) => sum + (r.earnedCoupons || 0), 0);
+        setCouponsDistributed(totalCoupons);
+      }
+    }).catch(console.error);
+  }, []);
 
   return (
     <>
@@ -139,7 +175,7 @@ export default function ReferralSystem() {
 
         {/* STATS */}
         <div className="rs-stats">
-          <StatCard title="Total Referrals" value="1129" sub="+12% this month" subColor="#10b981"
+          <StatCard title="Total Referrals" value={String(referralStats.referrals)} sub="From backend" subColor="#10b981"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <circle cx="9" cy="7" r="3" stroke="#3b82f6" strokeWidth="1.5" fill="none"/>
               <circle cx="16" cy="8" r="2.5" stroke="#3b82f6" strokeWidth="1.5" fill="none" opacity="0.5"/>
@@ -147,29 +183,29 @@ export default function ReferralSystem() {
               <path d="M16 13c2.2 0 4 1.8 4 4" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.5"/>
             </svg>}
           />
-          <StatCard title="Active Referrers" value="156" sub="+8% this month" subColor="#10b981"
+          <StatCard title="Active Referrers" value={String(activeReferrers)} sub="Active referrers" subColor="#10b981"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <rect x="4" y="10" width="4" height="10" rx="1" fill="#f97316" opacity="0.4"/>
               <rect x="10" y="6" width="4" height="14" rx="1" fill="#f97316" opacity="0.7"/>
               <rect x="16" y="2" width="4" height="18" rx="1" fill="#f97316"/>
             </svg>}
           />
-          <StatCard title="Conversion Rate" value="87.5%" sub="Excellent" subColor="#10b981"
+          <StatCard title="Conversion Rate" value={`${referralStats.referrals ? ((referralStats.conversions / referralStats.referrals) * 100).toFixed(1) : 0}%`} sub="Calculated from rewards" subColor="#10b981"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <polyline points="3,17 8,12 12,14 17,7 21,9" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round"/>
               <polyline points="17,7 21,7 21,11" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>}
           />
-          <StatCard title="Coupons Distributed" value="987" sub="Auto-generated" subColor="#6b7280"
+          <StatCard title="Coupons Distributed" value={String(couponsDistributed || referralStats.activeCoupons || 0)} sub="Reward coupons" subColor="#10b981"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#3b82f6" strokeWidth="1.5" fill="none"/>
               <path d="M9 12l2 2 4-4" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>}
           />
-          <StatCard title="Coupon Value" value="$4935" sub="Total distributed" subColor="#6b7280"
+          <StatCard title="Coupon Value" value={`₹${referralStats.revenue.toLocaleString()}`} sub="Referral rewards" subColor="#6b7280"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" fill="#fef3c7" stroke="#f59e0b" strokeWidth="1.5"/>
-              <text x="12" y="16.5" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#f59e0b">$</text>
+              <text x="12" y="16.5" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#f59e0b">₹</text>
             </svg>}
           />
         </div>
@@ -179,7 +215,7 @@ export default function ReferralSystem() {
           <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "26px 30px" }}>
             <h3 style={{ fontWeight: 700, color: "#1f2937", fontSize: 17, marginBottom: 20, marginTop: 0 }}>Referral Trends</h3>
             <ResponsiveContainer width="100%" height={285}>
-              <LineChart data={data} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
+              <LineChart data={referralData} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 13, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 13, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
@@ -194,7 +230,7 @@ export default function ReferralSystem() {
           <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "26px 30px" }}>
             <h3 style={{ fontWeight: 700, color: "#1f2937", fontSize: 17, marginBottom: 20, marginTop: 0 }}>Coupons Earned</h3>
             <ResponsiveContainer width="100%" height={285}>
-              <BarChart data={data} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
+              <BarChart data={referralData} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 13, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 13, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
@@ -261,12 +297,12 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Type</label>
                         <select style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount ($)</option>
+                          <option>Fixed Amount (₹)</option>
                         </select>
                       </div>
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Value</label>
-                        <input style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="15" type="number" min="0" />
+                        <input style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="" type="number" min="0" />
                       </div>
                     </div>
                   </div>
@@ -287,12 +323,12 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Type</label>
                         <select style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount ($)</option>
+                          <option>Fixed Amount (₹)</option>
                         </select>
                       </div>
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Value</label>
-                        <input style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="5" type="number" min="0" />
+                        <input style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="" type="number" min="0" />
                       </div>
                     </div>
                   </div>
@@ -332,12 +368,12 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Type</label>
                         <select style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount ($)</option>
+                          <option>Fixed Amount (₹)</option>
                         </select>
                       </div>
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Value</label>
-                        <input style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="10" type="number" min="0" />
+                        <input style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="" type="number" min="0" />
                       </div>
                     </div>
                   </div>
@@ -357,13 +393,13 @@ export default function ReferralSystem() {
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Type</label>
                         <select style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
-                          <option>Fixed Amount ($)</option>
+                          <option>Fixed Amount (₹)</option>
                           <option>Percentage (%)</option>
                         </select>
                       </div>
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Value</label>
-                        <input style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="5" type="number" min="0" />
+                        <input style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, boxSizing: "border-box" }} defaultValue="" type="number" min="0" />
                       </div>
                     </div>
                   </div>

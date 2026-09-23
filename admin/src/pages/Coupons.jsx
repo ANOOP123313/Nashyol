@@ -119,7 +119,7 @@ function CreateCouponModal({ onClose, onSuccess }) {
               <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Discount Type</label>
               <select value={discountType} onChange={e=>setDiscountType(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d1d5db", fontSize:14 }}>
                 <option value="percentage">Percentage (%)</option>
-                <option value="flat">Flat Amount ($)</option>
+                <option value="flat">Flat Amount (₹)</option>
               </select>
             </div>
             <div>
@@ -177,7 +177,7 @@ export default function ReferralCoupons() {
         id: c._id,
         code: c.code,
         type: c.type || "Promotional",
-        discount: c.discountType === "percentage" ? `${c.discountValue}% OFF` : `$${c.discountValue} OFF`,
+        discount: c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`,
         details: c.details || (c.type || "Promotional coupon"),
         earnedBy: c.earnedBy || null,
         usage: `${c.usedCount || 0}/${c.usageLimit || "∞"}`,

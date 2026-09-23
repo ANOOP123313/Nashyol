@@ -130,6 +130,13 @@ const productSchema = new mongoose.Schema(
       index: true,
     },
 
+    subCategory: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+
     images: [String],
 
     variants: [variantSchema],
@@ -164,6 +171,12 @@ const productSchema = new mongoose.Schema(
     paidAmount: {
       type: Number,
       default: 0,
+    },
+
+    deliveryCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     referralCoupons: [referralCouponSchema],

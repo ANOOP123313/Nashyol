@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { cmsAPI, uploadAPI } from "../services/api";
+import HomePageSectionManager from "../components/HomePageSectionManager";
 
-
-const pagesData = [];
-const bannersData = [];
-const blogPosts = [];
-const faqData = [];
-
-const TABS = ["Pages", "Banners", "Blog", "FAQ"];
+const TABS = ["Pages", "Banners", "Home Page", "Blog", "FAQ"];
 
 export default function ContentManagement() {
   const [activeTab, setActiveTab] = useState("Pages");
@@ -16,10 +11,49 @@ export default function ContentManagement() {
   const [viewPage, setViewPage] = useState(null);
   const [editPage, setEditPage] = useState(null);
   const [createPage, setCreatePage] = useState(false);
+  const [newPageData, setNewPageData] = useState({ title: "", slug: "", content: "", status: "Published" });
+  
+  const [pagesList, setPagesList] = useState([]);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [faqData, setFaqData] = useState([]);
+
+  const [newPostData, setNewPostData] = useState({ title: "", excerpt: "", content: "", category: "Technology", status: "Published" });
+  const [newFaqData, setNewFaqData] = useState({ question: "", answer: "", category: "Orders", status: "Active" });
+
   const [editBanner, setEditBanner] = useState(null);
   const [createBanner, setCreateBanner] = useState(false);
   const [banners, setBanners] = useState([]);
   const [bannerLoading, setBannerLoading] = useState(false);
+
+  const fetchCMSData = async () => {
+    try {
+      const [pRes, bRes, fRes] = await Promise.allSettled([
+        cmsAPI.getPages(),
+        cmsAPI.getBlogs(),
+        cmsAPI.getFaqs(),
+      ]);
+      if (pRes.status === "fulfilled" && Array.isArray(pRes.value)) {
+        setPagesList(pRes.value.map(p => ({
+          ...p,
+          author: "Admin",
+          modified: new Date(p.updatedAt || Date.now()).toLocaleDateString(),
+        })));
+      }
+      if (bRes.status === "fulfilled" && Array.isArray(bRes.value)) {
+        setBlogPosts(bRes.value.map(b => ({
+          ...b,
+          excerpt: b.content ? b.content.slice(0, 100) + "..." : "",
+          date: new Date(b.createdAt || Date.now()).toLocaleDateString(),
+          views: 0,
+        })));
+      }
+      if (fRes.status === "fulfilled" && Array.isArray(fRes.value)) {
+        setFaqData(fRes.value);
+      }
+    } catch (err) {
+      console.error("CMS data fetch error:", err);
+    }
+  };
 
   const fetchBanners = async () => {
     setBannerLoading(true);
@@ -36,7 +70,101 @@ export default function ContentManagement() {
 
   useEffect(() => {
     fetchBanners();
+    fetchCMSData();
   }, []);
+
+  const handleCreatePageSubmit = async () => {
+    if (!newPageData.title) {
+      toast.error("Title is required");
+      return;
+    }
+    try {
+      await cmsAPI.createPage(newPageData);
+      toast.success("Page created successfully");
+      setCreatePage(false);
+      setNewPageData({ title: "", slug: "", content: "", status: "Published" });
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to create page: " + err.message);
+    }
+  };
+
+  const handleUpdatePageSubmit = async () => {
+    if (!editPage) return;
+    try {
+      await cmsAPI.updatePage(editPage._id, editPage);
+      toast.success("Page updated successfully");
+      setEditPage(null);
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to update page: " + err.message);
+    }
+  };
+
+  const handleDeletePage = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this page?")) return;
+    try {
+      await cmsAPI.deletePage(id);
+      toast.success("Page deleted");
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to delete page: " + err.message);
+    }
+  };
+
+  const handleCreateBlogSubmit = async () => {
+    if (!newPostData.title || !newPostData.content) {
+      toast.error("Title and content are required");
+      return;
+    }
+    try {
+      await cmsAPI.createBlog(newPostData);
+      toast.success("Blog post created successfully");
+      setCreatePost(false);
+      setNewPostData({ title: "", excerpt: "", content: "", category: "Technology", status: "Published" });
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to create blog post: " + err.message);
+    }
+  };
+
+  const handleDeleteBlog = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    try {
+      await cmsAPI.deleteBlog(id);
+      toast.success("Blog post deleted");
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to delete blog post: " + err.message);
+    }
+  };
+
+  const handleCreateFaqSubmit = async () => {
+    if (!newFaqData.question || !newFaqData.answer) {
+      toast.error("Question and answer are required");
+      return;
+    }
+    try {
+      await cmsAPI.createFaq(newFaqData);
+      toast.success("FAQ created successfully");
+      setAddFaq(false);
+      setNewFaqData({ question: "", answer: "", category: "Orders", status: "Active" });
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to create FAQ: " + err.message);
+    }
+  };
+
+  const handleDeleteFaq = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this FAQ?")) return;
+    try {
+      await cmsAPI.deleteFaq(id);
+      toast.success("FAQ deleted");
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to delete FAQ: " + err.message);
+    }
+  };
 
   const toggleBannerStatus = async (banner) => {
     try {
@@ -63,9 +191,9 @@ export default function ContentManagement() {
   const [addFaq, setAddFaq] = useState(false);
   const [viewFaq, setViewFaq] = useState(null);
 
-  const filteredPages = pagesData.filter(p =>
+  const filteredPages = pagesList.filter(p =>
     p.title.toLowerCase().includes(pageSearch.toLowerCase()) ||
-    p.slug.toLowerCase().includes(pageSearch.toLowerCase())
+    (p.slug && p.slug.toLowerCase().includes(pageSearch.toLowerCase()))
   );
 
   return (
@@ -81,25 +209,25 @@ export default function ContentManagement() {
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Title <span className="text-red-400">*</span></label>
-              <input placeholder="Enter page title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
+              <input value={newPageData.title} onChange={e => setNewPageData({ ...newPageData, title: e.target.value })} placeholder="Enter page title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Slug <span className="text-red-400">*</span></label>
-              <input placeholder="/page-slug" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-gray-300" />
+              <input value={newPageData.slug} onChange={e => setNewPageData({ ...newPageData, slug: e.target.value })} placeholder="page-slug" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content <span className="text-red-400">*</span></label>
-              <textarea placeholder="Page content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea value={newPageData.content} onChange={e => setNewPageData({ ...newPageData, content: e.target.value })} placeholder="Page content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
             </div>
 
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
               <div className="relative">
-                <select defaultValue="Draft" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                  <option>Draft</option>
-                  <option>Published</option>
+                <select value={newPageData.status} onChange={e => setNewPageData({ ...newPageData, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                  <option value="Draft">Draft</option>
+                  <option value="Published">Published</option>
                 </select>
                 <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -109,7 +237,7 @@ export default function ContentManagement() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => setCreatePage(false)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={() => setCreatePage(false)} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Create Page</button>
+              <button onClick={handleCreatePageSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Create Page</button>
             </div>
           </div>
         </div>
@@ -166,11 +294,19 @@ export default function ContentManagement() {
             </div>
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
-              <StatusDropdown status={editPage.status} />
+              <div className="relative">
+                <select value={editPage.status} onChange={e => setEditPage({ ...editPage, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                  <option value="Draft">Draft</option>
+                  <option value="Published">Published</option>
+                </select>
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
             <div className="flex justify-end gap-3">
               <button onClick={() => setEditPage(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={() => setEditPage(null)} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Update Page</button>
+              <button onClick={handleUpdatePageSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Update Page</button>
             </div>
           </div>
         </div>
@@ -182,10 +318,12 @@ export default function ContentManagement() {
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900">Content Management</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">Manage website content</p>
         </div>
-        <button onClick={() => setCreatePage(true)} className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors self-start sm:self-auto">
-          <span className="text-base font-bold">+</span>
-          <span>Add Page</span>
-        </button>
+        {activeTab === "Pages" && (
+          <button onClick={() => setCreatePage(true)} className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors self-start sm:self-auto">
+            <span className="text-base font-bold">+</span>
+            <span>Add Page</span>
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -250,7 +388,7 @@ export default function ContentManagement() {
                       <div className="flex items-center gap-2">
                         <ActionBtn icon={<EyeIcon />} label="View" onClick={() => setViewPage(page)} />
                         <ActionBtn icon={<EditIcon />} label="Edit" onClick={() => setEditPage(page)} />
-                        <button className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg">
+                        <button onClick={() => handleDeletePage(page._id)} className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg">
                           <TrashIcon />
                         </button>
                       </div>
@@ -279,28 +417,28 @@ export default function ContentManagement() {
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Post Title <span className="text-red-400">*</span></label>
-              <input placeholder="Enter post title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
+              <input value={newPostData.title} onChange={e => setNewPostData({ ...newPostData, title: e.target.value })} placeholder="Enter post title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Excerpt <span className="text-red-400">*</span></label>
-              <textarea placeholder="Short description..." rows={3} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea value={newPostData.excerpt} onChange={e => setNewPostData({ ...newPostData, excerpt: e.target.value })} placeholder="Short description..." rows={3} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content <span className="text-red-400">*</span></label>
-              <textarea placeholder="Post content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea value={newPostData.content} onChange={e => setNewPostData({ ...newPostData, content: e.target.value })} placeholder="Post content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
             </div>
 
             <div className="flex gap-4 mb-6">
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
                 <div className="relative">
-                  <select defaultValue="Technology" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                    <option>Technology</option>
-                    <option>Fashion</option>
-                    <option>Lifestyle</option>
-                    <option>Health</option>
+                  <select value={newPostData.category} onChange={e => setNewPostData({ ...newPostData, category: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                    <option value="Technology">Technology</option>
+                    <option value="Fashion">Fashion</option>
+                    <option value="Lifestyle">Lifestyle</option>
+                    <option value="Health">Health</option>
                   </select>
                   <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -310,9 +448,9 @@ export default function ContentManagement() {
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
                 <div className="relative">
-                  <select defaultValue="Draft" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                    <option>Draft</option>
-                    <option>Published</option>
+                  <select value={newPostData.status} onChange={e => setNewPostData({ ...newPostData, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                    <option value="Draft">Draft</option>
+                    <option value="Published">Published</option>
                   </select>
                   <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -323,7 +461,7 @@ export default function ContentManagement() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => setCreatePost(false)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={() => setCreatePost(false)} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Create Post</button>
+              <button onClick={handleCreateBlogSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Create Post</button>
             </div>
           </div>
         </div>
@@ -433,6 +571,11 @@ export default function ContentManagement() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Home Page Tab */}
+      {activeTab === "Home Page" && (
+        <HomePageSectionManager />
       )}
 
       {/* Blog Tab */}
@@ -547,23 +690,23 @@ export default function ContentManagement() {
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Question <span className="text-red-400">*</span></label>
-              <input placeholder="Enter question" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
+              <input value={newFaqData.question} onChange={e => setNewFaqData({ ...newFaqData, question: e.target.value })} placeholder="Enter question" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Answer <span className="text-red-400">*</span></label>
-              <textarea placeholder="Enter answer..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea value={newFaqData.answer} onChange={e => setNewFaqData({ ...newFaqData, answer: e.target.value })} placeholder="Enter answer..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
               <div className="relative">
-                <select defaultValue="Orders" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                  <option>Orders</option>
-                  <option>Returns</option>
-                  <option>Shipping</option>
-                  <option>Support</option>
-                  <option>Payments</option>
+                <select value={newFaqData.category} onChange={e => setNewFaqData({ ...newFaqData, category: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                  <option value="Orders">Orders</option>
+                  <option value="Returns">Returns</option>
+                  <option value="Shipping">Shipping</option>
+                  <option value="Support">Support</option>
+                  <option value="Payments">Payments</option>
                 </select>
                 <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -580,7 +723,7 @@ export default function ContentManagement() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => setAddFaq(false)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={() => setAddFaq(false)} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Add FAQ</button>
+              <button onClick={handleCreateFaqSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Add FAQ</button>
             </div>
           </div>
         </div>

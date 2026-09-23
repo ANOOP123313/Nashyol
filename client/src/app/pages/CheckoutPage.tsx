@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { PaymentGateway } from "../components/PaymentGateway";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
-import { ordersApi, addressesApi } from "@/services/api";
+import { ordersApi, addressesApi, settingsApi } from "@/services/api";
 
 export function CheckoutPage() {
   const router = useRouter();
@@ -32,9 +32,47 @@ export function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [codEnabled, setCodEnabled] = useState(true);
+  const [codCharge, setCodCharge] = useState(0);
+  const [hasGlobalCodCharge, setHasGlobalCodCharge] = useState(false);
 
   const shipping = subtotal > 100 ? 0 : 10;
-  const total = subtotal + shipping;
+  const codDeliveryCharge = paymentMethod === "cod"
+    ? hasGlobalCodCharge ? codCharge : items.reduce((sum, item) => sum + (item.deliveryCharge || 0) * item.quantity, 0)
+    : 0;
+  const total = subtotal + shipping + codDeliveryCharge;
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token && !user) {
+      toast.error("Please log in to complete your purchase");
+      router.push("/login?redirect=/checkout");
+    }
+  }, [user, router]);
+
+  useEffect(() => {
+    settingsApi.get()
+      .then((settings) => {
+        setCodEnabled(settings.codOn !== false);
+        setHasGlobalCodCharge(settings.codCharge !== undefined);
+        setCodCharge(Math.max(0, Number(settings.codCharge) || 0));
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      if (user.name) {
+        const parts = user.name.split(" ");
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+      if (user.email) {
+        setEmail(user.email);
+      }
+    }
+  }, [user]);
 
   const validateShippingInfo = () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -61,6 +99,13 @@ export function CheckoutPage() {
   };
 
   const handlePaymentComplete = async (paymentData: any) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token && !user) {
+      toast.error("Please log in to complete your purchase");
+      router.push("/login?redirect=/checkout");
+      return;
+    }
+
     if (!validateShippingInfo()) return;
 
     setIsProcessing(true);
@@ -75,24 +120,42 @@ export function CheckoutPage() {
           pincode: zip,
         },
         paymentId: paymentData.id || "manual-payment",
+        paymentMethod: paymentData.method || paymentMethod,
       };
 
-      const result = await ordersApi.create(orderData);
+      const result: any = await ordersApi.create(orderData);
       toast.success("Order placed successfully!");
-      clearCart();
 
-      // Store order info for success page
-      localStorage.setItem("lastOrder", JSON.stringify({
+      const placedOrder = {
         ...result,
-        items,
+        items: items.map(i => ({
+          id: i.id,
+          sku: i.sku,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+          image: i.image,
+          variant: i.variant,
+        })),
         shippingAddress: orderData.address,
+        productAmount: subtotal,
+        codCharge: codDeliveryCharge,
+        shippingCharge: shipping,
         amount: total,
-        paymentMethod: paymentData.method || "Credit Card",
-      }));
+        paymentMethod: paymentData.method || "Credit Card / Cash on Delivery",
+      };
+
+      localStorage.setItem("lastOrder", JSON.stringify(placedOrder));
+      clearCart();
 
       router.push("/order-success");
     } catch (err: any) {
-      toast.error(err.message || "Failed to place order");
+      if (err.message?.includes("token") || err.message?.includes("authorized") || err.message?.includes("401")) {
+        toast.error("Session expired. Please log in to complete your purchase");
+        router.push("/login?redirect=/checkout");
+      } else {
+        toast.error(err.message || "Failed to place order");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -172,6 +235,10 @@ export function CheckoutPage() {
               <PaymentGateway
                 amount={total}
                 onPaymentComplete={handlePaymentComplete}
+                onBeforePayment={validateShippingInfo}
+                onPaymentMethodChange={setPaymentMethod}
+                codEnabled={codEnabled}
+                codCharge={hasGlobalCodCharge ? codCharge : items.reduce((sum, item) => sum + (item.deliveryCharge || 0) * item.quantity, 0)}
                 disabled={!termsAccepted}
               />
 
@@ -204,7 +271,7 @@ export function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-bold text-foreground truncate">{item.name}</h4>
-                      <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ${item.price.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
                       {item.variant?.attributes && (
                         <div className="flex gap-1 mt-1">
                           {item.variant.attributes.map((a: any) => (
@@ -214,7 +281,7 @@ export function CheckoutPage() {
                       )}
                     </div>
                     <div className="text-sm font-bold text-foreground">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ₹{(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -225,15 +292,21 @@ export function CheckoutPage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-foreground">₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Shipping</span>
-                  <span className="font-semibold text-green-600">{shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}</span>
+                  <span className="font-semibold text-green-600">{shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span>
                 </div>
+                {paymentMethod === "cod" && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Cash on Delivery charge</span>
+                    <span className="font-semibold text-foreground">₹{codDeliveryCharge.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
                   <span className="text-lg font-bold text-foreground">Total</span>
-                  <span className="text-2xl font-black text-primary">${total.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-primary">₹{total.toFixed(2)}</span>
                 </div>
               </div>
 

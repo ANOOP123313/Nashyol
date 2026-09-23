@@ -140,7 +140,7 @@ export function CartDrawer() {
                       </button>
                     </div>
                     <span className="text-sm font-bold text-[var(--primary-color)]">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ₹{(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -156,13 +156,13 @@ export function CartDrawer() {
               <div className="flex justify-between text-muted-foreground">
                 <span className="text-sm">Subtotal</span>
                 <span className="font-semibold text-foreground">
-                  ${subtotal.toFixed(2)}
+                  ₹{subtotal.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span className="text-sm">Shipping</span>
                 <span className="font-semibold text-green-600">
-                  {shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}
+                  {shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}
                 </span>
               </div>
               <Separator className="bg-muted" />
@@ -171,7 +171,7 @@ export function CartDrawer() {
                   Total
                 </span>
                 <span className="text-xl font-black text-[var(--primary-color)]">
-                  ${total.toFixed(2)}
+                  ₹{total.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -197,7 +197,7 @@ export function CartDrawer() {
               </Button>
             </div>
             <p className="text-center text-[10px] text-muted-foreground dark:text-muted-foreground font-medium">
-              ✨ Free shipping on orders over $100
+              ✨ Free shipping on orders over ₹100
             </p>
           </div>
         )}

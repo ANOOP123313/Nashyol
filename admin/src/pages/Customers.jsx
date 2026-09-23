@@ -128,7 +128,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
             </div>
             <div>
               <p className="text-xs text-gray-400 mb-0.5">Total Spent</p>
-              <p className="text-2xl font-extrabold text-orange-500">${customer.totalSpent.toLocaleString()}</p>
+              <p className="text-2xl font-extrabold text-orange-500">₹{customer.totalSpent.toLocaleString()}</p>
             </div>
           </div>
 
@@ -144,7 +144,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
                     <p className="text-xs text-gray-400">{order.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-800 mb-1">${order.amount.toFixed(2)}</p>
+                    <p className="text-sm font-semibold text-gray-800 mb-1">₹{order.amount.toFixed(2)}</p>
                     <span className={`${orderStatusColors[order.status] || "bg-gray-400"} text-white text-xs font-medium px-2.5 py-1 rounded-full`}>
                       {order.status}
                     </span>
@@ -362,7 +362,7 @@ export default function CustomersPage() {
     { label: "Disabled", value: stats.disabled, color: "text-gray-500" },
     { label: "Banned", value: stats.banned, color: "text-red-500" },
     { label: "Verified", value: stats.verified, color: "text-gray-900" },
-    { label: "Total Revenue", value: `$${stats.revenue.toLocaleString()}`, color: "text-orange-500" },
+    { label: "Total Revenue", value: `₹${stats.revenue.toLocaleString()}`, color: "text-orange-500" },
   ];
 
   const filterOptions = ["All Status", "Active", "Disabled", "Banned"];
@@ -447,7 +447,7 @@ export default function CustomersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4"><p className="text-sm font-medium text-gray-800">{c.orders} orders</p><p className="text-xs text-gray-400">Last: {c.lastOrder}</p></td>
-                      <td className="px-5 py-4"><p className="text-sm font-semibold text-gray-800">${c.totalSpent.toLocaleString()}</p></td>
+                      <td className="px-5 py-4"><p className="text-sm font-semibold text-gray-800">₹{c.totalSpent.toLocaleString()}</p></td>
                       <td className="px-5 py-4"><p className="text-sm text-gray-600">{c.country}</p></td>
                       <td className="px-5 py-4">
                         <ActionMenu customer={c} onView={() => setViewCustomer(c)} onEdit={() => setEditCustomer(c)} onBan={() => handleBan(c.id)} onDelete={() => handleDelete(c.id)} />
@@ -484,7 +484,7 @@ export default function CustomersPage() {
                   <div className="mt-3 flex flex-wrap gap-2 items-center">
                     <StatusBadge status={c.status} />
                     <span className="text-xs text-gray-500">{c.orders} orders</span>
-                    <span className="text-xs font-semibold text-gray-700">${c.totalSpent.toLocaleString()}</span>
+                    <span className="text-xs font-semibold text-gray-700">₹{c.totalSpent.toLocaleString()}</span>
                     <span className="text-xs text-gray-400">{c.country}</span>
                   </div>
                 </div>

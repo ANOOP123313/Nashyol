@@ -18,5 +18,7 @@ router.get("/:id", getCategoryById);
 router.put("/:id", updateCategory);
 router.delete("/:id", deleteCategory);
 router.patch("/status/:id", toggleCategoryStatus);
+router.patch("/:id/status", toggleCategoryStatus);
+router.put("/:id/status", toggleCategoryStatus);
 
 export default router;

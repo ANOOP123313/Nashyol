@@ -15,11 +15,12 @@ import Link from "next/link";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { FlashDealsSection } from "../components/FlashDealsSection";
 import { ShopByCategorySection } from "../components/ShopByCategorySection";
-import { getProductsByCategory } from "../data/products";
 import { useCart } from "../contexts/CartContext";
+import { useWishlist } from "../contexts/WishlistContext";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { productsApi } from "@/services/api";
+import { useCategorySubcategories } from "@/services/categorySubcategories";
 
 function mapBackendProduct(p: any) {
   const v = p.variants?.[0] || {};
@@ -37,26 +38,7 @@ function mapBackendProduct(p: any) {
   };
 }
 
-const fashionSubcategories = [
-  { name: "LSE", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400" },
-  { name: "T-shirts, Shirts", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400" },
-  { name: "Jeans", image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400" },
-  { name: "Sports Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400" },
-  { name: "Watches", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400" },
-  { name: "Kids Clothing", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=400" },
-  { name: "Backpacks", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400" },
-  { name: "Kurtas", image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400" },
-  { name: "Casual Wear", image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=400" },
-  { name: "Tracksuits", image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400" },
-  { name: "Trendy Street", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400" },
-  { name: "Kurta Sets", image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400" },
-  { name: "Dresses, tops", image: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400" },
-  { name: "Casual shoes", image: "https://images.unsplash.com/photo-1463100099107-aa0980ccd584?w=400" },
-  { name: "Trolley Bags", image: "https://images.unsplash.com/photo-1565026057447-bc90a3dceb87?w=400" },
-  { name: "Jewellery", image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400" },
-  { name: "Sarees", image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400" },
-  { name: "Jackets, Sweaters", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400" },
-];
+
 
 const heroSlides = [
   {
@@ -141,87 +123,6 @@ const shopForLovedOnes = [
   },
 ];
 
-// Row 1: 3 cards (wide images, landscape)
-// Row 2: 4 cards (wide images, landscape)
-const featuredProducts = [
-  {
-    id: 1,
-    name: "Designer Sunglasses",
-    category: "Fashion",
-    price: 159.99,
-    originalPrice: null as number | null,
-    rating: 4.6,
-    reviews: 235,
-    image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800",
-    badge: null as string | null,
-  },
-  {
-    id: 2,
-    name: "Leather Backpack",
-    category: "Fashion",
-    price: 129.99,
-    originalPrice: 189.99 as number | null,
-    rating: 4.7,
-    reviews: 832,
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800",
-    badge: null as string | null,
-  },
-  {
-    id: 3,
-    name: "Summer Dress",
-    category: "Fashion",
-    price: 79.99,
-    originalPrice: 119.99 as number | null,
-    rating: 4.3,
-    reviews: 419,
-    image: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800",
-    badge: "New Arrival",
-  },
-  {
-    id: 4,
-    name: "Men's Casual Jacket",
-    category: "Fashion",
-    price: 149.99,
-    originalPrice: 219.99 as number | null,
-    rating: 4.8,
-    reviews: 670,
-    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800",
-    badge: null as string | null,
-  },
-  {
-    id: 5,
-    name: "Women's Sneakers",
-    category: "Fashion",
-    price: 89.99,
-    originalPrice: null as number | null,
-    rating: 4.5,
-    reviews: 389,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800",
-    badge: "Trending",
-  },
-  {
-    id: 6,
-    name: "Leather Handbag",
-    category: "Fashion",
-    price: 199.99,
-    originalPrice: 279.99 as number | null,
-    rating: 4.7,
-    reviews: 471,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800",
-    badge: null as string | null,
-  },
-  {
-    id: 7,
-    name: "Men's Watch Classic",
-    category: "Fashion",
-    price: 249.99,
-    originalPrice: 349.99 as number | null,
-    rating: 4.7,
-    reviews: 516,
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800",
-    badge: "Classic",
-  },
-];
 
 // ─────────────────────────────────────────────
 // SUB-COMPONENTS
@@ -246,23 +147,41 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+interface FashionProduct {
+  id: string | number;
+  name: string;
+  category: string;
+  price: number;
+  originalPrice?: number | null;
+  rating: number;
+  reviews: number;
+  image: string;
+  badge?: string | null;
+}
+
 // Product card — uniform aspect-[4/3] image, info below, orange Add to Cart button
 function ProductCard({
   product,
   onAddToCart,
+  isWishlisted,
+  onToggleWishlist,
 }: {
-  product: (typeof featuredProducts)[0];
-  onAddToCart: (p: (typeof featuredProducts)[0]) => void;
+  product: FashionProduct;
+  onAddToCart: (p: FashionProduct) => void;
+  isWishlisted?: boolean;
+  onToggleWishlist?: (p: FashionProduct) => void;
 }) {
   return (
-    <div className="rounded-2xl overflow-hidden bg-card group flex flex-col h-full">
+    <div className="rounded-2xl overflow-hidden bg-card group flex flex-col h-full border border-border shadow-sm hover:shadow-md transition-shadow">
       {/* Image area */}
-      <div className="relative overflow-hidden aspect-[4/3]">
-        <ImageWithFallback
-          src={product.image}
-          alt={product.name}
-          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
-        />
+      <div className="relative overflow-hidden aspect-[4/3] bg-muted">
+        <Link href={`/products/${product.id}`} className="block w-full h-full">
+          <ImageWithFallback
+            src={product.image}
+            alt={product.name}
+            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+          />
+        </Link>
         {product.badge && (
           <div className="absolute top-3 left-3 z-10">
             <span className="text-inverse text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--primary-color)]">
@@ -270,22 +189,36 @@ function ProductCard({
             </span>
           </div>
         )}
-        <button className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-inverse/50 flex items-center justify-center hover:bg-inverse/80 transition-colors">
-          <Heart className="size-3.5 text-foreground" />
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleWishlist?.(product);
+          }}
+          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-background/80 dark:bg-card/80 flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+        >
+          <Heart
+            className="size-4 text-foreground"
+            fill={isWishlisted ? "var(--primary-color)" : "none"}
+            color={isWishlisted ? "var(--primary-color)" : "currentColor"}
+          />
         </button>
       </div>
 
       {/* Info area */}
-      <div className="p-3 flex flex-col flex-1">
+      <div className="p-4 flex flex-col flex-1">
         {/* Category label */}
         <p className="text-[var(--primary-color)] text-[10px] font-semibold uppercase tracking-wide mb-1">
           {product.category}
         </p>
 
         {/* Product name */}
-        <h3 className="text-foreground text-sm font-semibold mb-1.5 line-clamp-1">
-          {product.name}
-        </h3>
+        <Link href={`/products/${product.id}`}>
+          <h3 className="text-foreground text-sm font-semibold mb-1.5 line-clamp-1 hover:text-[var(--primary-color)] transition-colors">
+            {product.name}
+          </h3>
+        </Link>
 
         {/* Stars + review count */}
         <div className="flex items-center gap-1.5 mb-2">
@@ -297,10 +230,10 @@ function ProductCard({
 
         {/* Price row */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[var(--primary-color)] font-bold text-sm">${product.price}</span>
+          <span className="text-[var(--primary-color)] font-bold text-sm">₹{product.price}</span>
           {product.originalPrice && (
             <span className="text-muted-foreground text-xs line-through">
-              ${product.originalPrice}
+              ₹{product.originalPrice}
             </span>
           )}
         </div>
@@ -325,7 +258,9 @@ function ProductCard({
 export function FashionPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [productsList, setProductsList] = useState<any[]>([]);
+  const { subcategories } = useCategorySubcategories("Fashion");
   const { addItem } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     productsApi.list({ category: "Fashion" })
@@ -344,15 +279,19 @@ export function FashionPage() {
   const nextSlide = () =>
     setCurrentSlide((c) => (c === heroSlides.length - 1 ? 0 : c + 1));
 
-  const handleAddToCart = (product: (typeof featuredProducts)[0]) => {
-    addItem(String(product.id), String(product.id), 1, {
-      id: String(product.id),
-      sku: String(product.id),
-      name: product.name,
-      price: product.price,
-      image: product.image,
-    });
-    toast.success(`${product.name} added to cart!`);
+  const handleAddToCart = async (product: FashionProduct) => {
+    try {
+      await addItem(String(product.id), String(product.id), 1, {
+        id: String(product.id),
+        sku: String(product.id),
+        name: product.name,
+        price: product.price,
+        image: product.image,
+      });
+      toast.success(`${product.name} added to cart!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+    }
   };
 
   return (
@@ -376,7 +315,7 @@ export function FashionPage() {
             </Button>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-            {fashionSubcategories.map((item) => (
+            {subcategories.map((item) => (
               <Link
                 key={item.name}
                 href={`/category?category=Fashion&subcategory=${encodeURIComponent(item.name)}`}
@@ -602,48 +541,53 @@ export function FashionPage() {
       <ShopByCategorySection />
 
       {/* ── 6. PRODUCTS GRID — exact match to screenshot ── */}
+      {/* ── 6. PRODUCTS GRID ── */}
       <section className="py-10 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Toolbar row */}
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-muted-foreground text-sm">
-              Showing {productsList.length} products
-            </p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-1">Featured Fashion Products</h2>
+              <p className="text-muted-foreground text-sm">
+                Showing {productsList.length} products from our latest collection
+              </p>
+            </div>
             <div className="flex items-center gap-2">
-              {/* Filters button — outlined */}
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-muted hover:bg-muted text-xs font-medium transition-colors">
-                <SlidersHorizontal className="size-3.5" />
-                Filters
-              </button>
-              {/* Featured button — solid dark */}
-              <button className="px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-card text-card-foreground text-xs font-medium transition-colors">
-                Featured
-              </button>
+              <Button variant="outline" asChild>
+                <Link href="/products?category=Fashion">View All</Link>
+              </Button>
             </div>
           </div>
 
-          {/* ── ROW 1: 3 equal cards ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-            {productsList.slice(0, 3).map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-              />
-            ))}
-          </div>
-
-          {/* ── ROW 2: 4 equal cards ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {productsList.slice(3).map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-              />
-            ))}
-          </div>
+          {productsList.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No fashion products available.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {productsList.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                  isWishlisted={isInWishlist(product.id)}
+                  onToggleWishlist={(p) =>
+                    toggleWishlist({
+                      id: p.id,
+                      name: p.name,
+                      price: p.price,
+                      originalPrice: p.originalPrice,
+                      image: p.image,
+                      category: p.category,
+                      rating: p.rating,
+                      reviews: p.reviews,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

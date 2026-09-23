@@ -16,6 +16,14 @@ const subCategorySchema = new mongoose.Schema({
     default: "",
   },
   image: String,
+  icon: {
+    type: String,
+    default: "📁",
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const categorySchema = new mongoose.Schema(

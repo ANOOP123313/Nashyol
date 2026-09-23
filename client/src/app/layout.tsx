@@ -5,6 +5,9 @@ import { ClientLayout } from "./components/ClientLayout";
 export const metadata = {
   title: "Global Premium - Your One-Stop Shop",
   description: "Shop the best products at Global Premium",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

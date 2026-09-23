@@ -1,11 +1,63 @@
-import { RotateCcw, Package, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { RotateCcw, Package, CheckCircle, XCircle, AlertCircle, Clock, Search, Truck, ArrowRight, DollarSign } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import Link from "next/link";
+import { returnsApi } from "../../services/api";
 
 export function ReturnsRefundsPage() {
+  const [trackQuery, setTrackQuery] = useState("");
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackedReturn, setTrackedReturn] = useState<any>(null);
+  const [trackError, setTrackError] = useState("");
+  const [myReturns, setMyReturns] = useState<any[]>([]);
+  const [myReturnsLoading, setMyReturnsLoading] = useState(false);
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (token) {
+      setMyReturnsLoading(true);
+      returnsApi
+        .myReturns()
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setMyReturns(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching user returns:", err);
+        })
+        .finally(() => {
+          setMyReturnsLoading(false);
+        });
+    }
+  }, []);
+
+  const handleTrack = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = trackQuery.trim();
+    if (!query) return;
+
+    setTrackingLoading(true);
+    setTrackError("");
+    setTrackedReturn(null);
+
+    try {
+      const res = await returnsApi.track(query);
+      if (res && res._id) {
+        setTrackedReturn(res);
+      } else {
+        setTrackError(`No return record found for "${query}". Please check your ID and try again.`);
+      }
+    } catch (err: any) {
+      setTrackError(err.message || `No return found for "${query}"`);
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
   const returnProcess = [
     {
       step: 1,
@@ -68,6 +120,19 @@ export function ReturnsRefundsPage() {
     },
   ];
 
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+        return <Badge className="bg-blue-600 hover:bg-blue-600 text-white">Approved</Badge>;
+      case "refunded":
+        return <Badge className="bg-green-600 hover:bg-green-600 text-white">Refunded</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-600 hover:bg-red-600 text-white">Rejected</Badge>;
+      default:
+        return <Badge className="bg-amber-500 hover:bg-amber-500 text-white">Pending Review</Badge>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted">
       {/* Header */}
@@ -89,6 +154,239 @@ export function ReturnsRefundsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Track Return Section (Live DB Query) */}
+        <Card className="p-6 sm:p-8 mb-16 bg-gradient-to-r from-orange-50 via-white to-orange-50/30 border-orange-200 dark:bg-slate-900 dark:border-slate-800 shadow-sm">
+          <div className="max-w-3xl mx-auto text-center">
+            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 mb-3 text-xs font-semibold px-3 py-1">
+              Live Return & Refund Status
+            </Badge>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Track Your Return & Refund
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+              Enter your Return ID (e.g. <span className="font-mono font-medium">RET-XXXXX</span>), Tracking Number, or Order ID to view real-time status directly from our system.
+            </p>
+
+            <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Enter Return ID, Tracking # or Order ID..."
+                  value={trackQuery}
+                  onChange={(e) => setTrackQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 text-sm bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-gray-900 dark:text-white shadow-sm"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={trackingLoading || !trackQuery.trim()}
+                className="bg-[var(--primary-color)] hover:bg-orange-600 text-white px-6 py-3 h-auto text-sm font-semibold rounded-lg shadow-sm flex items-center justify-center gap-2"
+              >
+                {trackingLoading ? (
+                  <>
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Track Status</span>
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {/* Error Message */}
+            {trackError && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm flex items-center justify-center gap-2 max-w-xl mx-auto">
+                <AlertCircle className="size-4 flex-shrink-0" />
+                <span>{trackError}</span>
+              </div>
+            )}
+
+            {/* Track Result Card */}
+            {trackedReturn && (
+              <div className="mt-6 text-left bg-white dark:bg-slate-800 border border-orange-200 dark:border-slate-700 rounded-xl p-5 sm:p-6 shadow-md max-w-2xl mx-auto">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-700 pb-4 mb-4">
+                  <div>
+                    <span className="text-xs text-gray-500 font-mono">
+                      RETURN #{trackedReturn._id?.slice(-8)?.toUpperCase()}
+                    </span>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">
+                      Order: ORD-{(trackedReturn.orderId?._id || trackedReturn.orderId || "")?.slice(-8)?.toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(trackedReturn.status)}
+                  </div>
+                </div>
+
+                {/* Returned Item */}
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="size-16 rounded-lg bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden flex-shrink-0">
+                    <img
+                      src={
+                        trackedReturn.items?.[0]?.productId?.images?.[0] ||
+                        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800"
+                      }
+                      alt="Returned product"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-base truncate">
+                      {trackedReturn.items?.[0]?.productId?.title || "Returned Product"}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                      Reason: {trackedReturn.reason || trackedReturn.items?.[0]?.reason || "Not specified"}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-4 mt-2 text-xs">
+                      <span className="font-medium text-orange-600 dark:text-orange-400">
+                        Refund Amount: ₹{Number(trackedReturn.refundAmount || 0).toFixed(2)}
+                      </span>
+                      {trackedReturn.refundMethod && (
+                        <span className="text-gray-500">via {trackedReturn.refundMethod}</span>
+                      )}
+                      {trackedReturn.tracking && (
+                        <span className="font-mono bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                          Tracking: {trackedReturn.tracking}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Steps */}
+                <div className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                    <div className="flex flex-col items-center">
+                      <div className="size-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold mb-1">
+                        ✓
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-white">Requested</span>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(trackedReturn.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`size-7 rounded-full flex items-center justify-center font-bold mb-1 ${
+                          trackedReturn.status === "approved" || trackedReturn.status === "refunded"
+                            ? "bg-green-100 text-green-700"
+                            : trackedReturn.status === "rejected"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {trackedReturn.status === "approved" || trackedReturn.status === "refunded"
+                          ? "✓"
+                          : trackedReturn.status === "rejected"
+                          ? "✕"
+                          : "•"}
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {trackedReturn.status === "rejected"
+                          ? "Rejected"
+                          : trackedReturn.status === "approved" || trackedReturn.status === "refunded"
+                          ? "Approved"
+                          : "Reviewing"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`size-7 rounded-full flex items-center justify-center font-bold mb-1 ${
+                          trackedReturn.deliveryStatus === "Delivered" ||
+                          trackedReturn.deliveryStatus === "Delivered to Warehouse" ||
+                          trackedReturn.status === "refunded"
+                            ? "bg-green-100 text-green-700"
+                            : trackedReturn.deliveryStatus === "In Transit"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        <Truck className="size-3.5" />
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {trackedReturn.deliveryStatus || "In Transit"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`size-7 rounded-full flex items-center justify-center font-bold mb-1 ${
+                          trackedReturn.status === "refunded"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        <DollarSign className="size-3.5" />
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {trackedReturn.status === "refunded" ? "Refund Paid" : "Refund"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* User's Recent Returns (If logged in) */}
+        {myReturns.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Your Return Requests</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Active and past returns associated with your account
+                </p>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/account">View in Account</Link>
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {myReturns.map((item) => (
+                <Card key={item._id} className="p-5 border shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        RET-{item._id?.slice(-5)?.toUpperCase()}
+                      </span>
+                      {getStatusBadge(item.status)}
+                    </div>
+                    <h4 className="font-semibold text-foreground text-sm line-clamp-1 mb-1">
+                      {item.items?.[0]?.productId?.title || "Returned Product"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                      Reason: {item.reason || item.items?.[0]?.reason || "Return requested"}
+                    </p>
+                  </div>
+                  <div className="border-t pt-3 mt-2 flex items-center justify-between text-xs">
+                    <span className="font-medium text-orange-600">
+                      ₹{Number(item.refundAmount || 0).toFixed(2)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setTrackQuery(item._id);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="text-xs text-[var(--primary-color)] hover:underline font-medium"
+                    >
+                      Track this &rarr;
+                    </button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           <Card className="p-6 text-center">
@@ -227,7 +525,7 @@ export function ReturnsRefundsPage() {
                 </p>
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <p className="text-sm text-blue-900 dark:text-blue-300">
-                    <strong>Standard Return:</strong> $7.99 deducted from refund
+                    <strong>Standard Return:</strong> ₹7.99 deducted from refund
                   </p>
                 </div>
               </div>
@@ -358,5 +656,3 @@ export function ReturnsRefundsPage() {
     </div>
   );
 }
-
-

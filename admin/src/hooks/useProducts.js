@@ -63,28 +63,25 @@ export function useProduct(id) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await productsAPI.getById(id);
-        if (!cancelled) setProduct(data);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await productsAPI.getById(id);
+      setProduct(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  return { product, loading, error };
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { product, loading, error, refetch: load };
 }
 
 // ─────────────────────────────────────────────

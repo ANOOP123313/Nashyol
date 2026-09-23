@@ -22,12 +22,12 @@ const transactionSchema = new mongoose.Schema(
     },
     method: {
       type: String,
-      enum: ["card", "paypal", "bank", "wallet"],
+      enum: ["card", "paypal", "bank", "wallet", "cod", "credit_card", "stripe"],
       default: "card",
     },
     status: {
       type: String,
-      enum: ["pending", "completed", "failed"],
+      enum: ["pending", "completed", "failed", "refunded"],
       default: "pending",
     },
     description: String,

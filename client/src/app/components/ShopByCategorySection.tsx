@@ -21,7 +21,7 @@ export function ShopByCategorySection() {
   useEffect(() => {
     categoriesApi.list()
       .then((res) => {
-        const raw = Array.isArray(res) ? res : [];
+        const raw = Array.isArray(res) ? res : (res as any)?.data || [];
         const mapped = raw.map((cat, i) => ({
           name: cat.name,
           count: "Explore Collection",

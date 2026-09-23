@@ -84,3 +84,32 @@ export const deleteUser = asyncHandler(async (req, res) => {
   await user.deleteOne();
   res.json({ message: "User deleted successfully" });
 });
+
+// @desc    Create new user / admin
+// @route   POST /api/users
+// @access  Private/Admin
+export const createUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  if (!name || !email) {
+    res.status(400);
+    throw new Error("Name and email are required");
+  }
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    res.status(400);
+    throw new Error("User with this email already exists");
+  }
+
+  const user = await User.create({
+    name,
+    email,
+    password: password || "123456",
+    role: role || "admin",
+    isVerified: true,
+  });
+
+  const returnedUser = await User.findById(user._id).select("-password");
+  res.status(201).json(returnedUser);
+});

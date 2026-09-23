@@ -1,22 +1,30 @@
 import express from "express";
 import {
   createReview,
+  getMyReviews,
   getProductReviews,
-  getPendingReviews,
-  approveReview,
+  getAllReviewsAdmin,
+  updateReviewStatus,
+  deleteReview,
+  canReviewProduct,
 } from "../controllers/reviewController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Public routes
+// Public route: get approved reviews for product
 router.get("/product/:productId", getProductReviews);
 
-// Protected routes
+// Protected user routes
+router.get("/can-review/:productId", protect, canReviewProduct);
 router.post("/", protect, createReview);
+router.get("/my", protect, getMyReviews);
 
-// Admin routes
-router.get("/moderate", protect, authorize("admin"), getPendingReviews);
-router.put("/:id/approve", protect, authorize("admin"), approveReview);
+// Admin moderation routes
+router.get("/admin", protect, authorize("admin"), getAllReviewsAdmin);
+router.get("/moderate", protect, authorize("admin"), getAllReviewsAdmin);
+router.put("/:id/status", protect, authorize("admin"), updateReviewStatus);
+router.put("/:id/approve", protect, authorize("admin"), updateReviewStatus);
+router.delete("/:id", protect, authorize("admin"), deleteReview);
 
 export default router;

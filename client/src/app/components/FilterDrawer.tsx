@@ -22,11 +22,11 @@ export function FilterDrawer() {
   ];
 
   const priceRanges = [
-    { label: "Under $25", value: "0-25" },
-    { label: "$25 - $50", value: "25-50" },
-    { label: "$50 - $100", value: "50-100" },
-    { label: "$100 - $200", value: "100-200" },
-    { label: "Over $200", value: "200+" },
+    { label: "Under ₹25", value: "0-25" },
+    { label: "₹25 - ₹50", value: "25-50" },
+    { label: "₹50 - ₹100", value: "50-100" },
+    { label: "₹100 - ₹200", value: "100-200" },
+    { label: "Over ₹200", value: "200+" },
   ];
 
   const toggleCategory = (category: string) => {

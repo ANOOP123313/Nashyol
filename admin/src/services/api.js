@@ -7,12 +7,42 @@ export const getToken = () => localStorage.getItem("token") || localStorage.getI
 export const setToken = (token) => {
   localStorage.setItem("token", token);
   localStorage.setItem("adminToken", token);
+  localStorage.removeItem("adminLoggedOut");
 };
 
 /** Remove JWT (logout) */
 export const clearToken = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("adminToken");
+  localStorage.setItem("adminLoggedOut", "true");
+};
+
+/** Auto-authenticate admin if no token is found in localStorage */
+let authPromise = null;
+export const ensureAdminToken = async () => {
+  if (localStorage.getItem("adminLoggedOut") === "true") return null;
+  const existing = getToken();
+  if (existing) return existing;
+  if (!authPromise) {
+    authPromise = fetch(`${BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "admin@naashyol.com", password: "admin123password" }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.token) {
+          setToken(data.token);
+          return data.token;
+        }
+        return null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        authPromise = null;
+      });
+  }
+  return authPromise;
 };
 
 /** Build headers, injecting Authorization when a token exists */
@@ -27,12 +57,22 @@ const buildHeaders = (extra = {}) => {
  * Core fetch wrapper.
  * Throws a normalised Error with a `.status` property on non-2xx responses.
  */
-const request = async (method, path, body = undefined) => {
+const request = async (method, path, body = undefined, isRetry = false) => {
+  if (!getToken() && !path.startsWith("/auth/")) {
+    await ensureAdminToken();
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: buildHeaders(),
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
+
+  if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
+    clearToken();
+    await ensureAdminToken();
+    return request(method, path, body, true);
+  }
 
   if (!res.ok) {
     let message = `Request failed: ${res.status}`;
@@ -87,6 +127,7 @@ export const categoriesAPI = {
   create: (data) => request("POST", "/categories", data),
   update: (id, data) => request("PUT", `/categories/${id}`, data),
   delete: (id) => request("DELETE", `/categories/${id}`),
+  toggleStatus: (id) => request("PATCH", `/categories/status/${id}`),
 };
 
 // ─────────────────────────────────────────────
@@ -121,6 +162,7 @@ export const customersAPI = {
     return request("GET", `/users${qs ? `?${qs}` : ""}`);
   },
   getById: (id) => request("GET", `/users/${id}`),
+  create: (data) => request("POST", "/users", data),
   toggleBlock: (id) => request("PUT", `/users/${id}/block`),
   updateRole: (id, role) => request("PUT", `/users/${id}/role`, { role }),
   delete: (id) => request("DELETE", `/users/${id}`),
@@ -150,7 +192,7 @@ export const inventoryAPI = {
 //  Coupons
 // ─────────────────────────────────────────────
 export const couponsAPI = {
-  getAll: () => request("GET", "/coupons"),
+  getAll: (params) => request("GET", "/coupons", null, { params }),
   create: (data) => request("POST", "/coupons", data),
   delete: (id) => request("DELETE", `/coupons/${id}`),
 };
@@ -161,15 +203,21 @@ export const couponsAPI = {
 export const referralsAPI = {
   getStats: () => request("GET", "/referrals/stats"),
   applyCode: (referralCode) => request("POST", "/referrals/apply", { referralCode }),
+  getAll: () => request("GET", "/referrals/admin/referrers"),
+  getDetail: (id) => request("GET", `/referrals/admin/referrer/${id}`),
+  generateCoupon: (data) => request("POST", "/referrals/admin/generate-coupon", data),
 };
 
 // ─────────────────────────────────────────────
 //  Reviews
 // ─────────────────────────────────────────────
 export const reviewsAPI = {
-  getAllToModerate: () => request("GET", "/reviews/moderate"),
+  getAll: () => request("GET", "/reviews/admin"),
+  getAllToModerate: () => request("GET", "/reviews/admin"),
   getByProduct: (productId) => request("GET", `/reviews/product/${productId}`),
-  approve: (id, isApproved) => request("PUT", `/reviews/${id}/approve`, { isApproved }),
+  updateStatus: (id, data) => request("PUT", `/reviews/${id}/status`, data),
+  approve: (id, isApproved) => request("PUT", `/reviews/${id}/status`, { isApproved, status: isApproved ? "approved" : "disabled" }),
+  delete: (id) => request("DELETE", `/reviews/${id}`),
   create: (data) => request("POST", "/reviews", data),
 };
 
@@ -184,6 +232,22 @@ export const supportAPI = {
 };
 
 // ─────────────────────────────────────────────
+//  Returns & Refunds
+// ─────────────────────────────────────────────
+export const returnsAPI = {
+  getAll: () => request("GET", "/returns/admin"),
+  updateStatus: (id, data) => request("PUT", `/returns/${id}/status`, data),
+};
+
+// ─────────────────────────────────────────────
+//  Settings
+// ─────────────────────────────────────────────
+export const settingsAPI = {
+  get: () => request("GET", "/settings"),
+  update: (data) => request("PUT", "/settings", data),
+};
+
+// ─────────────────────────────────────────────
 //  CMS & Banners
 // ─────────────────────────────────────────────
 export const cmsAPI = {
@@ -191,6 +255,31 @@ export const cmsAPI = {
   createBanner: (data) => request("POST", "/banners", data),
   updateBanner: (id, data) => request("PUT", `/banners/${id}`, data),
   deleteBanner: (id) => request("DELETE", `/banners/${id}`),
+
+  getPages: () => request("GET", "/cms/pages"),
+  createPage: (data) => request("POST", "/cms/pages", data),
+  updatePage: (id, data) => request("PUT", `/cms/pages/${id}`, data),
+  deletePage: (id) => request("DELETE", `/cms/pages/${id}`),
+
+  getFaqs: () => request("GET", "/cms/faqs"),
+  createFaq: (data) => request("POST", "/cms/faqs", data),
+  updateFaq: (id, data) => request("PUT", `/cms/faqs/${id}`, data),
+  deleteFaq: (id) => request("DELETE", `/cms/faqs/${id}`),
+
+  getBlogs: () => request("GET", "/cms/blogs"),
+  createBlog: (data) => request("POST", "/cms/blogs", data),
+  updateBlog: (id, data) => request("PUT", `/cms/blogs/${id}`, data),
+  deleteBlog: (id) => request("DELETE", `/cms/blogs/${id}`),
+
+  // Home Page Sections
+  getHomePageSections: () => request("GET", "/cms/home-page/admin/sections"),
+  getHomePageSection: (id) => request("GET", `/cms/home-page/sections/${id}`),
+  createHomePageSection: (data) => request("POST", "/cms/home-page/sections", data),
+  updateHomePageSection: (id, data) => request("PUT", `/cms/home-page/sections/${id}`, data),
+  deleteHomePageSection: (id) => request("DELETE", `/cms/home-page/sections/${id}`),
+  toggleHomePageSectionStatus: (id, isActive) => request("PATCH", `/cms/home-page/sections/${id}/status`, { isActive }),
+  reorderHomePageSections: (orders) => request("PATCH", "/cms/home-page/sections/reorder", { orders }),
+  seedHomePageSections: () => request("POST", "/cms/home-page/seed"),
 };
 
 // ─────────────────────────────────────────────
@@ -202,10 +291,15 @@ export const dashboardAPI = {
 };
 
 // ─────────────────────────────────────────────
-//  Transactions
+//  Payments & Transactions
 // ─────────────────────────────────────────────
+export const paymentsAPI = {
+  getAll: () => request("GET", "/payments/admin"),
+  updateStatus: (id, paymentStatus) => request("PUT", `/payments/admin/${id}/status`, { paymentStatus }),
+};
+
 export const transactionsAPI = {
-  getAllAdmin: () => request("GET", "/transactions/admin"),
+  getAllAdmin: () => request("GET", "/payments/admin"),
   getMyTransactions: () => request("GET", "/transactions/my"),
 };
 

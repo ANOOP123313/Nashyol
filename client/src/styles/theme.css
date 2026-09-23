@@ -2,9 +2,9 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
+  --background: #f3f1ef;
   --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
+  --card: #fffaf7;
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
@@ -12,16 +12,16 @@
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
-  --muted: #f4f4f5;
+  --muted: #f3efe9;
   --muted-foreground: #717182;
-  --accent: #f4f4f5;
+  --accent: #f4f1ee;
   --accent-foreground: #030213;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --input-background: #f4f4f5;
-  --switch-background: #e4e4e7;
+  --border: rgba(120, 112, 104, 0.18);
+  --input: rgba(120, 112, 104, 0.12);
+  --input-background: #f4f0ea;
+  --switch-background: #e7ddd4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: oklch(0.708 0 0);
@@ -31,13 +31,13 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: #f7f3f0;
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #030213;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: #f4efe9;
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-border: rgba(120, 112, 104, 0.18);
   --sidebar-ring: oklch(0.708 0 0);
   
   /* Brand Colors */
@@ -45,9 +45,9 @@
   --primary-color-foreground: #ffffff;
   
   /* Enhanced Glassmorphism Variables */
-  --glass-bg: rgba(255, 255, 255, 0.16);
-  --glass-border: rgba(255, 255, 255, 0.28);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12);
+  --glass-bg: rgba(255, 255, 255, 0.18);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 12px 30px 0 rgba(117, 73, 28, 0.08);
   --glass-blur: 24px;
   --glass-saturate: 180%;
 }
@@ -165,6 +165,18 @@
     width: 100%;
     position: relative;
     transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out, border-color 0.4s ease-in-out;
+  }
+
+  html:not(.dark) {
+    background: linear-gradient(135deg, #f4a65c 0%, #f7c999 18%, #f4e9e0 42%, #e5e1dd 68%, #eceae7 100%);
+  }
+
+  html:not(.dark) body {
+    background-color: var(--background);
+    background-image: linear-gradient(135deg, #f4a65c 0%, #f7c999 18%, #f4e9e0 42%, #e5e1dd 68%, #eceae7 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
   }
   /* Dark horizontal scrollbar */
 .scrollbar-dark::-webkit-scrollbar {

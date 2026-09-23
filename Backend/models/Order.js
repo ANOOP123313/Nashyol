@@ -12,9 +12,12 @@ const orderSchema = new mongoose.Schema(
     items: [
       {
         productId: mongoose.Schema.Types.ObjectId,
+        sku: String,
         title: String,
+        image: String,
         price: Number,
         quantity: Number,
+        deliveryCharge: { type: Number, default: 0 },
         vendorId: mongoose.Schema.Types.ObjectId,
       },
     ],
@@ -23,6 +26,14 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+
+    deliveryCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    paymentMethod: String,
 
     paymentStatus: {
       type: String,

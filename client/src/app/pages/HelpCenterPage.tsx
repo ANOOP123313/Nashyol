@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, Clock } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { cmsApi } from "@/services/api";
 
 export function HelpCenterPage() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export function HelpCenterPage() {
     },
   ];
 
-  const faqs = [
+  const defaultFaqs = [
     {
       question: "How do I track my order?",
       answer: "You can track your order by logging into your account and visiting the 'My Orders' section. Click on any order to view detailed tracking information. You'll also receive tracking updates via email and SMS.",
@@ -55,7 +56,7 @@ export function HelpCenterPage() {
     },
     {
       question: "How long does shipping take?",
-      answer: "Standard shipping typically takes 5-7 business days. Express shipping takes 2-3 business days. Orders are processed within 24 hours on business days. Free shipping is available on orders over $50.",
+      answer: "Standard shipping typically takes 5-7 business days. Express shipping takes 2-3 business days. Orders are processed within 24 hours on business days. Free shipping is available on orders over ₹50.",
     },
     {
       question: "What payment methods do you accept?",
@@ -79,6 +80,16 @@ export function HelpCenterPage() {
     },
   ];
 
+  const [faqs, setFaqs] = useState(defaultFaqs);
+
+  useEffect(() => {
+    cmsApi.getFaqs().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setFaqs(data.map((f: any) => ({ question: f.question, answer: f.answer })));
+      }
+    }).catch((err) => console.error("CMS FAQs load error:", err));
+  }, []);
+
   const contactOptions = [
     {
       icon: MessageCircle,
@@ -91,7 +102,7 @@ export function HelpCenterPage() {
     {
       icon: Phone,
       title: "Phone Support",
-      description: "Call us at 1-800-N4ASHYOL",
+      description: "Call us at 1-800-NAASHYOL",
       availability: "Mon-Fri, 9AM-8PM EST",
       action: "Call Now",
       color: "text-green-600 dark:text-green-400",
@@ -99,7 +110,7 @@ export function HelpCenterPage() {
     {
       icon: Mail,
       title: "Email Support",
-      description: "support@n4ashyol.com",
+      description: "support@NAASHYOL.com",
       availability: "Response within 24 hours",
       action: "Send Email",
       color: "text-purple-600 dark:text-purple-400",
@@ -118,7 +129,7 @@ export function HelpCenterPage() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-800"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnptLTEyIDEyYzMuMzE0IDAgNiAyLjY4NiA2IDZzLTIuNjg2IDYtNiA2LTYtMi42ODYtNi02IDIuNjg2LTYgNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-3xl md:text-5xl font-bold mb-4 text-inverse drop-shadow-lg">How can we help you?</h1>
@@ -255,7 +266,7 @@ export function HelpCenterPage() {
               Video Tutorials Available
             </h3>
             <p className="text-muted-foreground mb-6">
-              Watch step-by-step video guides on how to use N4ASHYOL features,
+              Watch step-by-step video guides on how to use NAASHYOL features,
               manage your account, and make the most of your shopping experience.
             </p>
             <Button variant="outline" className="bg-card">

@@ -9,11 +9,12 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { PageHeader } from "../components/PageHeader";
 import { FlashDealsSection } from "../components/FlashDealsSection";
 import { ShopByCategorySection } from "../components/ShopByCategorySection";
-import { getProductsByCategory } from "../data/products";
 import { useCart } from "../contexts/CartContext";
+import { useWishlist } from "../contexts/WishlistContext";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { productsApi } from "@/services/api";
+import { useCategorySubcategories } from "@/services/categorySubcategories";
 
 function mapBackendProduct(p: any) {
   const v = p.variants?.[0] || {};
@@ -32,9 +33,10 @@ function mapBackendProduct(p: any) {
 }
 
 export function BeautyPage() {
-  const categoryName = "Beauty";
   const [products, setProducts] = useState<any[]>([]);
+  const { subcategories } = useCategorySubcategories("Beauty");
   const { addItem } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     productsApi.list({ category: "Beauty" })
@@ -68,24 +70,7 @@ export function BeautyPage() {
             </Button>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-            {[
-              { name: "Skincare", image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400" },
-              { name: "Makeup", image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400" },
-              { name: "Perfumes", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=400" },
-              { name: "Hair Care", image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=400" },
-              { name: "Nail Polish", image: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=400" },
-              { name: "Face Masks", image: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=400" },
-              { name: "Lip Balm", image: "https://images.unsplash.com/photo-1590156206916-ab87dc6b5ea0?w=400" },
-              { name: "Eye Shadow", image: "https://images.unsplash.com/photo-1631214524020-7e18db7f0796?w=400" },
-              { name: "Foundation", image: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400" },
-              { name: "Brushes", image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400" },
-              { name: "Moisturizers", image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400" },
-              { name: "Serums", image: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=400" },
-              { name: "Lipstick", image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400" },
-              { name: "Blush", image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400" },
-              { name: "Mascara", image: "https://images.unsplash.com/photo-1631730486572-226d1f595b97?w=400" },
-              { name: "Body Lotion", image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=400" },
-            ].map((product) => (
+            {subcategories.map((product) => (
               <Link key={product.name}
                 href={`/category?category=Beauty&subcategory=${encodeURIComponent(product.name)}`}
                 className="group flex flex-col items-center"
@@ -229,6 +214,132 @@ export function BeautyPage() {
                 <p className="text-inverse/90 text-sm">Signature scents for you</p>
               </div>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Beauty Products */}
+      <section className="py-12 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground">
+                Featured Beauty Products
+              </h2>
+              <p className="text-muted-foreground mt-1">
+                Discover our curated collection of {products.length} beauty & skincare essentials
+              </p>
+            </div>
+            <Link href="/products?category=Beauty">
+              <Button variant="outline">View All</Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product) => (
+              <Link key={product.id}
+                href={`/products/${product.id}`}
+                className="group relative bg-card text-card-foreground rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border border-border"
+              >
+                {product.badge && (
+                  <Badge className="absolute top-4 left-4 z-10 bg-[var(--primary-color)] hover:bg-orange-600 text-inverse border-0">
+                    {product.badge}
+                  </Badge>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute top-4 right-4 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 hover:bg-background"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleWishlist({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      originalPrice: product.originalPrice,
+                      image: product.image,
+                      category: product.category,
+                      rating: product.rating,
+                      reviews: product.reviewsCount,
+                    });
+                  }}
+                >
+                  <Heart
+                    className="size-5 text-muted-foreground"
+                    fill={isInWishlist(product.id) ? "var(--primary-color)" : "none"}
+                  />
+                </Button>
+                <div className="aspect-square overflow-hidden bg-muted">
+                  <ImageWithFallback
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                </div>
+                <div className="p-6">
+                  <h3 className="font-semibold text-lg text-foreground mb-2 line-clamp-1">
+                    {product.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`size-4 ${
+                            i < Math.floor(product.rating)
+                              ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
+                              : "text-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ({product.reviewsCount || 10})
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-foreground">
+                          ₹{product.price}
+                        </span>
+                        {product.originalPrice && (
+                          <span className="text-sm text-muted-foreground line-through">
+                            ₹{product.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                      {product.originalPrice && (
+                        <span className="text-xs text-green-600 font-semibold">
+                          Save ₹{(product.originalPrice - product.price).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      size="icon"
+                      className="size-12 rounded-full bg-[var(--primary-color)] hover:bg-orange-600 text-inverse border-0"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                          await addItem(product.id, product.sku || product.id, 1, {
+                            id: product.id,
+                            sku: product.sku || product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image,
+                          });
+                          toast.success(`${product.name} added to cart!`);
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+                        }
+                      }}
+                    >
+                      <ShoppingCart className="size-5" />
+                    </Button>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

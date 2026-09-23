@@ -9,11 +9,11 @@ import { PageHeader } from "../components/PageHeader";
 import { FlashDealsSection } from "../components/FlashDealsSection";
 import { ShopByCategorySection } from "../components/ShopByCategorySection";
 import { PromotionalCards } from "../components/PromotionalCards";
-import { getProductsByCategory, getSubcategoriesByCategory } from "../data/products";
 import { useCart } from "../contexts/CartContext";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { productsApi } from "@/services/api";
+import { useCategorySubcategories } from "@/services/categorySubcategories";
 
 function mapBackendProduct(p: any) {
   const v = p.variants?.[0] || {};
@@ -34,9 +34,8 @@ function mapBackendProduct(p: any) {
 }
 
 export function HomeGardenPage() {
-  const categoryName = "Home & Garden";
   const [products, setProducts] = useState<any[]>([]);
-  const subcategories = getSubcategoriesByCategory(categoryName);
+  const { subcategories } = useCategorySubcategories("Home & Garden");
   const { addItem } = useCart();
 
   useEffect(() => {
@@ -48,15 +47,6 @@ export function HomeGardenPage() {
       })
       .catch(() => setProducts([]));
   }, []);
-
-  // Get subcategory images from actual products
-  const subcategoryData = subcategories.map((subcat) => {
-    const product = products.find((p) => p.subcategory === subcat);
-    return {
-      name: subcat,
-      image: product?.image || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500",
-    };
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-950 dark:via-green-950/20 dark:to-emerald-950/20">
@@ -80,24 +70,7 @@ export function HomeGardenPage() {
             </Button>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-            {[
-              { name: "Furniture", image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400" },
-              { name: "Bedding", image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400" },
-              { name: "Lighting", image: "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400" },
-              { name: "Decor", image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400" },
-              { name: "Kitchen", image: "https://images.unsplash.com/photo-1556912173-46c336c7fd55?w=400" },
-              { name: "Storage", image: "https://images.unsplash.com/photo-1595428773653-30a35a1c7a1b?w=400" },
-              { name: "Rugs", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400" },
-              { name: "Curtains", image: "https://images.unsplash.com/photo-1631889993959-41b4e9c6e3c5?w=400" },
-              { name: "Plants", image: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=400" },
-              { name: "Garden Tools", image: "https://images.unsplash.com/photo-1585659722983-3a675dabf23d?w=400" },
-              { name: "Outdoor", image: "https://images.unsplash.com/photo-1600210491892-03d54c0aaf87?w=400" },
-              { name: "Bathroom", image: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=400" },
-              { name: "Tableware", image: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=400" },
-              { name: "Mirrors", image: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=400" },
-              { name: "Wall Art", image: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=400" },
-              { name: "Cushions", image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400" },
-            ].map((product) => (
+            {subcategories.map((product) => (
               <Link key={product.name}
                 href={`/category?category=${encodeURIComponent('Home & Garden')}&subcategory=${encodeURIComponent(product.name)}`}
                 className="group flex flex-col items-center"
@@ -548,17 +521,21 @@ export function HomeGardenPage() {
                   {/* Quick Actions */}
                   <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        addItem(product.id, (product as any).sku || product.id, 1, {
-                          id: product.id,
-                          sku: (product as any).sku || product.id,
-                          name: product.name,
-                          price: product.price,
-                          image: product.image,
-                        });
-                        toast.success("Added to cart!");
+                        try {
+                          await addItem(product.id, (product as any).sku || product.id, 1, {
+                            id: product.id,
+                            sku: (product as any).sku || product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image,
+                          });
+                          toast.success("Added to cart!");
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+                        }
                       }}
                       className="p-2 bg-[var(--primary-color)] hover:bg-orange-600 text-inverse [border-radius:0!important] shadow-lg transition-colors border-0"
                     >
@@ -608,11 +585,11 @@ export function HomeGardenPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-lg sm:text-xl font-bold text-[var(--primary-color)]">
-                        ${product.price.toFixed(2)}
+                        ₹{product.price.toFixed(2)}
                       </span>
                       {product.originalPrice && (
                         <span className="ml-2 text-xs sm:text-sm text-muted-foreground line-through">
-                          ${product.originalPrice.toFixed(2)}
+                          ₹{product.originalPrice.toFixed(2)}
                         </span>
                       )}
                     </div>

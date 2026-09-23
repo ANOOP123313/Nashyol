@@ -122,7 +122,7 @@ export function CartPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground dark:text-muted-foreground mb-1">Total Price</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">${(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="text-xl font-black text-[var(--primary-color)]">₹{(item.price * item.quantity).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -137,16 +137,16 @@ export function CartPage() {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-muted-foreground font-medium">
                   <span>Subtotal</span>
-                  <span className="text-foreground">${subtotal.toFixed(2)}</span>
+                  <span className="text-foreground">₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground font-medium">
                   <span>Shipping Estimate</span>
-                  <span className="text-green-600">{shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}</span>
+                  <span className="text-green-600">{shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span>
                 </div>
                 <Separator className="bg-muted" />
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-lg font-bold text-foreground">Order Total</span>
-                  <span className="text-2xl font-black text-[var(--primary-color)]">${total.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-[var(--primary-color)]">₹{total.toFixed(2)}</span>
                 </div>
               </div>
 
