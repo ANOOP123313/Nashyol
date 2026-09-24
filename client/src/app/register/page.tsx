@@ -47,8 +47,11 @@ function RegisterForm() {
 
     try {
       setLoading(true);
-      const res = await authApi.sendRegistrationOTP({ phone: cleanPhone });
+      const res: any = await authApi.sendRegistrationOTP({ phone: cleanPhone });
       toast.success(res.message || "OTP sent to your WhatsApp!");
+      if (res.otp || res.mockOtp) {
+        setOtp(res.otp || res.mockOtp);
+      }
       setStep(2);
       setCountdown(60);
     } catch (err: any) {
@@ -162,9 +165,14 @@ function RegisterForm() {
         ) : (
           <form onSubmit={handleCompleteRegistration} className="space-y-4">
             <div>
-              <Label htmlFor="otp" className="text-sm font-medium">
-                6-Digit WhatsApp OTP
-              </Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="otp" className="text-sm font-medium">
+                  6-Digit WhatsApp OTP
+                </Label>
+                <span className="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  Mock OTP: 123456
+                </span>
+              </div>
               <Input
                 id="otp"
                 type="text"
@@ -175,6 +183,9 @@ function RegisterForm() {
                 className="mt-1 text-center text-lg tracking-widest font-mono"
                 required
               />
+              <p className="mt-1 text-[11px] text-muted-foreground text-center">
+                Testing enabled: use mock code <strong className="text-emerald-500">123456</strong> to verify.
+              </p>
             </div>
 
             <div>

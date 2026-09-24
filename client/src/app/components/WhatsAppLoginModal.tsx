@@ -54,6 +54,9 @@ export default function WhatsAppLoginModal({
         phone: cleanPhone,
       });
       setSuccess(res.data.message || "OTP sent to your WhatsApp!");
+      if (res.data.otp || res.data.mockOtp) {
+        setOtp(res.data.otp || res.data.mockOtp);
+      }
       setStep(2);
       setCountdown(60); // 60-second cooldown
     } catch (err: any) {
