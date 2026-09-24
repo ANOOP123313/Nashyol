@@ -173,7 +173,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted pt-24 pb-12">
+    <div className="min-h-screen bg-muted dark:bg-transparent pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-primary/10 rounded-2xl">
@@ -304,7 +304,7 @@ export function CheckoutPage() {
                     <span className="font-semibold text-foreground">₹{codDeliveryCharge.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex justify-between items-center pt-4 border-t border-border">
                   <span className="text-lg font-bold text-foreground">Total</span>
                   <span className="text-2xl font-black text-primary">₹{total.toFixed(2)}</span>
                 </div>

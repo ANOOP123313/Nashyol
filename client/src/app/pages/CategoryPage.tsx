@@ -289,8 +289,8 @@ function mapBackendProduct(p: any) {
     name: p.title || p.name,
     category: p.category?.name || p.category || "",
     subcategory: p.subCategory || p.subcategory || "",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     image: v.image || p.images?.[0] || "https://placehold.co/400x400?text=No+Image",
     rating: 4.8,
     reviewsCount: p.reviews?.length || 12,
@@ -353,11 +353,11 @@ function CategoryPageInner() {
   }, [categoryParam, subcategoryParam]);
 
   const priceRanges = [
-    { label: "Under ₹25", value: "0-25" },
-    { label: "₹25 – ₹50", value: "25-50" },
-    { label: "₹50 – ₹100", value: "50-100" },
-    { label: "₹100 – ₹200", value: "100-200" },
-    { label: "Over ₹200", value: "200-9999" },
+    { label: "Under ₹1,000", value: "0-1000" },
+    { label: "₹1,000 – ₹5,000", value: "1000-5000" },
+    { label: "₹5,000 – ₹20,000", value: "5000-20000" },
+    { label: "₹20,000 – ₹50,000", value: "20000-50000" },
+    { label: "Over ₹50,000", value: "50000-999999" },
   ];
 
   const sliderSettings = {
@@ -431,7 +431,7 @@ function CategoryPageInner() {
   );
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background dark:bg-transparent relative overflow-hidden">
 
       {/* Ambient background blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -488,11 +488,11 @@ function CategoryPageInner() {
 
         {/* ── 2. SUBCATEGORY ICON GRID ────────────────────────────────────────── */}
         {subcategories.length > 0 && (
-          <section className="py-8 bg-background border-b border-white/5">
+          <section className="py-8 bg-background dark:bg-transparent border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-inverse">Browse {categoryParam}</h2>
+                  <h2 className="text-xl font-bold text-foreground">Browse {categoryParam}</h2>
                   {subcategoryParam && (
                     <Link
                       href={`/category?category=${encodeURIComponent(categoryParam)}`}
@@ -548,7 +548,7 @@ function CategoryPageInner() {
 
         {/* ── 3. FASHION AD CAROUSEL (Fashion only) ──────────────────────────── */}
         {categoryParam === "Fashion" && !subcategoryParam && (
-          <section className="py-8 bg-card text-card-foreground/40">
+          <section className="py-8 bg-card/40">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <FashionAdCarousel />
             </div>
@@ -557,7 +557,7 @@ function CategoryPageInner() {
 
         {/* ── 4. FLASH DEALS & OFFERS ─────────────────────────────────────────── */}
         {/* COMMENTED OUT — uncomment to restore
-        <section className="py-10 bg-card text-card-foreground/30">
+        <section className="py-10 bg-card/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-bold text-inverse mb-2">
@@ -642,7 +642,7 @@ function CategoryPageInner() {
 
         {/* ── 6. SHOP BY CATEGORY ─────────────────────────────────────────────── */}
         {/* COMMENTED OUT — uncomment to restore
-        <section className="py-10 bg-card text-card-foreground/40">
+        <section className="py-10 bg-card/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl sm:text-3xl font-bold text-inverse">Shop by Category</h2>
@@ -679,7 +679,7 @@ function CategoryPageInner() {
           {/* Toolbar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
             <div>
-              <h2 className="text-xl font-bold text-inverse">
+              <h2 className="text-xl font-bold text-foreground">
                 {subcategoryParam ? subcategoryParam : categoryParam} Products
               </h2>
               <p className="text-muted-foreground text-sm mt-0.5">
@@ -694,15 +694,15 @@ function CategoryPageInner() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 text-foreground border-gray-600 bg-card text-card-foreground hover:bg-card text-card-foreground"
+                    className="flex items-center gap-2 text-foreground border-border bg-card hover:bg-muted"
                   >
                     <SlidersHorizontal className="w-4 h-4" />
                     <span>Filters</span>
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80 overflow-y-auto bg-card text-card-foreground border-gray-700">
+                <SheetContent side="left" className="w-80 overflow-y-auto bg-card border-border">
                   <SheetHeader>
-                    <SheetTitle className="text-inverse">Filters</SheetTitle>
+                    <SheetTitle className="text-foreground">Filters</SheetTitle>
                     <SheetDescription className="text-muted-foreground">
                       Refine your product search
                     </SheetDescription>
@@ -715,10 +715,10 @@ function CategoryPageInner() {
 
               {/* Sort */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full sm:w-44 bg-card text-card-foreground text-inverse border-gray-600">
+                <SelectTrigger className="w-full sm:w-44 bg-card text-foreground border-border">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-card text-card-foreground border-gray-700">
+                <SelectContent className="bg-card border-border">
                   <SelectItem value="featured">Featured</SelectItem>
                   <SelectItem value="price-low">Price: Low to High</SelectItem>
                   <SelectItem value="price-high">Price: High to Low</SelectItem>
@@ -733,7 +733,7 @@ function CategoryPageInner() {
           {products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <ShoppingBag className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold text-inverse mb-2">No products found</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">No products found</h3>
               <p className="text-muted-foreground mb-6">
                 We couldn&apos;t find any products in this {subcategoryParam ? "subcategory" : "category"} yet.
               </p>
@@ -748,12 +748,12 @@ function CategoryPageInner() {
               {products.map((product, index) => (
                 <div
                   key={product.id}
-                  className="bg-card text-card-foreground border border-gray-700 group overflow-hidden hover:scale-[1.03] transition-all duration-300 rounded-xl shadow-sm hover:shadow-lg hover:shadow-black/40"
+                  className="bg-card border border-border group overflow-hidden hover:scale-[1.03] transition-all duration-300 rounded-xl shadow-sm hover:shadow-lg"
                   style={{ animationDelay: `${(index % 10) * 0.04}s` }}
                 >
                   <Link
                     href={`/products/${product.id}`}
-                    className="relative block aspect-square overflow-hidden bg-card text-card-foreground"
+                    className="relative block aspect-square overflow-hidden bg-muted"
                   >
                     {product.badge && (
                       <Badge className="absolute top-2 right-2 z-10 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse text-[9px] px-1.5 py-0.5 border-0">
@@ -771,7 +771,7 @@ function CategoryPageInner() {
                       className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${
                         isInWishlist(product.id)
                           ? "bg-red-500 text-white hover:bg-red-600 border-0"
-                          : "bg-background/90 dark:bg-card text-card-foreground hover:bg-muted"
+                          : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -866,8 +866,8 @@ function CategoryPageInner() {
 export function CategoryPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-inverse text-lg animate-pulse">Loading…</div>
+      <div className="min-h-screen bg-background dark:bg-transparent flex items-center justify-center">
+        <div className="text-foreground text-lg animate-pulse">Loading…</div>
       </div>
     }>
       <CategoryPageInner />

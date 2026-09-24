@@ -76,7 +76,7 @@ export function Footer() {
               />
               <Button
                 onClick={handleSubscribe}
-                className="bg-card text-card-foreground hover:bg-card text-card-foreground text-inverse px-8 h-12 glass-button transition-all hover:scale-105"
+                className="glass-button text-inverse px-8 h-12 transition-all hover:scale-105 border border-white/20"
               >
                 Subscribe
               </Button>

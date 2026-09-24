@@ -417,16 +417,16 @@ export function PaymentGateway({
 
         {paymentMethod === "applepay" && (
           <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="p-6 bg-inverse dark:bg-card text-card-foreground text-inverse rounded-xl text-center">
+            <div className="p-6 bg-card border border-border rounded-xl text-center">
               <div className="text-4xl mb-3">🍎</div>
-              <p className="text-sm mb-4">
+              <p className="text-sm mb-4 text-muted-foreground">
                 Use Touch ID or Face ID to complete your purchase
               </p>
               <div className="space-y-2 text-left mb-3">
-                <Label htmlFor="applepayIdentifier" className="text-inverse">Apple Pay phone or email *</Label>
+                <Label htmlFor="applepayIdentifier" className="text-foreground">Apple Pay phone or email *</Label>
                 <Input id="applepayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="+1 555 000 0000" />
               </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted">
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Shield className="size-4" />
                 <span>Secured by Apple</span>
               </div>
@@ -461,9 +461,9 @@ export function PaymentGateway({
                 Pay using UPI, Cards, Net Banking, Wallets & EMI
               </p>
               <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-4">
-                <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">UPI</div>
-                <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">Cards</div>
-                <div className="p-2 bg-background dark:bg-card text-card-foreground rounded">Wallets</div>
+                <div className="p-2 bg-muted dark:bg-card border border-border rounded">UPI</div>
+                <div className="p-2 bg-muted dark:bg-card border border-border rounded">Cards</div>
+                <div className="p-2 bg-muted dark:bg-card border border-border rounded">Wallets</div>
               </div>
               <div className="space-y-2 text-left mb-3">
                 <Label htmlFor="razorpayIdentifier">UPI ID *</Label>

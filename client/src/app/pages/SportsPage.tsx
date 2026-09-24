@@ -23,8 +23,8 @@ function mapBackendProduct(p: any) {
     _id: p._id,
     name: p.title || p.name,
     category: "Sports",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     rating: 4.8,
     reviews: p.reviews?.length || 14,
     image: v.image || p.images?.[0] || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
@@ -50,9 +50,9 @@ export function SportsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 dark:from-gray-950 dark:via-red-950/20 dark:to-orange-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent">
       {/* Sports Products Section */}
-      <section className="py-16 bg-background">
+      <section className="py-16 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -137,7 +137,7 @@ export function SportsPage() {
               <Link
                 key={product.id}
                 href={`/products/${product.id}`}
-                className="group relative bg-card text-card-foreground rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border border-border"
+                className="group relative bg-card rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border border-border"
               >
                 {product.badge && (
                   <Badge className="absolute top-4 left-4 z-10 bg-[var(--primary-color)] hover:bg-orange-600 text-inverse border-0">
@@ -147,7 +147,7 @@ export function SportsPage() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="absolute top-4 right-4 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 hover:bg-background"
+                  className="absolute top-4 right-4 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 hover:bg-background dark:hover:bg-card text-foreground"
                   onClick={(e) => {
                     e.preventDefault();
                     toggleWishlist({

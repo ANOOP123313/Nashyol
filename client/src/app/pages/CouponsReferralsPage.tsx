@@ -101,7 +101,7 @@ export function CouponsReferralsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted pt-24 pb-12">
+    <div className="min-h-screen bg-muted dark:bg-transparent pt-24 pb-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ export function CouponsReferralsPage() {
                     <Button 
                       variant="outline" 
                       onClick={() => handleCopyCoupon(coupon.code)}
-                      className="w-full h-12 rounded-xl font-bold border-2 border-gray-100 dark:border-gray-800 hover:border-primary hover:text-primary transition-all group"
+                      className="w-full h-12 rounded-xl font-bold border-2 border-border hover:border-primary hover:text-primary transition-all group"
                     >
                       {copiedCode === coupon.code ? <Check className="size-4 mr-2" /> : <Copy className="size-4 mr-2 group-hover:scale-110 transition-transform" />}
                       {copiedCode === coupon.code ? "Copied!" : "Copy Code"}

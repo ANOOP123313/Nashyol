@@ -119,7 +119,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
       <Button
         variant="secondary"
         size="icon"
-        className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity bg-background/80 dark:bg-card text-card-foreground/80 backdrop-blur-sm hover:bg-background dark:hover:bg-card text-card-foreground size-10 md:size-12 active:scale-95 touch-manipulation"
+        className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity bg-background/80 dark:bg-card/80 text-foreground backdrop-blur-sm hover:bg-background dark:hover:bg-card size-10 md:size-12 active:scale-95 touch-manipulation"
         style={{
           WebkitTapHighlightColor: 'rgba(247, 147, 26, 0.2)',
           touchAction: 'manipulation',
@@ -131,7 +131,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
       <Button
         variant="secondary"
         size="icon"
-        className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity bg-background/80 dark:bg-card text-card-foreground/80 backdrop-blur-sm hover:bg-background dark:hover:bg-card text-card-foreground size-10 md:size-12 active:scale-95 touch-manipulation"
+        className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity bg-background/80 dark:bg-card/80 text-foreground backdrop-blur-sm hover:bg-background dark:hover:bg-card size-10 md:size-12 active:scale-95 touch-manipulation"
         style={{
           WebkitTapHighlightColor: 'rgba(247, 147, 26, 0.2)',
           touchAction: 'manipulation',

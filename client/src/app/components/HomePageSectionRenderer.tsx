@@ -304,7 +304,7 @@ function QuickCategoriesSection({ section }: { section: any }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="py-8 bg-background">
+    <section className="py-8 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
           {items.map((cat: any, index: number) => (
@@ -337,7 +337,7 @@ function LovedOnesSection({ section }: { section: any }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="py-12 bg-background">
+    <section className="py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-foreground mb-8">
           {section.title || "Shop for Loved Ones"}
@@ -380,7 +380,7 @@ function PromotionalCardsSection({ section }: { section: any }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="py-12 bg-gradient-to-b from-yellow-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <section className="py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-foreground mb-6">
           {section.title || "🌸 Basant Panchami Specials"}
@@ -428,7 +428,7 @@ function ClearanceOffersSection({ section }: { section: any }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="py-12 bg-background">
+    <section className="py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-foreground mb-6">
           {section.title || "🔥 Clearance offers"}
@@ -531,7 +531,7 @@ function SpecialOffersSection({ section }: { section: any }) {
   }));
 
   return (
-    <section className="py-20 bg-gradient-to-b from-orange-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <section className="py-20 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           {section.badge && (
@@ -561,7 +561,7 @@ function CategoryProductsSection({ section }: { section: any }) {
   const viewAll = section.settings?.viewAllLink || `/category?category=${encodeURIComponent(section.settings?.categoryName || section.title)}`;
 
   return (
-    <section className="py-12 bg-background">
+    <section className="py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -579,8 +579,8 @@ function CategoryProductsSection({ section }: { section: any }) {
         </div>
 
         {/* If subcategory/icon cards are present, display them */}
-        {items.length > 0 ? (
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+        {items.length > 0 && (
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 mb-6">
             {items.map((prod: any, idx: number) => (
               <Link
                 key={prod._id || idx}
@@ -600,20 +600,39 @@ function CategoryProductsSection({ section }: { section: any }) {
               </Link>
             ))}
           </div>
-        ) : dynamicProducts.length > 0 ? (
-          /* Render dynamic product cards if no subcategories */
+        )}
+
+        {/* Dynamic product cards from this category */}
+        {dynamicProducts.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {dynamicProducts.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-xl p-3">
-                <Link href={`/products/${p.id}`} className="block aspect-square relative overflow-hidden rounded-lg mb-2">
-                  <ImageWithFallback src={p.image} alt={p.name} className="object-cover w-full h-full" />
+              <div key={p.id} className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between group hover:shadow-xl transition-all">
+                <Link href={`/products/${p.id}`} className="block aspect-square relative overflow-hidden rounded-xl mb-3 bg-muted">
+                  <ImageWithFallback src={p.image} alt={p.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                  {p.badge && (
+                    <Badge className="absolute top-2 left-2 bg-[var(--primary-color)] text-white text-[10px] font-bold px-2 py-0.5 border-0 shadow">
+                      {p.badge}
+                    </Badge>
+                  )}
                 </Link>
-                <h3 className="font-semibold text-xs text-foreground line-clamp-1">{p.name}</h3>
-                <p className="text-sm font-bold text-[var(--primary-color)] mt-1">₹{p.price}</p>
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{p.category}</p>
+                  <Link href={`/products/${p.id}`}>
+                    <h3 className="font-semibold text-xs sm:text-sm text-foreground line-clamp-1 hover:text-[var(--primary-color)] transition-colors mt-0.5">
+                      {p.name}
+                    </h3>
+                  </Link>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm sm:text-base font-bold text-[var(--primary-color)]">₹{Number(p.price || 0).toLocaleString()}</span>
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <span className="text-xs text-muted-foreground line-through">₹{Number(p.originalPrice).toLocaleString()}</span>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
     </section>
   );
@@ -670,7 +689,7 @@ function FeaturedProductsSection({ section, featuredProducts = [] }: { section: 
                   className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${
                     isInWishlist(product.id)
                       ? "bg-red-500 text-white hover:bg-red-600 border-0"
-                      : "bg-background/90 dark:bg-card text-card-foreground hover:bg-muted"
+                      : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
                   }`}
                   onClick={async (e) => {
                     e.preventDefault();
@@ -853,7 +872,7 @@ function NewsletterSection({ section }: { section: any }) {
             <Button
               type="submit"
               disabled={submitting}
-              className="bg-card text-card-foreground hover:bg-card text-inverse px-8 h-12 glass-button transition-all hover:scale-105"
+              className="glass-button text-inverse px-8 h-12 transition-all hover:scale-105 border border-white/20"
             >
               {submitting ? "..." : section.settings?.buttonText || "Subscribe"}
             </Button>

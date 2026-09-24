@@ -60,8 +60,8 @@ export const bannersApi = {
 
 // Categories (with subcategories and image)
 export const categoriesApi = {
-  list: async () => {
-    const res = await request<any>("/api/categories");
+  list: async (activeOnly: boolean = true) => {
+    const res = await request<any>(`/api/categories${activeOnly ? "?activeOnly=true" : ""}`);
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?.data)) return res.data;
     if (Array.isArray(res?.categories)) return res.categories;

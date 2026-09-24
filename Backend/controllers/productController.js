@@ -64,10 +64,33 @@ export const getProducts = asyncHandler(async (req, res) => {
   if (subcategory) {
     const cleanSub = String(subcategory).trim();
     if (cleanSub) {
+      // Find subcategory names if slug or partial name was passed
+      const matchingCats = await Category.find({
+        $or: [
+          { "subCategories.slug": cleanSub.toLowerCase() },
+          { "subCategories.name": new RegExp(escapeRegex(cleanSub), "i") },
+        ],
+      });
+
+      const matchedSubNames = new Set([cleanSub]);
+      matchingCats.forEach((c) => {
+        c.subCategories?.forEach((sc) => {
+          if (
+            sc.slug.toLowerCase() === cleanSub.toLowerCase() ||
+            sc.name.toLowerCase().includes(cleanSub.toLowerCase()) ||
+            cleanSub.toLowerCase().includes(sc.slug.toLowerCase())
+          ) {
+            matchedSubNames.add(sc.name);
+          }
+        });
+      });
+
       filter.$and = filter.$and || [];
       filter.$and.push({
         $or: [
-          { subCategory: { $regex: new RegExp(escapeRegex(cleanSub), "i") } },
+          ...Array.from(matchedSubNames).map((sn) => ({
+            subCategory: { $regex: new RegExp(escapeRegex(sn), "i") },
+          })),
           { title: { $regex: new RegExp(escapeRegex(cleanSub), "i") } },
         ],
       });

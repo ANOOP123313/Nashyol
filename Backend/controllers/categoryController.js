@@ -77,9 +77,13 @@ export const createCategory = asyncHandler(async (req, res) => {
     });
   }
 
+  const highestOrderCat = await Category.findOne().sort({ order: -1 }).select("order");
+  const nextOrder = (highestOrderCat?.order || 0) + 1;
+
   const category = await Category.create({
     name: name.trim(),
     slug: categorySlug,
+    order: req.body.order !== undefined ? Number(req.body.order) : nextOrder,
     description: description || "",
     icon: icon || "📦",
     image: image || "",
@@ -98,11 +102,36 @@ export const createCategory = asyncHandler(async (req, res) => {
 /* ================= GET ALL CATEGORIES ================= */
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find().sort({ createdAt: -1 }).lean();
+  const query = {};
+  if (req.query.activeOnly === "true") {
+    query.isActive = true;
+  }
 
-  // Compute product counts for each category
-  const productCounts = await Product.aggregate([
-    { $group: { _id: "$category", count: { $sum: 1 } } },
+  const categories = await Category.find(query).sort({ order: 1, name: 1 }).lean();
+
+  // Compute live product counts for each category and each subcategory in parallel
+  const [productCounts, subCategoryCounts] = await Promise.all([
+    Product.aggregate([
+      { $match: { category: { $ne: null } } },
+      { $group: { _id: "$category", count: { $sum: 1 } } },
+    ]),
+    Product.aggregate([
+      {
+        $match: {
+          category: { $ne: null },
+          subCategory: { $exists: true, $ne: "" },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            category: "$category",
+            subCategory: "$subCategory",
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
   ]);
 
   const countMap = {};
@@ -110,14 +139,34 @@ export const getCategories = asyncHandler(async (req, res) => {
     if (item._id) countMap[item._id.toString()] = item.count;
   });
 
+  const subCountMap = {};
+  subCategoryCounts.forEach((item) => {
+    if (item._id && item._id.category && item._id.subCategory) {
+      const key = `${item._id.category.toString()}_${item._id.subCategory.trim().toLowerCase()}`;
+      subCountMap[key] = (subCountMap[key] || 0) + item.count;
+    }
+  });
+
   const enrichedCategories = categories.map((cat) => {
-    const pCount = countMap[cat._id.toString()] || 0;
-    const subCategories = (cat.subCategories || []).map((sc) => ({
-      ...sc,
-      isActive: sc.isActive !== false,
-      icon: sc.icon || "📁",
-      productCount: 0,
-    }));
+    const catIdStr = cat._id.toString();
+    const pCount = countMap[catIdStr] || 0;
+
+    let subCategories = (cat.subCategories || []).map((sc) => {
+      const nameKey = `${catIdStr}_${(sc.name || "").trim().toLowerCase()}`;
+      const slugKey = `${catIdStr}_${(sc.slug || "").trim().toLowerCase()}`;
+      const scCount = subCountMap[nameKey] || subCountMap[slugKey] || 0;
+
+      return {
+        ...sc,
+        isActive: sc.isActive !== false,
+        icon: sc.icon || "📁",
+        productCount: scCount,
+      };
+    });
+
+    if (req.query.activeOnly === "true") {
+      subCategories = subCategories.filter((sc) => sc.isActive !== false);
+    }
 
     return {
       ...cat,
@@ -251,10 +300,19 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
 export const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { force } = req.query;
 
   // 1. Check if top-level category
   const category = await Category.findById(id);
   if (category) {
+    const productCount = await Product.countDocuments({ category: category._id });
+    if (productCount > 0 && force !== "true") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete category "${category.name}" because it contains ${productCount} active products. Please reassign or delete them first, or use force delete.`,
+        productCount,
+      });
+    }
     await category.deleteOne();
     return res.json({
       success: true,
@@ -265,6 +323,23 @@ export const deleteCategory = asyncHandler(async (req, res) => {
   // 2. Check if subcategory
   const parent = await Category.findOne({ "subCategories._id": id });
   if (parent) {
+    const sub = parent.subCategories.id(id);
+    if (sub) {
+      const subProductCount = await Product.countDocuments({
+        category: parent._id,
+        $or: [
+          { subCategory: new RegExp(`^${sub.name}$`, "i") },
+          { subCategory: new RegExp(`^${sub.slug}$`, "i") },
+        ],
+      });
+      if (subProductCount > 0 && force !== "true") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot delete subcategory "${sub.name}" because it contains ${subProductCount} products. Please reassign or delete them first.`,
+          productCount: subProductCount,
+        });
+      }
+    }
     parent.subCategories.pull({ _id: id });
     await parent.save();
     return res.json({

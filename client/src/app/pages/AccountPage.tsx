@@ -142,7 +142,7 @@ export function AccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pb-20 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-transparent dark:via-transparent dark:to-transparent dark:bg-transparent pb-20 md:pb-0">
       {/* Enhanced Hero Header with Glassmorphic Effect */}
       <div className="relative overflow-hidden">
         {/* Decorative Background */}
@@ -531,7 +531,7 @@ export function AccountPage() {
                   <p className="text-4xl font-bold text-inverse">2,450</p>
                 </div>
                 
-                <div className="bg-background dark:bg-card text-card-foreground p-6 border-2 border-gray-200 dark:border-gray-700 rounded-2xl">
+                <div className="bg-card p-6 border border-border rounded-2xl shadow-sm">
                   <div className="flex items-center gap-3 mb-2">
                     <Star className="size-6 text-yellow-500" />
                     <p className="text-muted-foreground text-sm font-medium">Points This Month</p>
@@ -539,7 +539,7 @@ export function AccountPage() {
                   <p className="text-4xl font-bold text-foreground">350</p>
                 </div>
                 
-                <div className="bg-background dark:bg-card text-card-foreground p-6 border-2 border-gray-200 dark:border-gray-700 rounded-2xl">
+                <div className="bg-card p-6 border border-border rounded-2xl shadow-sm">
                   <div className="flex items-center gap-3 mb-2">
                     <Award className="size-6 text-purple-500" />
                     <p className="text-muted-foreground text-sm font-medium">Level</p>
@@ -701,7 +701,7 @@ export function AccountPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-background dark:bg-card text-card-foreground border border-gray-200 dark:border-gray-700 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                       <TrendingUp className="size-5 text-green-600 dark:text-green-400" />
@@ -717,7 +717,7 @@ export function AccountPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-background dark:bg-card text-card-foreground border border-gray-200 dark:border-gray-700 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                       <TrendingUp className="size-5 text-green-600 dark:text-green-400" />
@@ -733,7 +733,7 @@ export function AccountPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-background dark:bg-card text-card-foreground border border-gray-200 dark:border-gray-700 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                       <Star className="size-5 text-blue-600 dark:text-blue-400" />
@@ -749,7 +749,7 @@ export function AccountPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-background dark:bg-card text-card-foreground border border-gray-200 dark:border-gray-700 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                       <Ticket className="size-5 text-red-600 dark:text-red-400" />

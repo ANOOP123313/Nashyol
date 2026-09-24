@@ -198,7 +198,7 @@ export function ProductDetailPage() {
   const stockCount = selectedVariant ? selectedVariant.currentStock : 0;
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
+    <div className="min-h-screen bg-background dark:bg-transparent pt-20 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex mb-8 text-sm font-medium text-muted-foreground">
@@ -212,7 +212,7 @@ export function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="aspect-square relative overflow-hidden bg-muted dark:bg-card text-card-foreground [border-radius:0!important]">
+            <div className="aspect-square relative overflow-hidden bg-muted dark:bg-card [border-radius:0!important]">
               <ImageWithFallback
                 src={selectedVariant?.image || product.images[selectedImage]}
                 alt={product.title}
@@ -229,7 +229,7 @@ export function ProductDetailPage() {
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
-                  className={`aspect-square relative overflow-hidden bg-muted dark:bg-card text-card-foreground [border-radius:0!important] border-2 transition-all ${
+                  className={`aspect-square relative overflow-hidden bg-muted dark:bg-card [border-radius:0!important] border-2 transition-all ${
                     selectedImage === idx ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
@@ -268,7 +268,7 @@ export function ProductDetailPage() {
               <p className="text-muted-foreground leading-relaxed text-lg">{product.description}</p>
             </div>
 
-            <Separator className="bg-border dark:bg-card text-card-foreground" />
+            <Separator className="bg-border" />
 
             {/* Dynamic Attributes Selection */}
             {Object.keys(attributesMap).map(attrName => (
@@ -342,7 +342,7 @@ export function ProductDetailPage() {
               </div>
             </div>
 
-            <Separator className="bg-border dark:bg-card text-card-foreground" />
+            <Separator className="bg-border" />
 
             {/* Service Highlights */}
             <div className="grid grid-cols-3 gap-6">
@@ -392,7 +392,7 @@ export function ProductDetailPage() {
               {product.specifications && product.specifications.length > 0 ? (
                 <div className="max-w-2xl border-2 border-gray-100 dark:border-gray-900">
                   {product.specifications.map((spec: any, idx: number) => (
-                    <div key={idx} className={`flex border-b border-gray-100 dark:border-gray-900 last:border-0 ${idx % 2 === 0 ? "bg-muted/50 dark:bg-card text-card-foreground/50" : ""}`}>
+                    <div key={idx} className={`flex border-b border-gray-100 dark:border-gray-900 last:border-0 ${idx % 2 === 0 ? "bg-muted/50 dark:bg-card/50" : ""}`}>
                       <div className="w-1/3 p-4 font-bold text-foreground uppercase tracking-wider text-xs border-r border-gray-100 dark:border-gray-900">{spec.key}</div>
                       <div className="w-2/3 p-4 text-muted-foreground text-sm">{spec.value}</div>
                     </div>
@@ -487,14 +487,14 @@ export function ProductDetailPage() {
                             {review.images.map((img: string, i: number) => (
                               <div
                                 key={i}
-                                className="size-20 bg-muted dark:bg-card text-card-foreground [border-radius:0!important] overflow-hidden"
+                                className="size-20 bg-muted dark:bg-card [border-radius:0!important] overflow-hidden"
                               >
                                 <ImageWithFallback src={img} alt="Review" className="w-full h-full object-cover" />
                               </div>
                             ))}
                           </div>
                         )}
-                        <Separator className="bg-muted dark:bg-card text-card-foreground mt-8" />
+                        <Separator className="bg-muted dark:bg-border mt-8" />
                       </div>
                     ))
                   ) : (
@@ -511,7 +511,7 @@ export function ProductDetailPage() {
         {/* Write a Review Modal */}
         {showReviewModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-background dark:bg-slate-900 border border-border dark:border-slate-800 rounded-xl w-full max-w-lg shadow-2xl p-6 sm:p-8 relative">
+            <div className="bg-background dark:bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl p-6 sm:p-8 relative">
               <button
                 onClick={() => setShowReviewModal(false)}
                 className="absolute top-5 right-5 text-muted-foreground hover:text-foreground transition-colors"

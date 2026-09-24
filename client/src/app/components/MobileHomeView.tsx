@@ -262,7 +262,7 @@ export function MobileHomeView({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/30 to-purple-50/20 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen relative overflow-hidden bg-[linear-gradient(45deg,#6b7280_0%,#9ca3af_20%,#d1d5db_40%,#fed7aa_70%,#ea580c_100%)] dark:bg-transparent">
       {/* Mobile Header with Glass Effect */}
       <div className="bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse px-4 py-4 sticky top-0 z-50 shadow-xl">
         <div className="flex items-center justify-center">
@@ -296,7 +296,7 @@ export function MobileHomeView({
                   setShowSearch(false);
                   setSearchQuery("");
                 }}
-                className="p-3 bg-muted hover:bg-border dark:hover:bg-card text-card-foreground rounded-full transition-colors"
+                className="p-3 bg-muted hover:bg-border dark:hover:bg-muted rounded-full transition-colors"
               >
                 <span className="text-foreground font-medium text-sm">Cancel</span>
               </button>
@@ -325,7 +325,7 @@ export function MobileHomeView({
       <div className="px-4 py-3 bg-card border-b border-border shadow-sm">
         <button
           onClick={() => setShowLocationModal(true)}
-          className="w-full flex items-center gap-3 px-4 py-2.5 bg-muted border border-gray-200 dark:border-gray-700 rounded-full hover:bg-muted dark:hover:bg-card text-card-foreground transition-all duration-300"
+          className="w-full flex items-center gap-3 px-4 py-2.5 bg-muted border border-gray-200 dark:border-border rounded-full hover:bg-border/60 dark:hover:bg-muted transition-all duration-300"
         >
           <MapPin className="size-5 text-[var(--primary-color)] flex-shrink-0" />
           <span className="flex-1 text-left text-sm font-medium text-foreground">
@@ -348,7 +348,7 @@ export function MobileHomeView({
                 </div>
                 <button
                   onClick={() => setShowLocationModal(false)}
-                  className="p-2 hover:bg-muted dark:hover:bg-card text-card-foreground rounded-full transition-colors"
+                  className="p-2 hover:bg-muted dark:hover:bg-muted rounded-full transition-colors"
                 >
                   <span className="text-2xl text-muted-foreground">&times;</span>
                 </button>
@@ -370,7 +370,7 @@ export function MobileHomeView({
                     }}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${selectedLocation === location
                         ? "bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse shadow-lg"
-                        : "bg-muted hover:bg-muted dark:hover:bg-card text-card-foreground text-foreground"
+                        : "bg-muted hover:bg-border/60 dark:hover:bg-muted text-foreground"
                       }`}
                   >
                     <MapPin
@@ -871,7 +871,7 @@ export function MobileHomeView({
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                           />
                           <button
-                            className="absolute top-3 right-3 bg-background dark:bg-card text-card-foreground p-2 rounded-full shadow-md hover:opacity-100 transition-all active:scale-95"
+                            className="absolute top-3 right-3 bg-background/90 dark:bg-card text-foreground p-2 rounded-full shadow-md hover:opacity-100 transition-all active:scale-95"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();

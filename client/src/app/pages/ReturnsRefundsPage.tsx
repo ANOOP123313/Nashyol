@@ -134,9 +134,9 @@ export function ReturnsRefundsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-muted dark:bg-transparent">
       {/* Header */}
-      <div className="bg-background border-b dark:border-gray-800">
+      <div className="bg-background dark:bg-card/40 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-3 mb-4">
             <div className="size-12 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-lg flex items-center justify-center">
@@ -155,7 +155,7 @@ export function ReturnsRefundsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Track Return Section (Live DB Query) */}
-        <Card className="p-6 sm:p-8 mb-16 bg-gradient-to-r from-orange-50 via-white to-orange-50/30 border-orange-200 dark:bg-slate-900 dark:border-slate-800 shadow-sm">
+        <Card className="p-6 sm:p-8 mb-16 bg-gradient-to-r from-orange-50 via-white to-orange-50/30 border-orange-200 dark:bg-card dark:border-border shadow-sm">
           <div className="max-w-3xl mx-auto text-center">
             <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 mb-3 text-xs font-semibold px-3 py-1">
               Live Return & Refund Status
@@ -175,7 +175,7 @@ export function ReturnsRefundsPage() {
                   placeholder="Enter Return ID, Tracking # or Order ID..."
                   value={trackQuery}
                   onChange={(e) => setTrackQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-sm bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-gray-900 dark:text-white shadow-sm"
+                  className="w-full pl-11 pr-4 py-3 text-sm bg-white dark:bg-muted border border-gray-200 dark:border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-gray-900 dark:text-white shadow-sm"
                 />
               </div>
               <Button
@@ -207,8 +207,8 @@ export function ReturnsRefundsPage() {
 
             {/* Track Result Card */}
             {trackedReturn && (
-              <div className="mt-6 text-left bg-white dark:bg-slate-800 border border-orange-200 dark:border-slate-700 rounded-xl p-5 sm:p-6 shadow-md max-w-2xl mx-auto">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-700 pb-4 mb-4">
+              <div className="mt-6 text-left bg-white dark:bg-card border border-orange-200 dark:border-border rounded-xl p-5 sm:p-6 shadow-md max-w-2xl mx-auto">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-border pb-4 mb-4">
                   <div>
                     <span className="text-xs text-gray-500 font-mono">
                       RETURN #{trackedReturn._id?.slice(-8)?.toUpperCase()}
@@ -224,7 +224,7 @@ export function ReturnsRefundsPage() {
 
                 {/* Returned Item */}
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="size-16 rounded-lg bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden flex-shrink-0">
+                  <div className="size-16 rounded-lg bg-gray-100 dark:bg-muted border border-gray-200 dark:border-border overflow-hidden flex-shrink-0">
                     <img
                       src={
                         trackedReturn.items?.[0]?.productId?.images?.[0] ||
@@ -249,7 +249,7 @@ export function ReturnsRefundsPage() {
                         <span className="text-gray-500">via {trackedReturn.refundMethod}</span>
                       )}
                       {trackedReturn.tracking && (
-                        <span className="font-mono bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                        <span className="font-mono bg-gray-100 dark:bg-muted px-2 py-0.5 rounded text-gray-700 dark:text-gray-300">
                           Tracking: {trackedReturn.tracking}
                         </span>
                       )}
@@ -258,7 +258,7 @@ export function ReturnsRefundsPage() {
                 </div>
 
                 {/* Progress Steps */}
-                <div className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-card/60 rounded-lg p-4 border border-transparent dark:border-border">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
                     <div className="flex flex-col items-center">
                       <div className="size-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold mb-1">

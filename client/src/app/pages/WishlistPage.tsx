@@ -39,7 +39,7 @@ export function WishlistPage() {
 
   if (wishlist.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4 pb-24 md:pb-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent flex items-center justify-center p-4 pb-24 md:pb-4">
         <div className="glass-card p-12 text-center max-w-md rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
           <div className="p-6 bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-900/30 dark:to-pink-800/30 rounded-full w-fit mx-auto mb-6">
             <Heart className="size-16 text-pink-400 dark:text-pink-500" />
@@ -59,7 +59,7 @@ export function WishlistPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pb-24 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent pb-24 md:pb-0">
       {/* Hero Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-800"></div>
@@ -89,7 +89,7 @@ export function WishlistPage() {
                 key={productId}
                 className="glass-card group overflow-hidden hover:shadow-2xl transition-all duration-300 rounded-2xl border border-gray-200/50 dark:border-gray-700/50"
               >
-                <Link href={`/products/${productId}`} className="relative block aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                <Link href={`/products/${productId}`} className="relative block aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-card dark:to-muted">
                   <Button
                     size="icon"
                     variant="secondary"

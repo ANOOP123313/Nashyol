@@ -180,9 +180,9 @@ export function PrivacyPolicyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-muted dark:bg-transparent">
       {/* Header */}
-      <div className="bg-background border-b dark:border-gray-800">
+      <div className="bg-background dark:bg-card/40 border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-3 mb-4">
             <div className="size-12 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-lg flex items-center justify-center">

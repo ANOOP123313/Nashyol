@@ -65,6 +65,12 @@ const categorySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    order: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   { timestamps: true }
 );

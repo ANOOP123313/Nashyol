@@ -55,7 +55,7 @@ export function CartDrawer() {
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="hover:bg-muted dark:hover:bg-card text-card-foreground rounded-xl text-muted-foreground"
+            className="hover:bg-muted dark:hover:bg-muted rounded-xl text-muted-foreground"
           >
             <X className="size-5" />
           </Button>
@@ -87,9 +87,9 @@ export function CartDrawer() {
             items.map((item) => (
               <div
                 key={`${item.id}-${item.sku}`}
-                className="flex gap-4 p-3 bg-background border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm group relative"
+                className="flex gap-4 p-3 bg-card border border-border rounded-xl shadow-sm group relative"
               >
-                <div className="relative size-20 sm:size-24 bg-muted dark:bg-card text-card-foreground rounded-lg overflow-hidden flex-shrink-0">
+                <div className="relative size-20 sm:size-24 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                   <ImageWithFallback
                     src={item.image}
                     alt={item.name}
@@ -125,7 +125,7 @@ export function CartDrawer() {
                     <div className="flex items-center border border-border rounded-lg bg-muted overflow-hidden">
                       <button
                         onClick={() => onUpdateQuantity(item.id, item.sku, item.quantity - 1)}
-                        className="p-1.5 hover:bg-background dark:hover:bg-card text-card-foreground text-muted-foreground transition-colors"
+                        className="p-1.5 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Minus className="size-3.5" />
                       </button>
@@ -134,7 +134,7 @@ export function CartDrawer() {
                       </span>
                       <button
                         onClick={() => onUpdateQuantity(item.id, item.sku, item.quantity + 1)}
-                        className="p-1.5 hover:bg-background dark:hover:bg-card text-card-foreground text-muted-foreground transition-colors"
+                        className="p-1.5 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Plus className="size-3.5" />
                       </button>
@@ -179,7 +179,7 @@ export function CartDrawer() {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="h-12 font-bold border-2 hover:bg-muted dark:hover:bg-card text-card-foreground rounded-xl"
+                className="h-12 font-bold border-2 hover:bg-muted rounded-xl"
                 asChild
               >
                 <Link href="/cart" onClick={onClose}>

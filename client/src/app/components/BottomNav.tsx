@@ -22,7 +22,7 @@ export function BottomNav() {
     {
       label: "Categories",
       icon: LayoutGrid,
-      path: "/products",
+      path: "/category",
     },
     {
       label: "Cart",
@@ -52,7 +52,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] bg-background/95 dark:bg-card text-card-foreground/95 backdrop-blur-xl border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] safe-area-inset-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] bg-background/95 dark:bg-card/95 backdrop-blur-xl border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] safe-area-inset-bottom">
       <div className="grid grid-cols-4 px-2 py-1.5 pb-safe max-w-screen-sm mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;

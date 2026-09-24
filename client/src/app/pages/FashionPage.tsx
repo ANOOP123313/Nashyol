@@ -29,8 +29,8 @@ function mapBackendProduct(p: any) {
     _id: p._id,
     name: p.title || p.name,
     category: "Fashion",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     rating: 4.7,
     reviews: p.reviews?.length || 12,
     image: v.image || p.images?.[0] || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800",
@@ -295,10 +295,10 @@ export function FashionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background dark:bg-transparent text-foreground">
 
       {/* ── 1. FASHION SUBCATEGORIES ── */}
-      <section className="py-16 bg-background">
+      <section className="py-16 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -338,7 +338,7 @@ export function FashionPage() {
       </section>
 
       {/* ── 2. HERO CAROUSEL ── */}
-      <section className="w-full px-4 sm:px-6 lg:px-8 py-5 bg-background">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-5 bg-background dark:bg-transparent">
         <div
           className="relative w-full overflow-hidden rounded-2xl"
           style={{ minHeight: 420 }}
@@ -506,7 +506,7 @@ export function FashionPage() {
       <FlashDealsSection />
 
       {/* ── 4. SHOP FOR LOVED ONES ── */}
-      <section className="py-12 bg-background">
+      <section className="py-12 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-foreground mb-6">Shop for Loved Ones</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -542,7 +542,7 @@ export function FashionPage() {
 
       {/* ── 6. PRODUCTS GRID — exact match to screenshot ── */}
       {/* ── 6. PRODUCTS GRID ── */}
-      <section className="py-10 bg-background">
+      <section className="py-10 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Toolbar row */}
@@ -640,7 +640,7 @@ export function FashionPage() {
       </section>
 
       {/* ── 8. SHOP BY STYLE ── */}
-      <section className="py-12 bg-background">
+      <section className="py-12 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-foreground mb-8">Shop by Style</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
