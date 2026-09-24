@@ -4,6 +4,7 @@ import {
   getMyVendorProfile,
   updateMyVendorProfile,
   getAllApprovedVendors,
+  getVendorDropdown,
   getVendorById,
   adminGetAllVendors,
   adminUpdateApprovalStatus,
@@ -18,23 +19,24 @@ const router = express.Router();
 // ─────────────────────────────────────────
 //  PUBLIC / ADMIN ROUTES
 // ─────────────────────────────────────────
-router.get("/", getAllApprovedVendors);           // GET  /api/vendor
-router.post("/", adminCreateVendor);              // POST /api/vendor
-router.get("/:id", getVendorById);                // GET  /api/vendor/:id
+router.get("/dropdown", getVendorDropdown);          // GET /api/vendor/dropdown
+router.get("/admin/all", adminGetAllVendors);       // GET /api/vendor/admin/all
+router.get("/", getAllApprovedVendors);             // GET /api/vendor
+router.post("/", adminCreateVendor);                 // POST /api/vendor
 router.put("/:id/status", adminUpdateApprovalStatus); // PUT /api/vendor/:id/status
-router.delete("/:id", adminDeleteVendor);         // DELETE /api/vendor/:id
+router.delete("/:id", adminDeleteVendor);           // DELETE /api/vendor/:id
+router.get("/:id", getVendorById);                  // GET /api/vendor/:id
 
 // ─────────────────────────────────────────
 //  VENDOR (logged-in) ROUTES
 // ─────────────────────────────────────────
-router.post("/register", protect, registerVendor);              // POST   /api/vendor/register
-router.get("/my-profile", protect, getMyVendorProfile);         // GET    /api/vendor/my-profile
-router.put("/my-profile", protect, updateMyVendorProfile);      // PUT    /api/vendor/my-profile
+router.post("/register", protect, registerVendor);            // POST /api/vendor/register
+router.get("/my-profile", protect, getMyVendorProfile);       // GET /api/vendor/my-profile
+router.put("/my-profile", protect, updateMyVendorProfile);    // PUT /api/vendor/my-profile
 
 // ─────────────────────────────────────────
 //  ADMIN ROUTES
 // ─────────────────────────────────────────
-router.get("/admin/all", adminGetAllVendors);
 router.patch("/admin/:id/approval", adminUpdateApprovalStatus);
 router.patch("/admin/:id/revenue", adminUpdateRevenue);
 router.delete("/admin/:id", adminDeleteVendor);

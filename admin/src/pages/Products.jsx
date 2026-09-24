@@ -10,7 +10,7 @@ import {
   Tag, Store, BarChart2, Box, AlertCircle, Loader2, List,
 } from "lucide-react";
 import { useProducts, useProduct, useProductMutations } from "../hooks/useProducts";
-import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI } from "../services/api";
+import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI, vendorsAPI } from "../services/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 
@@ -489,6 +489,8 @@ function ProductFormModal({ product, onClose, onSuccess }) {
   );
   const [categoriesData, setCategoriesData] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [vendorLoading, setVendorLoading] = useState(true);
 
   useEffect(() => {
     setCategoriesLoading(true);
@@ -503,13 +505,36 @@ function ProductFormModal({ product, onClose, onSuccess }) {
       .finally(() => setCategoriesLoading(false));
   }, []);
 
+  useEffect(() => {
+    setVendorLoading(true);
+    vendorsAPI.getAll()
+      .then((res) => {
+        const vendors = Array.isArray(res) ? res : (Array.isArray(res?.vendors) ? res.vendors : []);
+        const mapped = vendors
+          .map((vendor) => ({
+            id: vendor._id || vendor.id,
+            name: vendor.storeName || vendor.name || "Vendor",
+          }))
+          .filter((vendor) => vendor.name && vendor.name.trim());
+
+        setVendorOptions(mapped);
+      })
+      .catch((err) => {
+        console.error("Failed to load vendors for product form:", err);
+      })
+      .finally(() => setVendorLoading(false));
+  }, []);
+
   // Find category object matching current form.category
   const selectedCatObj = categoriesData.find(
     c => c.name?.toLowerCase() === form.category?.toLowerCase() || c._id === form.category
   );
   const availableSubcategories = selectedCatObj?.subCategories || [];
 
-  const handleChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  };
 
   const handleCategoryChange = (e) => {
     const newCat = e.target.value;
@@ -625,7 +650,23 @@ function ProductFormModal({ product, onClose, onSuccess }) {
 
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
             <div><label style={lS}>Product Name <span style={{ color:"#ef4444" }}>*</span></label><input name="title" value={form.title} onChange={handleChange} placeholder="Enter product name" className="add-modal-input" style={iS}/></div>
-            <div><label style={lS}>Brand / Vendor <span style={{ color:"#ef4444" }}>*</span></label><input name="brand" value={form.brand} onChange={handleChange} placeholder="Brand name" className="add-modal-input" style={iS}/></div>
+            <div>
+              <label style={lS}>Brand / Vendor <span style={{ color:"#ef4444" }}>*</span></label>
+              <input
+                list="vendor-options-list"
+                name="brand"
+                value={form.brand}
+                onChange={handleChange}
+                placeholder={vendorLoading ? "Loading vendors..." : "Type vendor name"}
+                className="add-modal-input"
+                style={{ ...iS, width:"100%" }}
+              />
+              <datalist id="vendor-options-list">
+                {vendorOptions.map((vendor) => (
+                  <option key={vendor.id || vendor.name} value={vendor.name} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
           {/* Category and Subcategory Selection */}

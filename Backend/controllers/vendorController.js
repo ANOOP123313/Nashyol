@@ -1,4 +1,5 @@
 import Vendor from "../models/Vendor.js";
+import User from "../models/User.js";
 
 // ─────────────────────────────────────────
 //  VENDOR SELF-SERVICE
@@ -105,22 +106,68 @@ export const getAllApprovedVendors = async (req, res) => {
 };
 
 /**
+ * GET /api/vendors/dropdown
+ * Return a lightweight vendor list for admin dropdown UIs.
+ * Example response: [{ _id, storeName, email, phone, approvalStatus }]
+ */
+export const getVendorDropdown = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status ? { approvalStatus: status } : { approvalStatus: "approved" };
+
+    const vendors = await Vendor.find(filter)
+      .select("_id storeName email phone approvalStatus")
+      .sort({ storeName: 1 });
+
+    res.status(200).json({
+      count: vendors.length,
+      vendors,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error.", error: error.message });
+  }
+};
+
+/**
  * POST /api/vendor
  * Admin create vendor directly.
  */
 export const adminCreateVendor = async (req, res) => {
   try {
     const { storeName, description, phone, email, address, ownerName } = req.body;
+
+    let owner = null;
+    const normalizedEmail = (email || "").trim().toLowerCase();
+
+    if (normalizedEmail) {
+      let existingUser = await User.findOne({ email: normalizedEmail });
+
+      if (!existingUser) {
+        existingUser = await User.create({
+          name: ownerName || storeName || "Vendor Manager",
+          email: normalizedEmail,
+          role: "vendor",
+          password: "Vendor@123",
+          isVerified: true,
+        });
+      }
+
+      owner = existingUser._id;
+    }
+
     const vendor = await Vendor.create({
+      owner,
       storeName: storeName || "New Vendor",
       description: description || "",
       phone: phone || "",
-      email: email || "",
+      email: normalizedEmail,
       address: address || "",
       approvalStatus: "approved",
     });
+
     res.status(201).json({ message: "Vendor created successfully.", vendor });
   } catch (error) {
+    console.error("Admin create vendor error:", error);
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 };

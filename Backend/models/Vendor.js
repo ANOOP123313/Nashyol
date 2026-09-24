@@ -5,8 +5,9 @@ const vendorSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
       unique: true,
+      sparse: true,
     },
 
     storeName: {
