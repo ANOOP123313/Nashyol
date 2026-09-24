@@ -17,13 +17,13 @@ export function FeaturedProductsSection() {
             id: p._id,
             name: p.title || p.name,
             image: v.image || p.images?.[0] || "https://placehold.co/300x300?text=No+Image",
-            price: v.sellingPrice || p.offerPrice || p.price || 0,
-            originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+            price: p.offerPrice || v.sellingPrice || p.price || 0,
+            originalPrice: p.offerPrice ? p.price : undefined,
             category: p.category?.name || "Product",
             rating: 4.8,
             reviews: p.reviews?.length || 0,
             badge: p.offerPrice ? "Sale" : p.featured ? "Featured" : undefined,
-            bgColor: "bg-card text-card-foreground",
+            bgColor: "bg-card",
           };
         });
         setProducts(mapped);
@@ -67,7 +67,7 @@ export function FeaturedProductsSection() {
                   className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
                 />
               </div>
-              <div className="p-4 bg-background dark:bg-card text-card-foreground">
+              <div className="p-4 bg-card">
                 <p className="text-xs text-muted-foreground mb-1">{product.category}</p>
                 <h3 className="font-bold text-base text-foreground mb-2 line-clamp-1">
                   {product.name}

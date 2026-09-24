@@ -226,7 +226,7 @@ export function FilterDrawer() {
           <Button
             variant="outline"
             onClick={handleClearFilters}
-            className="flex-1 h-12 text-base font-semibold border-2 border-gray-300 dark:border-gray-600 text-foreground hover:bg-muted dark:hover:bg-card text-card-foreground [border-radius:0!important]"
+            className="flex-1 h-12 text-base font-semibold border-2 border-gray-300 dark:border-border text-foreground hover:bg-muted [border-radius:0!important]"
           >
             Clear All Filters
           </Button>

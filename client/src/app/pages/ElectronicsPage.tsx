@@ -24,8 +24,8 @@ function mapBackendProduct(p: any) {
     _id: p._id,
     name: p.title || p.name,
     category: "Electronics",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     image: v.image || p.images?.[0] || "https://placehold.co/400x400?text=No+Image",
     rating: 4.8,
     reviews: p.reviews?.length || 12,
@@ -52,7 +52,7 @@ export function ElectronicsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-indigo-50 dark:from-gray-950 dark:via-blue-950/20 dark:to-indigo-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-indigo-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-blue-600 via-cyan-600 to-indigo-600 dark:from-blue-900 dark:via-cyan-900 dark:to-indigo-900 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -283,7 +283,7 @@ export function ElectronicsPage() {
             {products.map((product) => (
               <Link key={product.id}
                 href={`/products/${product.id}`}
-                className="group relative bg-background dark:bg-card text-card-foreground rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105"
+                className="group relative bg-card rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border border-border"
               >
                 {product.badge && (
                   <Badge className="absolute top-4 left-4 z-10 bg-[var(--primary-color)] hover:bg-orange-600 text-inverse border-0">
@@ -293,7 +293,7 @@ export function ElectronicsPage() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="absolute top-4 right-4 z-10 size-10 rounded-full bg-background/90 dark:bg-card text-card-foreground/90 hover:bg-background dark:hover:bg-card text-card-foreground"
+                  className="absolute top-4 right-4 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 hover:bg-background dark:hover:bg-card text-foreground"
                   onClick={(e) => {
                     e.preventDefault();
                     toggleWishlist({

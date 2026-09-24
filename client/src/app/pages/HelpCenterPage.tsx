@@ -124,7 +124,7 @@ export function HelpCenterPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pb-24 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent pb-24 md:pb-0">
       {/* Hero Header with Glassmorphic Effect */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-800"></div>
@@ -143,7 +143,7 @@ export function HelpCenterPage() {
                 placeholder="Search for help..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 h-14 text-lg bg-background dark:bg-card text-card-foreground border-0 text-foreground"
+                className="pl-12 pr-4 h-14 text-lg bg-background dark:bg-card border-0 text-foreground"
               />
             </div>
           </div>

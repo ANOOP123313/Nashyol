@@ -11,8 +11,8 @@ export function FilterButton() {
       onClick={toggleFilter}
       className={`fixed right-6 bottom-24 md:bottom-8 z-40 size-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 border-2 ${
         isFilterOpen
-          ? "bg-card text-card-foreground hover:bg-card text-card-foreground dark:bg-card text-card-foreground dark:hover:bg-card text-card-foreground border-gray-700 dark:border-gray-600"
-          : "bg-[var(--primary-color)] hover:bg-orange-600 border-orange-600 dark:border-orange-500"
+          ? "bg-card text-foreground hover:bg-muted border-border"
+          : "bg-[var(--primary-color)] hover:bg-orange-600 border-orange-600"
       }`}
       size="icon"
     >

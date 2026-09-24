@@ -11,7 +11,7 @@ export function ThemeToggle() {
       size="icon"
       onClick={toggleTheme}
       aria-label="Toggle theme"
-      className="relative hover:bg-muted dark:hover:bg-card text-card-foreground"
+      className="relative hover:bg-muted dark:hover:bg-muted"
     >
       <Sun className="size-5 text-muted-foreground rotate-0 scale-100 transition-all dark:rotate-90 dark:scale-0" />
       <Moon className="absolute size-5 text-muted-foreground rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

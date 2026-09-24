@@ -144,7 +144,7 @@ export function TrackOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-950 text-inverse">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -292,7 +292,7 @@ export function TrackOrderPage() {
                                 ? "bg-blue-600 border-blue-600"
                                 : event.completed
                                 ? "bg-green-600 border-green-600"
-                                : "bg-border dark:bg-card text-card-foreground border-gray-300 dark:border-gray-600"
+                                : "bg-muted border-border"
                             }`}
                           >
                             {event.completed ? (
@@ -306,7 +306,7 @@ export function TrackOrderPage() {
                               className={`w-0.5 h-16 ${
                                 event.completed
                                   ? "bg-green-600"
-                                  : "bg-border dark:bg-card text-card-foreground"
+                                  : "bg-border"
                               }`}
                             />
                           )}

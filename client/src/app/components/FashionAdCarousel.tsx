@@ -82,7 +82,7 @@ export function FashionAdCarousel() {
     return (
       <button
         onClick={onClick}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 size-10 rounded-full bg-background/90 dark:bg-card text-card-foreground/90 backdrop-blur-sm shadow-lg hover:scale-110 transition-all duration-300 flex items-center justify-center group"
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 backdrop-blur-sm shadow-lg hover:scale-110 transition-all duration-300 flex items-center justify-center group"
       >
         <ChevronLeft className="size-6 text-foreground group-hover:text-[var(--primary-color)]" />
       </button>
@@ -94,7 +94,7 @@ export function FashionAdCarousel() {
     return (
       <button
         onClick={onClick}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 size-10 rounded-full bg-background/90 dark:bg-card text-card-foreground/90 backdrop-blur-sm shadow-lg hover:scale-110 transition-all duration-300 flex items-center justify-center group"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 size-10 rounded-full bg-background/90 dark:bg-card/90 backdrop-blur-sm shadow-lg hover:scale-110 transition-all duration-300 flex items-center justify-center group"
       >
         <ChevronRight className="size-6 text-foreground group-hover:text-[var(--primary-color)]" />
       </button>

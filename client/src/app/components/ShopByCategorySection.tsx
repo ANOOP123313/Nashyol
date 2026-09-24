@@ -59,7 +59,7 @@ export function ShopByCategorySection() {
               href={`/products?category=${encodeURIComponent(category.name)}`}
               className="group"
             >
-              <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-2 border-gray-800 hover:border-[var(--primary-color)] bg-card text-card-foreground rounded-3xl">
+              <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-border hover:border-[var(--primary-color)] bg-card rounded-3xl">
                 <div className="relative aspect-square">
                   <ImageWithFallback
                     src={category.image}

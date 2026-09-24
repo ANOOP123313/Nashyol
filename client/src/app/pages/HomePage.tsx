@@ -23,8 +23,8 @@ function mapApiProduct(p: Record<string, unknown>) {
     id: (p._id as string) ?? "",
     name: (p.title as string) ?? (p.name as string) ?? "",
     category: (cat?.name as string) ?? "",
-    price: (firstVariant.sellingPrice as number) ?? (p.offerPrice as number) ?? (p.price as number) ?? 0,
-    originalPrice: p.offerPrice != null ? (firstVariant.sellingPrice as number) : undefined,
+    price: (p.offerPrice as number) ?? (firstVariant.sellingPrice as number) ?? (p.price as number) ?? 0,
+    originalPrice: p.offerPrice != null ? (p.price as number) : undefined,
     image: (firstVariant.image as string) || images[0] || "",
     badge: p.offerPrice != null ? "Sale" : undefined,
     rating: 4.8,
@@ -91,12 +91,12 @@ export function HomePage() {
   const featuredProducts = apiFeatured;
 
   return (
-    <div className="min-h-screen bg-transparent relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden bg-[linear-gradient(45deg,#6b7280_0%,#9ca3af_20%,#d1d5db_40%,#fed7aa_70%,#ea580c_100%)] dark:bg-transparent">
       {/* Background blur accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-gradient-to-br from-stone-300/80 via-orange-200/60 to-transparent blur-3xl" />
-        <div className="absolute right-0 top-1/4 h-80 w-80 rounded-full bg-gradient-to-br from-orange-300/50 via-amber-200/30 to-transparent blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-stone-200/75 via-orange-100/60 to-transparent blur-3xl" />
+        <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-gradient-to-br from-stone-300/80 via-orange-200/60 to-transparent blur-3xl dark:opacity-10" />
+        <div className="absolute right-0 top-1/4 h-80 w-80 rounded-full bg-gradient-to-br from-orange-300/50 via-amber-200/30 to-transparent blur-3xl dark:opacity-10" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-stone-200/75 via-orange-100/60 to-transparent blur-3xl dark:opacity-10" />
       </div>
 
       {/* Dynamic Content rendered via CMS Section Renderer */}

@@ -339,7 +339,9 @@ function ChildRow({ item, parentName, onEdit, onToggleStatus, onDelete }) {
       <td className="py-3 px-5 text-xs font-mono text-gray-400">{item.slug}</td>
       <td className="py-3 px-5 text-xs text-gray-500 max-w-xs truncate">{item.description || "—"}</td>
       <td className="py-3 px-5">
-        <span className="text-xs text-gray-400">—</span>
+        <span className="border border-gray-200 bg-white rounded-md px-2 py-0.5 text-xs text-gray-700 font-medium">
+          {item.products?.toLocaleString() || 0} products
+        </span>
       </td>
       <td className="py-3 px-5">
         <StatusBadge status={item.status} />
@@ -1097,10 +1099,9 @@ export default function CategoriesPage() {
   };
 
   const handleToggleStatus = async (item) => {
-    const newStatus = item.status === "active" ? "inactive" : "active";
     try {
-      await categoriesAPI.update(item.id, { isActive: newStatus === "active" });
-      showToastMsg(`"${item.name}" is now ${newStatus}`);
+      const res = await categoriesAPI.toggleStatus(item.id);
+      showToastMsg(res?.message || `"${item.name}" status updated`);
       loadCategories();
     } catch (err) {
       showToastMsg(err.message || "Failed to update status");
@@ -1109,12 +1110,22 @@ export default function CategoriesPage() {
 
   const handleDelete = async (item) => {
     const isSub = item.type === "Subcategory";
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${isSub ? "subcategory" : "category"} "${item.name}"?`
-      )
-    ) {
-      return;
+    if (item.products > 0) {
+      if (
+        !window.confirm(
+          `Warning: "${item.name}" currently has ${item.products} active product(s). Deleting it may impact catalog visibility. Are you sure you want to proceed?`
+        )
+      ) {
+        return;
+      }
+    } else {
+      if (
+        !window.confirm(
+          `Are you sure you want to delete ${isSub ? "subcategory" : "category"} "${item.name}"?`
+        )
+      ) {
+        return;
+      }
     }
     try {
       await categoriesAPI.delete(item.id);

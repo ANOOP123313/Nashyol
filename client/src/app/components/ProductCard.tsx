@@ -228,7 +228,7 @@ export function ProductCard({
                 {showQuickView && (
                   <button
                     onClick={handleQuickView}
-                    className="p-2 sm:p-3 bg-background/90 dark:bg-card text-card-foreground/90 rounded-full backdrop-blur-sm hover:bg-[var(--primary-color)] hover:text-inverse transition-all duration-300 transform hover:scale-110 active:scale-95 touch-manipulation border border-white/10"
+                    className="p-2 sm:p-3 bg-background/90 dark:bg-card text-foreground rounded-full backdrop-blur-sm hover:bg-[var(--primary-color)] hover:text-inverse transition-all duration-300 transform hover:scale-110 active:scale-95 touch-manipulation border border-white/10"
                     style={{
                       WebkitTapHighlightColor: 'rgba(247, 147, 26, 0.2)',
                       touchAction: 'manipulation',

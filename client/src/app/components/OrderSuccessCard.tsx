@@ -88,7 +88,7 @@ export function OrderSuccessCard({
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 z-10 size-10 rounded-full bg-muted hover:bg-border dark:hover:bg-card text-card-foreground transition-colors flex items-center justify-center"
+            className="absolute top-6 right-6 z-10 size-10 rounded-full bg-muted hover:bg-border dark:hover:bg-muted transition-colors flex items-center justify-center"
             aria-label="Close"
           >
             <X className="size-5 text-muted-foreground" />

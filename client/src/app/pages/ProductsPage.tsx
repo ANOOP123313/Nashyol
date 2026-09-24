@@ -31,14 +31,21 @@ import { FlashDealsSection } from "../components/FlashDealsSection";
 import { ShopByCategorySection } from "../components/ShopByCategorySection";
 import { productsApi } from "@/services/api";
 
-const categories = ["Electronics", "Fashion", "Beauty", "Home & Garden", "Sports", "Books"];
+const categories = [
+  "Electronics",
+  "Fashion",
+  "Home & Garden",
+  "Sports & Outdoors",
+  "Beauty & Personal Care",
+  "Books & Media",
+];
 
 const priceRanges = [
-  { label: "Under ₹25", value: "0-25" },
-  { label: "₹25 – ₹50", value: "25-50" },
-  { label: "₹50 – ₹100", value: "50-100" },
-  { label: "₹100 – ₹200", value: "100-200" },
-  { label: "Over ₹200", value: "200-9999" },
+  { label: "Under ₹1,000", value: "0-1000" },
+  { label: "₹1,000 – ₹5,000", value: "1000-5000" },
+  { label: "₹5,000 – ₹20,000", value: "5000-20000" },
+  { label: "₹20,000 – ₹50,000", value: "20000-50000" },
+  { label: "Over ₹50,000", value: "50000-999999" },
 ];
 
 function mapBackendProduct(p: any) {
@@ -49,8 +56,8 @@ function mapBackendProduct(p: any) {
     sku: v.sku,
     name: p.title || p.name,
     category: p.category?.name || p.category || "",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     image: v.image || p.images?.[0] || "https://placehold.co/400x400?text=No+Image",
     rating: 4.8,
     reviewsCount: p.reviews?.length || 12,
@@ -270,7 +277,7 @@ export function ProductsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background dark:bg-transparent relative overflow-hidden">
       {/* Animated Background Gradients - macOS style */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-orange-500/25 via-red-500/15 to-pink-500/10 rounded-full blur-3xl"></div>
@@ -286,7 +293,7 @@ export function ProductsPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               {categoryParam ? `${categoryParam} Products` : "All Products"}
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground dark:text-muted">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Discover our complete collection of premium products
             </p>
           </div>
@@ -1205,7 +1212,7 @@ export function ProductsPage() {
                 {products.map((product, index) => (
                   <div
                     key={product.id}
-                    className="bg-background dark:bg-card text-card-foreground border border-gray-200 dark:border-gray-700 group overflow-hidden hover:scale-102 sm:hover:scale-105 transition-all duration-300 rounded-lg sm:rounded-xl shadow-sm hover:shadow-lg"
+                    className="bg-card border border-border group overflow-hidden hover:scale-102 sm:hover:scale-105 transition-all duration-300 rounded-lg sm:rounded-xl shadow-sm hover:shadow-lg"
                     style={{ animationDelay: `${(index % 12) * 0.05}s` }}
                   >
                     <Link href={`/products/${product.id}`} className="relative block aspect-square overflow-hidden bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
@@ -1225,7 +1232,7 @@ export function ProductsPage() {
                         className={`absolute top-1 left-1 sm:top-2 sm:left-2 z-10 opacity-100 transition-all size-6 sm:size-7 shadow-sm ${
                           isInWishlist(product.id)
                             ? "bg-red-500 text-white hover:bg-red-600 border-0"
-                            : "bg-background dark:bg-card text-card-foreground hover:bg-muted"
+                            : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
                         }`}
                         onClick={(e) => {
                           e.preventDefault();
@@ -1255,7 +1262,7 @@ export function ProductsPage() {
                         className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
                       />
                     </Link>
-                    <div className="p-2 sm:p-3 bg-background dark:bg-card text-card-foreground">
+                    <div className="p-2 sm:p-3 bg-card">
                       <Badge variant="outline" className="mb-1 sm:mb-1.5 text-[9px] sm:text-[10px] border-gray-300 dark:border-gray-600">
                         {product.category}
                       </Badge>

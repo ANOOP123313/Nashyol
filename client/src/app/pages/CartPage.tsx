@@ -49,7 +49,7 @@ export function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-purple-50/10 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-purple-50/10 dark:from-transparent dark:via-transparent dark:to-transparent dark:bg-transparent flex items-center justify-center p-4">
         <div className="glass-card p-12 text-center max-w-md rounded-3xl">
           <div className="bg-gradient-to-br from-[var(--primary-color)]/20 to-orange-600/20 p-6 rounded-full w-fit mx-auto mb-6">
             <ShoppingBag className="size-16 text-[var(--primary-color)]" />
@@ -72,7 +72,7 @@ export function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-purple-50/10 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-purple-50/10 dark:from-transparent dark:via-transparent dark:to-transparent dark:bg-transparent pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-2xl shadow-lg">
@@ -89,7 +89,7 @@ export function CartPage() {
             {items.map((item) => (
               <Card key={`${item.id}-${item.sku}`} className="glass-card p-6 border-0 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300">
                 <div className="flex gap-4 sm:gap-6">
-                  <div className="relative size-24 sm:size-32 bg-muted dark:bg-card text-card-foreground rounded-xl overflow-hidden flex-shrink-0">
+                  <div className="relative size-24 sm:size-32 bg-muted rounded-xl overflow-hidden flex-shrink-0">
                     <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
                   </div>
 
@@ -103,7 +103,7 @@ export function CartPage() {
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {item.variant?.attributes?.map((attr: any) => (
-                          <Badge key={attr.name} variant="secondary" className="bg-muted text-muted-foreground hover:bg-border dark:hover:bg-card text-card-foreground transition-colors">
+                          <Badge key={attr.name} variant="secondary" className="bg-muted text-muted-foreground hover:bg-border dark:hover:bg-muted transition-colors">
                             {attr.name}: {attr.value}
                           </Badge>
                         ))}
@@ -112,11 +112,11 @@ export function CartPage() {
 
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center border border-border rounded-xl bg-background overflow-hidden shadow-sm">
-                        <button onClick={() => handleUpdateQuantity(item.id, item.sku, item.quantity - 1)} className="p-2 hover:bg-muted dark:hover:bg-card text-card-foreground text-muted-foreground transition-colors">
+                        <button onClick={() => handleUpdateQuantity(item.id, item.sku, item.quantity - 1)} className="p-2 hover:bg-muted dark:hover:bg-muted text-muted-foreground transition-colors">
                           <Minus className="size-4" />
                         </button>
                         <span className="w-12 text-center font-bold text-foreground">{item.quantity}</span>
-                        <button onClick={() => handleUpdateQuantity(item.id, item.sku, item.quantity + 1)} className="p-2 hover:bg-muted dark:hover:bg-card text-card-foreground text-muted-foreground transition-colors">
+                        <button onClick={() => handleUpdateQuantity(item.id, item.sku, item.quantity + 1)} className="p-2 hover:bg-muted dark:hover:bg-muted text-muted-foreground transition-colors">
                           <Plus className="size-4" />
                         </button>
                       </div>
@@ -158,7 +158,7 @@ export function CartPage() {
                     onChange={(e) => setCouponCode(e.target.value)}
                     className="glass-input border-0 rounded-xl"
                   />
-                  <Button variant="outline" onClick={applyCoupon} className="font-bold border-2 border-border rounded-xl hover:bg-muted dark:hover:bg-card text-card-foreground">Apply</Button>
+                  <Button variant="outline" onClick={applyCoupon} className="font-bold border-2 border-border rounded-xl hover:bg-muted">Apply</Button>
                 </div>
                 <Button
                   className="w-full h-14 font-bold text-lg bg-gradient-to-r from-[var(--primary-color)] to-orange-600 hover:from-orange-600 hover:to-[var(--primary-color)] text-inverse shadow-xl shadow-orange-500/20 rounded-2xl group transition-all border-0"

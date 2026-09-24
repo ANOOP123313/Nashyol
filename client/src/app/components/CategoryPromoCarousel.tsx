@@ -65,7 +65,7 @@ export function CategoryPromoCarousel() {
     return (
       <button
         onClick={onClick}
-        className="hidden md:flex absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 z-10 size-10 lg:size-12 rounded-full bg-background/90 dark:bg-card text-card-foreground/90 backdrop-blur-sm hover:bg-background dark:hover:bg-card text-card-foreground shadow-lg items-center justify-center transition-all duration-300 hover:scale-110"
+        className="hidden md:flex absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 z-10 size-10 lg:size-12 rounded-full bg-background/90 dark:bg-card/90 backdrop-blur-sm hover:bg-background dark:hover:bg-card shadow-lg items-center justify-center transition-all duration-300 hover:scale-110"
         aria-label="Previous slide"
       >
         <ChevronLeft className="size-5 lg:size-6 text-foreground" />
@@ -78,7 +78,7 @@ export function CategoryPromoCarousel() {
     return (
       <button
         onClick={onClick}
-        className="hidden md:flex absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 z-10 size-10 lg:size-12 rounded-full bg-background/90 dark:bg-card text-card-foreground/90 backdrop-blur-sm hover:bg-background dark:hover:bg-card text-card-foreground shadow-lg items-center justify-center transition-all duration-300 hover:scale-110"
+        className="hidden md:flex absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 z-10 size-10 lg:size-12 rounded-full bg-background/90 dark:bg-card/90 backdrop-blur-sm hover:bg-background dark:hover:bg-card shadow-lg items-center justify-center transition-all duration-300 hover:scale-110"
         aria-label="Next slide"
       >
         <ChevronRight className="size-5 lg:size-6 text-foreground" />
@@ -119,7 +119,7 @@ export function CategoryPromoCarousel() {
   };
 
   return (
-    <section className="py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
+    <section className="py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-transparent dark:to-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
@@ -138,7 +138,7 @@ export function CategoryPromoCarousel() {
                 className={`h-2 rounded-full transition-all duration-300 ${
                   currentSlide === index
                     ? "w-8 bg-[var(--primary-color)]"
-                    : "w-2 bg-border dark:bg-card text-card-foreground"
+                    : "w-2 bg-muted-foreground/30"
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

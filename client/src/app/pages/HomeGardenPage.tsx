@@ -23,8 +23,8 @@ function mapBackendProduct(p: any) {
     name: p.title || p.name,
     category: "Home & Garden",
     subcategory: p.subcategory || "Furniture",
-    price: v.sellingPrice || p.offerPrice || p.price || 0,
-    originalPrice: p.offerPrice ? v.sellingPrice : undefined,
+    price: p.offerPrice || v.sellingPrice || p.price || 0,
+    originalPrice: p.offerPrice ? p.price : undefined,
     rating: 4.8,
     reviews: p.reviews?.length || 15,
     image: v.image || p.images?.[0] || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500",
@@ -49,9 +49,9 @@ export function HomeGardenPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-950 dark:via-green-950/20 dark:to-emerald-950/20">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent">
       {/* Home & Garden Products Section */}
-      <section className="py-16 bg-background">
+      <section className="py-16 bg-background dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -497,7 +497,7 @@ export function HomeGardenPage() {
             {products.map((product) => (
               <Link key={product.id}
                 href={`/products/${product.id}`}
-                className="group relative bg-background dark:bg-card text-card-foreground [border-radius:0!important] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border-2 border-gray-200 dark:border-gray-700"
+                className="group relative bg-background dark:bg-card [border-radius:0!important] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:scale-105 border-2 border-gray-200 dark:border-border"
               >
                 {/* Product Image */}
                 <div className="relative aspect-square overflow-hidden bg-muted">
@@ -546,7 +546,7 @@ export function HomeGardenPage() {
                         e.preventDefault();
                         toast.success("Added to wishlist!");
                       }}
-                      className="p-2 bg-background dark:bg-card text-card-foreground text-foreground hover:bg-muted dark:hover:bg-card text-card-foreground [border-radius:0!important] shadow-lg transition-colors"
+                      className="p-2 bg-background dark:bg-card text-foreground hover:bg-muted [border-radius:0!important] shadow-lg transition-colors"
                     >
                       <Heart className="size-4" />
                     </button>
