@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-{}
-=======
 {
-  "/products/page": "app/products/page.js",
-  "/account/page": "app/account/page.js",
-  "/category/page": "app/category/page.js",
-  "/order-success/page": "app/order-success/page.js",
-  "/checkout/page": "app/checkout/page.js",
-  "/login/page": "app/login/page.js",
   "/page": "app/page.js"
 }
->>>>>>> 9cb3939e8c5a89746cae846cf7ef99fcaa504c74

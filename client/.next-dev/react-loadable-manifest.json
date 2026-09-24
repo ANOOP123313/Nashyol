@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-{}
-=======
 {
   "..\\node_modules\\next\\dist\\client\\components\\react-dev-overlay\\internal\\helpers\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
     "id": "..\\node_modules\\next\\dist\\client\\components\\react-dev-overlay\\internal\\helpers\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
@@ -9,4 +6,3 @@
     ]
   }
 }
->>>>>>> 9cb3939e8c5a89746cae846cf7ef99fcaa504c74
