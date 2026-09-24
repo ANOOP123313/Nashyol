@@ -209,6 +209,12 @@ export const getAllOrdersAdmin = asyncHandler(async (req, res) => {
   res.json(orders);
 });
 
+export const getOrdersByUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
+  res.json(orders);
+});
+
 export const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order || (order.user.toString() !== req.user._id.toString() && req.user.role !== "admin")) {

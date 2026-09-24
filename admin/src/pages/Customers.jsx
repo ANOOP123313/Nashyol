@@ -1,13 +1,9 @@
-
-
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { MoreVertical, Edit, Trash2, Ban, Eye } from "lucide-react";
+import { MoreVertical, Trash2, Eye } from "lucide-react";
 import { customersAPI } from "../services/api";
 
-
 const orderStatusColors = { Delivered: "bg-green-500", "In Transit": "bg-orange-400", Pending: "bg-yellow-400" };
-const inputClass = "w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 hover:border-gray-300 bg-white text-gray-900 transition-colors";
 
 /* ── injected CSS for the three-dots hover ── */
 const threeDotCSS = `
@@ -54,8 +50,9 @@ function VerifiedBadge({ small }) {
 }
 
 function StatusBadge({ status }) {
-  const colors = { enabled: "bg-green-500", disabled: "bg-gray-500", banned: "bg-red-500" };
-  return <span className={`${colors[status]} text-white text-xs font-semibold px-3 py-1 rounded-full`}>{status}</span>;
+  const colors = { enabled: "bg-green-500", disabled: "bg-gray-500" };
+  const label = status === "enabled" ? "Active" : "Disabled";
+  return <span className={`${colors[status] || "bg-gray-500"} text-white text-xs font-semibold px-3 py-1 rounded-full`}>{label}</span>;
 }
 
 function Toggle({ checked, onChange }) {
@@ -66,7 +63,7 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-function ViewDetailsModal({ customer, onClose, onEdit }) {
+function ViewDetailsModal({ customer, onClose }) {
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -77,10 +74,10 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
-        className="relative bg-gray-50 rounded-2xl shadow-2xl w-full max-w-md"
+        className="relative bg-gray-50 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-6 pt-5 pb-3">
+        <div className="flex items-start justify-between px-6 pt-5 pb-3 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Customer Details</h2>
             <p className="text-sm text-gray-400 mt-0.5">Complete customer account information and history</p>
@@ -92,7 +89,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
           </button>
         </div>
 
-        <div className="px-6 pb-6 space-y-4">
+        <div className="px-6 pb-6 space-y-4 overflow-y-auto">
           <div className="bg-white rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
             <Avatar initials={customer.initials} size="lg" />
             <div className="flex-1 min-w-0">
@@ -100,7 +97,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
                 <span className="text-base font-bold text-gray-900">{customer.name}</span>
                 {customer.verified && <ShieldVerified />}
               </div>
-              <p className="text-sm text-gray-400">{customer.email}</p>
+              <p className="text-sm text-gray-400 truncate">{customer.email}</p>
             </div>
             <StatusBadge status={customer.status} />
           </div>
@@ -128,7 +125,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
             </div>
             <div>
               <p className="text-xs text-gray-400 mb-0.5">Total Spent</p>
-              <p className="text-2xl font-extrabold text-orange-500">₹{customer.totalSpent.toLocaleString()}</p>
+              <p className="text-2xl font-extrabold text-orange-500">₹{Number(customer.totalSpent || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -137,36 +134,36 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
           <div>
             <h4 className="font-semibold text-gray-900 mb-3">Recent Orders</h4>
             <div className="space-y-2">
-              {(customer.recentOrders || []).map((order) => (
-                <div key={order.id} className="bg-white rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{order.id}</p>
-                    <p className="text-xs text-gray-400">{order.date}</p>
+              {(customer.recentOrders || []).length > 0 ? (
+                customer.recentOrders.map((order) => (
+                  <div key={order.id} className="bg-white rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{order.id}</p>
+                      <p className="text-xs text-gray-400">{order.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-800 mb-1">₹{Number(order.amount || 0).toFixed(2)}</p>
+                      <span className={`${orderStatusColors[order.status] || "bg-gray-400"} text-white text-xs font-medium px-2.5 py-1 rounded-full`}>
+                        {order.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-800 mb-1">₹{order.amount.toFixed(2)}</p>
-                    <span className={`${orderStatusColors[order.status] || "bg-gray-400"} text-white text-xs font-medium px-2.5 py-1 rounded-full`}>
-                      {order.status}
-                    </span>
-                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-xl px-4 py-3 text-center text-sm text-gray-400 shadow-sm">
+                  No orders placed yet
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
           <div className="flex gap-3 pt-1">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 border border-gray-200 bg-white rounded-xl text-gray-700 font-medium hover:bg-gray-100 hover:border-gray-300 transition-all duration-150 active:scale-95"
+              className="w-full px-4 py-2.5 border border-gray-200 bg-white rounded-xl text-gray-700 font-medium hover:bg-gray-100 hover:border-gray-300 transition-all duration-150 active:scale-95"
             >
               Close
             </button>
-            <button
-              onClick={() => { onClose(); onEdit(customer); }}
-              className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all duration-150 flex items-center justify-center gap-2 shadow-sm hover:shadow-md active:scale-95"
-            >
-              <Edit className="w-4 h-4" /> Edit Customer
-            </button>
           </div>
         </div>
       </div>
@@ -174,51 +171,7 @@ function ViewDetailsModal({ customer, onClose, onEdit }) {
   );
 }
 
-function EditCustomerModal({ customer, onClose, onSave }) {
-  const [form, setForm] = useState({ name: customer.name, email: customer.email, phone: customer.phone, country: customer.country, verified: customer.verified });
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
-
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-100 flex items-start justify-between shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Edit Customer</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Update customer account information</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6" /></svg>
-          </button>
-        </div>
-        <div className="overflow-y-auto flex-1 p-6">
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label><input value={form.name} onChange={set("name")} className={inputClass} /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label><input value={form.email} onChange={set("email")} className={inputClass} /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label><input value={form.phone} onChange={set("phone")} className={inputClass} /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1.5">Country</label><input value={form.country} onChange={set("country")} className={inputClass} /></div>
-            <div className="flex items-center justify-between py-3">
-              <label className="text-sm font-medium text-gray-700">Verified Account</label>
-              <Toggle checked={form.verified} onChange={() => setForm({ ...form, verified: !form.verified })} />
-            </div>
-          </div>
-        </div>
-        <div className="p-6 border-t border-gray-100 shrink-0 flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all active:scale-95">Cancel</button>
-          <button onClick={() => { onSave({ ...customer, ...form }); onClose(); }} className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-sm active:scale-95">Save Changes</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ActionMenu({ customer, onView, onEdit, onBan, onDelete }) {
+function ActionMenu({ customer, onView, onDelete }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const ref = useRef(null);
@@ -240,8 +193,6 @@ function ActionMenu({ customer, onView, onEdit, onBan, onDelete }) {
 
   const actions = [
     { icon: <Eye className="w-3.5 h-3.5" />, label: "View Details", fn: onView, cls: "text-gray-700 hover:text-gray-900" },
-    { icon: <Edit className="w-3.5 h-3.5" />, label: "Edit Customer", fn: onEdit, cls: "text-gray-700 hover:text-gray-900" },
-    { icon: <Ban className="w-3.5 h-3.5" />, label: "Ban Account", fn: onBan, cls: "text-orange-500 hover:text-orange-600" },
     { icon: <Trash2 className="w-3.5 h-3.5" />, label: "Delete Customer", fn: onDelete, cls: "text-red-500 hover:text-red-600" },
   ];
 
@@ -266,36 +217,46 @@ function ActionMenu({ customer, onView, onEdit, onBan, onDelete }) {
     </div>
   );
 }
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [viewCustomer, setViewCustomer] = useState(null);
-  const [editCustomer, setEditCustomer] = useState(null);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    customersAPI.getAll()
+    customersAPI.getCustomers()
       .then((res) => {
         const data = res.users || res || [];
         if (Array.isArray(data)) {
-          const mapped = data.map((u, index) => {
-            const initials = (u.name || "U").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+          const mapped = data.map((u) => {
+            const initials = (u.name || "U")
+              .trim()
+              .split(/\s+/)
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2);
             return {
               id: u._id,
               name: u.name || "Customer",
               initials: initials || "CU",
-              email: u.email,
+              email: u.email || "N/A",
               phone: u.phone || "N/A",
-              joined: new Date(u.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-              status: u.isBlocked ? "banned" : "enabled",
-              orders: u.orderCount || 0,
-              lastOrder: "N/A",
-              totalSpent: u.totalSpent || 0,
-              country: u.address?.country || "United States",
-              verified: u.isVerified ?? true,
-              recentOrders: [],
+              joined: new Date(u.createdAt || Date.now()).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              status: u.isBlocked ? "disabled" : "enabled",
+              orders: typeof u.orders === "number" ? u.orders : (u.orderCount || 0),
+              lastOrder: u.lastOrder || "N/A",
+              totalSpent: typeof u.totalSpent === "number" ? u.totalSpent : 0,
+              country: u.country || u.address?.country || "India",
+              verified: Boolean(u.isVerified || u.isPhoneVerified),
+              recentOrders: Array.isArray(u.recentOrders) ? u.recentOrders : [],
             };
           });
           setCustomers(mapped);
@@ -311,8 +272,12 @@ export default function CustomersPage() {
   }, []);
 
   const filtered = customers.filter((c) => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
-    const statusMap = { "Active": "enabled", "Disabled": "disabled", "Banned": "banned" };
+    const term = search.toLowerCase();
+    const matchSearch =
+      (c.name && c.name.toLowerCase().includes(term)) ||
+      (c.email && c.email.toLowerCase().includes(term)) ||
+      (c.phone && c.phone.toLowerCase().includes(term));
+    const statusMap = { "Active": "enabled", "Disabled": "disabled" };
     const matchStatus = statusFilter === "All Status" || c.status === statusMap[statusFilter];
     return matchSearch && matchStatus;
   });
@@ -321,38 +286,34 @@ export default function CustomersPage() {
     total: customers.length,
     active: customers.filter((c) => c.status === "enabled").length,
     disabled: customers.filter((c) => c.status === "disabled").length,
-    banned: customers.filter((c) => c.status === "banned").length,
     verified: customers.filter((c) => c.verified).length,
     revenue: customers.reduce((s, c) => s + c.totalSpent, 0),
   };
 
-  const handleSave = (u) => setCustomers(customers.map((c) => (c.id === u.id ? u : c)));
   const handleToggle = async (id) => {
     try {
-      await customersAPI.toggleBlock(id);
-      setCustomers(customers.map((c) => c.id === id ? { ...c, status: c.status === "enabled" ? "disabled" : "enabled" } : c));
+      const res = await customersAPI.toggleBlock(id);
+      setCustomers((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const nextBlocked = res && res.isBlocked !== undefined ? res.isBlocked : c.status === "enabled";
+          return { ...c, status: nextBlocked ? "disabled" : "enabled" };
+        })
+      );
       toast.success("Customer status updated");
     } catch (err) {
-      toast.error("Failed to toggle block status: " + err.message);
+      toast.error("Failed to toggle status: " + (err.message || "Error"));
     }
   };
-  const handleBan = async (id) => {
-    try {
-      await customersAPI.toggleBlock(id);
-      setCustomers(customers.map((c) => c.id === id ? { ...c, status: c.status === "banned" ? "enabled" : "banned" } : c));
-      toast.success("Customer status updated");
-    } catch (err) {
-      toast.error("Failed to update status: " + err.message);
-    }
-  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this customer?")) return;
     try {
       await customersAPI.delete(id);
-      setCustomers(customers.filter((c) => c.id !== id));
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
       toast.success("Customer deleted");
     } catch (err) {
-      toast.error("Failed to delete customer: " + err.message);
+      toast.error("Failed to delete customer: " + (err.message || "Error"));
     }
   };
 
@@ -360,12 +321,11 @@ export default function CustomersPage() {
     { label: "Total Customers", value: stats.total, color: "text-gray-900" },
     { label: "Active", value: stats.active, color: "text-green-600" },
     { label: "Disabled", value: stats.disabled, color: "text-gray-500" },
-    { label: "Banned", value: stats.banned, color: "text-red-500" },
     { label: "Verified", value: stats.verified, color: "text-gray-900" },
-    { label: "Total Revenue", value: `₹${stats.revenue.toLocaleString()}`, color: "text-orange-500" },
+    { label: "Total Revenue", value: `₹${Math.round(stats.revenue).toLocaleString()}`, color: "text-orange-500" },
   ];
 
-  const filterOptions = ["All Status", "Active", "Disabled", "Banned"];
+  const filterOptions = ["All Status", "Active", "Disabled"];
 
   return (
     <>
@@ -379,7 +339,7 @@ export default function CustomersPage() {
             <p className="text-gray-500 text-sm mt-1">Manage customer accounts and activity</p>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-5">
             {statCards.map(({ label, value, color }) => (
               <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-3 py-3 sm:px-4 sm:py-4 flex flex-col justify-between min-w-0">
                 <p className="text-[11px] sm:text-xs text-gray-400 font-medium leading-tight truncate mb-1">{label}</p>
@@ -442,15 +402,15 @@ export default function CustomersPage() {
                       <td className="px-5 py-4"><p className="text-sm text-gray-700">{c.email}</p><p className="text-xs text-gray-400">{c.phone}</p></td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <Toggle checked={c.status === "enabled"} onChange={() => c.status !== "banned" && handleToggle(c.id)} />
+                          <Toggle checked={c.status === "enabled"} onChange={() => handleToggle(c.id)} />
                           <StatusBadge status={c.status} />
                         </div>
                       </td>
                       <td className="px-5 py-4"><p className="text-sm font-medium text-gray-800">{c.orders} orders</p><p className="text-xs text-gray-400">Last: {c.lastOrder}</p></td>
-                      <td className="px-5 py-4"><p className="text-sm font-semibold text-gray-800">₹{c.totalSpent.toLocaleString()}</p></td>
+                      <td className="px-5 py-4"><p className="text-sm font-semibold text-gray-800">₹{Number(c.totalSpent || 0).toLocaleString()}</p></td>
                       <td className="px-5 py-4"><p className="text-sm text-gray-600">{c.country}</p></td>
                       <td className="px-5 py-4">
-                        <ActionMenu customer={c} onView={() => setViewCustomer(c)} onEdit={() => setEditCustomer(c)} onBan={() => handleBan(c.id)} onDelete={() => handleDelete(c.id)} />
+                        <ActionMenu customer={c} onView={() => setViewCustomer(c)} onDelete={() => handleDelete(c.id)} />
                       </td>
                     </tr>
                   ))}
@@ -477,15 +437,21 @@ export default function CustomersPage() {
                           {c.verified && <VerifiedBadge small />}
                         </div>
                         <p className="text-xs text-gray-400">{c.email}</p>
+                        <p className="text-xs text-gray-400">{c.phone}</p>
                       </div>
                     </div>
-                    <ActionMenu customer={c} onView={() => setViewCustomer(c)} onEdit={() => setEditCustomer(c)} onBan={() => handleBan(c.id)} onDelete={() => handleDelete(c.id)} />
+                    <ActionMenu customer={c} onView={() => setViewCustomer(c)} onDelete={() => handleDelete(c.id)} />
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 items-center">
-                    <StatusBadge status={c.status} />
-                    <span className="text-xs text-gray-500">{c.orders} orders</span>
-                    <span className="text-xs font-semibold text-gray-700">₹{c.totalSpent.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400">{c.country}</span>
+                  <div className="mt-3 flex flex-wrap gap-2 items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Toggle checked={c.status === "enabled"} onChange={() => handleToggle(c.id)} />
+                      <StatusBadge status={c.status} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{c.orders} orders</span>
+                      <span className="text-xs font-semibold text-gray-700">₹{Number(c.totalSpent || 0).toLocaleString()}</span>
+                      <span className="text-xs text-gray-400">{c.country}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -494,8 +460,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {viewCustomer && <ViewDetailsModal customer={viewCustomer} onClose={() => setViewCustomer(null)} onEdit={(c) => setEditCustomer(c)} />}
-        {editCustomer && <EditCustomerModal customer={editCustomer} onClose={() => setEditCustomer(null)} onSave={handleSave} />}
+        {viewCustomer && <ViewDetailsModal customer={viewCustomer} onClose={() => setViewCustomer(null)} />}
       </div>
     </>
   );

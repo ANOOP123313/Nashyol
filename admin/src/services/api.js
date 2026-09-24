@@ -145,6 +145,7 @@ export const attributesAPI = {
 export const ordersAPI = {
   getAll: () => request("GET", "/orders/admin"),
   getById: (id) => request("GET", `/orders/${id}`),
+  getByUser: (userId) => request("GET", `/orders/user/${userId}`),
   updateStatus: (id, orderStatus) => request("PUT", `/orders/${id}/status`, { orderStatus }),
   cancel: (id) => request("PATCH", `/orders/${id}/cancel`),
 };
@@ -160,6 +161,14 @@ export const customersAPI = {
       )
     ).toString();
     return request("GET", `/users${qs ? `?${qs}` : ""}`);
+  },
+  getCustomers: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== "" && v !== undefined && v !== null)
+      )
+    ).toString();
+    return request("GET", `/users/customers${qs ? `?${qs}` : ""}`);
   },
   getById: (id) => request("GET", `/users/${id}`),
   create: (data) => request("POST", "/users", data),

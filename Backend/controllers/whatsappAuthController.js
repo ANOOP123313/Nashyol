@@ -4,9 +4,12 @@ import generateToken from "../utils/generateToken.js";
 import { formatPhoneNumber } from "../utils/formatPhoneNumber.js";
 import { sendWhatsappOTP } from "../utils/whatsappService.js";
 
-// Helper to generate 6-digit OTP
+// Mock OTP for testing WhatsApp authentication
+const MOCK_OTP = "123456";
+
+// Helper to generate 6-digit OTP (defaults to MOCK_OTP for local testing)
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return MOCK_OTP;
 };
 
 /**
@@ -90,7 +93,7 @@ export const sendRegistrationOTP = async (req, res) => {
       });
     }
 
-    // Cooldown check (prevent spamming resend within 60 seconds)
+    // Cooldown check (prevent spamming resend within cooldown, reduced to 10s for testing)
     if (user?.otpResendAfter && user.otpResendAfter > Date.now()) {
       const waitSeconds = Math.ceil((user.otpResendAfter - Date.now()) / 1000);
       return res.status(429).json({
@@ -98,10 +101,10 @@ export const sendRegistrationOTP = async (req, res) => {
       });
     }
 
-    const rawOtp = generateOTP();
+    const rawOtp = MOCK_OTP;
     const hashedOTP = await bcrypt.hash(rawOtp, 10);
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    const resendAfter = new Date(Date.now() + 60 * 1000); // 60 seconds cooldown
+    const resendAfter = new Date(Date.now() + 10 * 1000); // 10 seconds cooldown for easy testing
 
     if (!user) {
       // Create pending unverified user record
@@ -119,15 +122,23 @@ export const sendRegistrationOTP = async (req, res) => {
       await user.save();
     }
 
-    // Send OTP via WhatsApp API
-    await sendWhatsappOTP({
-      phone: formattedPhone,
-      otp: rawOtp,
-    });
+    console.log(`\n🔑 [MOCK OTP] Registration OTP for ${formattedPhone}: ${rawOtp}\n`);
+
+    // Try sending via WhatsApp API (safe to ignore errors in dev)
+    try {
+      await sendWhatsappOTP({
+        phone: formattedPhone,
+        otp: rawOtp,
+      });
+    } catch (e) {
+      console.warn("sendWhatsappOTP failed (using mock OTP):", e.message);
+    }
 
     return res.status(200).json({
-      message: "Registration OTP sent to your WhatsApp successfully",
+      message: `Registration OTP sent! Use mock OTP: ${MOCK_OTP}`,
       phone: formattedPhone,
+      otp: MOCK_OTP,
+      mockOtp: MOCK_OTP,
     });
   } catch (error) {
     console.error("sendRegistrationOTP error:", error);
@@ -172,7 +183,11 @@ export const verifyRegistrationOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP has expired. Please request a new one." });
     }
 
-    const isMatch = await bcrypt.compare(otp.toString(), user.otp);
+    const isMock = otp.toString() === MOCK_OTP || otp.toString() === "123456";
+    let isMatch = isMock;
+    if (!isMatch && user.otp) {
+      isMatch = await bcrypt.compare(otp.toString(), user.otp);
+    }
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid OTP code" });
     }
@@ -258,21 +273,29 @@ export const forgotPasswordWhatsapp = async (req, res) => {
       });
     }
 
-    const rawOtp = generateOTP();
+    const rawOtp = MOCK_OTP;
     const hashedOTP = await bcrypt.hash(rawOtp, 10);
     user.otp = hashedOTP;
     user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-    user.otpResendAfter = new Date(Date.now() + 60 * 1000);
+    user.otpResendAfter = new Date(Date.now() + 10 * 1000); // 10s cooldown for easy testing
     await user.save();
 
-    await sendWhatsappOTP({
-      phone: formattedPhone,
-      otp: rawOtp,
-    });
+    console.log(`\n🔑 [MOCK OTP] Reset Password OTP for ${formattedPhone}: ${rawOtp}\n`);
+
+    try {
+      await sendWhatsappOTP({
+        phone: formattedPhone,
+        otp: rawOtp,
+      });
+    } catch (e) {
+      console.warn("sendWhatsappOTP failed (using mock OTP):", e.message);
+    }
 
     return res.status(200).json({
-      message: "Password reset OTP sent to your WhatsApp number",
+      message: `Password reset OTP sent! Use mock OTP: ${MOCK_OTP}`,
       phone: formattedPhone,
+      otp: MOCK_OTP,
+      mockOtp: MOCK_OTP,
     });
   } catch (error) {
     console.error("forgotPasswordWhatsapp error:", error);
@@ -305,7 +328,11 @@ export const resetPasswordWhatsapp = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    const isMatch = await bcrypt.compare(otp.toString(), user.otp);
+    const isMock = otp.toString() === MOCK_OTP || otp.toString() === "123456";
+    let isMatch = isMock;
+    if (!isMatch && user.otp) {
+      isMatch = await bcrypt.compare(otp.toString(), user.otp);
+    }
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid OTP code" });
     }

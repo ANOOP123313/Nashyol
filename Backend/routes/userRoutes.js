@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getUsers,
+  getCustomers,
   getUserById,
   toggleBlockUser,
   updateUserRole,
@@ -14,6 +15,7 @@ const router = express.Router();
 router.use(protect);
 router.use(authorize("admin", "superadmin"));
 
+router.get("/customers", getCustomers);
 router.get("/", getUsers);
 router.post("/", createUser);
 router.get("/:id", getUserById);
