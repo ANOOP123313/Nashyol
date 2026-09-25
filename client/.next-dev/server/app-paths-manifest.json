@@ -1,0 +1,13 @@
+{
+  "/page": "app/page.js",
+  "/products/page": "app/products/page.js",
+  "/account/page": "app/account/page.js",
+  "/fashion/page": "app/fashion/page.js",
+  "/sports/page": "app/sports/page.js",
+  "/home-garden/page": "app/home-garden/page.js",
+  "/books/page": "app/books/page.js",
+  "/category/page": "app/category/page.js",
+  "/electronics/page": "app/electronics/page.js",
+  "/beauty/page": "app/beauty/page.js",
+  "/login/page": "app/login/page.js"
+}
