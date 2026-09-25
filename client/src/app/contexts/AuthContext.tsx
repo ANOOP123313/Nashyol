@@ -29,7 +29,7 @@ interface AuthContextType {
     password: string;
     referralCode?: string;
   }) => Promise<void>;
-  updateUser: (name: string, email: string) => Promise<void>;
+  updateUser: (name: string, email: string, phone?: string) => Promise<void>;
   logout: () => void;
   setToken: (t: string | null) => void;
 }
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await authApi.login({ email, password });
     if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, data.token);
     setTokenState(data.token);
-    setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
+    setUser({ _id: data._id, name: data.name, email: data.email, phone: (data as any).phone, role: data.role });
   }, []);
 
   const loginWithPhone = useCallback(async (phone: string, password: string) => {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await authApi.register({ name, email, password });
     if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, data.token);
     setTokenState(data.token);
-    setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
+    setUser({ _id: data._id, name: data.name, email: data.email, phone: (data as any).phone, role: data.role });
   }, []);
 
   const registerWithPhoneOtp = useCallback(
@@ -136,9 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const updateUser = useCallback(async (name: string, email: string) => {
-    const updated = await authApi.updateMe({ name, email });
-    setUser(updated);
+  const updateUser = useCallback(async (name: string, email: string, phone?: string) => {
+    const updated = await authApi.updateMe({ name, email, phone });
+    setUser((prev) => (prev ? { ...prev, ...updated } : updated));
   }, []);
 
   const logout = useCallback(() => {

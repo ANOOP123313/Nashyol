@@ -586,7 +586,13 @@ export const getInitialSectionsData = async () => {
 
 // ── GET PUBLIC HOME PAGE ──
 export const getPublicHomePage = asyncHandler(async (req, res) => {
-  let sections = await HomePageSection.find({ isActive: true })
+  const fakeKeys = ["promo_carousel", "quick_categories", "loved_ones", "promotional_cards", "clearance_offers", "special_offers", "panchami_specials"];
+
+  let sections = await HomePageSection.find({
+    isActive: true,
+    sectionKey: { $nin: fakeKeys },
+    sectionType: { $nin: fakeKeys },
+  })
     .sort({ displayOrder: 1 })
     .populate("settings.category", "name slug image")
     .populate("items.category", "name slug image")
@@ -597,7 +603,11 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
   if (!sections || sections.length === 0) {
     const defaultData = await getInitialSectionsData();
     await HomePageSection.insertMany(defaultData);
-    sections = await HomePageSection.find({ isActive: true })
+    sections = await HomePageSection.find({
+      isActive: true,
+      sectionKey: { $nin: fakeKeys },
+      sectionType: { $nin: fakeKeys },
+    })
       .sort({ displayOrder: 1 })
       .populate("settings.category", "name slug image")
       .populate("items.category", "name slug image")
@@ -608,6 +618,37 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
   // Populate dynamic product data for category/product sections without N+1 overhead
   const enrichedSections = await Promise.all(
     sections.map(async (sec) => {
+      // 1. Populate real categories for shop_by_category
+      if (sec.sectionType === "shop_by_category") {
+        try {
+          const liveCategories = await Category.find({ isActive: true }).sort({ order: 1, name: 1 }).lean();
+          const gradients = [
+            "from-blue-500 to-blue-600",
+            "from-pink-500 to-pink-600",
+            "from-green-500 to-green-600",
+            "from-orange-500 to-orange-600",
+            "from-purple-500 to-purple-600",
+            "from-amber-500 to-amber-600",
+          ];
+          return {
+            ...sec,
+            items: liveCategories.map((c, i) => ({
+              _id: c._id,
+              name: c.name,
+              count: "Explore Collection",
+              image: c.image || "",
+              gradient: gradients[i % gradients.length],
+              link: `/category?category=${encodeURIComponent(c.name)}`,
+              category: c._id,
+              displayOrder: i + 1,
+            })),
+          };
+        } catch {
+          return sec;
+        }
+      }
+
+      // 2. Populate dynamic products for category_products without hardcoded items
       if (sec.sectionType === "category_products" || sec.sectionType === "product_grid") {
         const { sourceType, category, productLimit = 8, sort = "-createdAt" } = sec.settings || {};
         let query = { isActive: true };
@@ -631,6 +672,7 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
 
           return {
             ...sec,
+            items: [], // Never return hardcoded mock items
             dynamicProducts: products.map((p) => {
               const firstVariant = p.variants?.[0] || {};
               return {
@@ -649,16 +691,24 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
           };
         } catch (err) {
           console.error(`Error resolving products for section ${sec.sectionKey}:`, err);
-          return { ...sec, dynamicProducts: [] };
+          return { ...sec, items: [], dynamicProducts: [] };
         }
       }
       return sec;
     })
   );
 
+  // Filter out any category_products section that has 0 dynamic products
+  const finalSections = enrichedSections.filter((sec) => {
+    if (sec.sectionType === "category_products" || sec.sectionType === "product_grid") {
+      return Array.isArray(sec.dynamicProducts) && sec.dynamicProducts.length > 0;
+    }
+    return true;
+  });
+
   res.json({
     success: true,
-    sections: enrichedSections,
+    sections: finalSections,
   });
 });
 

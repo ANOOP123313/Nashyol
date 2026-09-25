@@ -35,14 +35,18 @@ export function AccountPage() {
 
   useEffect(() => {
     if (!user) return;
-    setName(user.name);
-    setEmail(user.email);
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setPhone(user.phone || "");
+
     addressesApi.list()
       .then((items) => {
         const saved = items[0] as { _id?: string; phone?: string; street?: string; city?: string; state?: string; pincode?: string } | undefined;
         if (!saved) return;
         setAddressId(saved._id || null);
-        setPhone(saved.phone || "");
+        if (!user.phone && saved.phone) {
+          setPhone(saved.phone);
+        }
         setAddress({ street: saved.street || "", city: saved.city || "", state: saved.state || "", pincode: saved.pincode || "" });
       })
       .catch(() => undefined);
@@ -69,7 +73,7 @@ export function AccountPage() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      await updateUser(name, email);
+      await updateUser(name, email, phone);
       toast.success("Profile updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to update profile");
@@ -150,29 +154,51 @@ export function AccountPage() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02gNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <div className="flex items-center gap-4 md:gap-6">
-            {/* Avatar with Ring */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-background/30 rounded-full blur-xl"></div>
-              <div className="relative size-20 md:size-24 bg-gradient-to-br from-white to-orange-100 dark:from-orange-200 dark:to-orange-300 rounded-full flex items-center justify-center text-[var(--primary-color)] font-bold text-2xl md:text-3xl flex-shrink-0 shadow-2xl ring-4 ring-white/50">
-                {user.name.slice(0, 2).toUpperCase()}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 md:gap-6">
+              {/* Avatar with Ring */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-background/30 rounded-full blur-xl"></div>
+                <div className="relative size-20 md:size-24 bg-gradient-to-br from-white to-orange-100 dark:from-orange-200 dark:to-orange-300 rounded-full flex items-center justify-center text-[var(--primary-color)] font-bold text-2xl md:text-3xl flex-shrink-0 shadow-2xl ring-4 ring-white/50">
+                  {user.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="absolute -bottom-1 -right-1 size-6 md:size-8 bg-green-500 rounded-full border-4 border-white dark:border-gray-900 shadow-lg"></div>
               </div>
-              <div className="absolute -bottom-1 -right-1 size-6 md:size-8 bg-green-500 rounded-full border-4 border-white dark:border-gray-900 shadow-lg"></div>
+              
+              {/* User Info */}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl md:text-4xl font-bold text-inverse truncate mb-1 drop-shadow-lg">{user.name}</h1>
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  {user.email && (
+                    <div className="flex items-center gap-2 text-inverse/90 text-sm md:text-base">
+                      <Mail className="size-4" />
+                      <span className="truncate">{user.email}</span>
+                    </div>
+                  )}
+                  {(user.phone || phone) && (
+                    <div className="flex items-center gap-2 text-inverse/90 text-sm md:text-base">
+                      <Phone className="size-4" />
+                      <span>{user.phone || phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            
-            {/* User Info */}
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl md:text-4xl font-bold text-inverse truncate mb-1 drop-shadow-lg">{user.name}</h1>
-              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
-                <div className="flex items-center gap-2 text-inverse/90 text-sm md:text-base">
-                  <Mail className="size-4" />
-                  <span className="truncate">{user.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-inverse/90 text-sm md:text-base">
-                  <Award className="size-4" />
-                  <span className="capitalize">{user.role} account</span>
-                </div>
-              </div>
+
+            {/* Logout button in Hero Header */}
+            <div className="flex items-center">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await logout();
+                  toast.success("Logged out successfully");
+                  navigate.push("/login");
+                }}
+                className="bg-white/10 hover:bg-white/20 text-inverse border-white/30 backdrop-blur-md shadow-md gap-2 font-medium"
+              >
+                <LogOut className="size-4" />
+                <span>Log Out</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -232,8 +258,18 @@ export function AccountPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm md:text-base font-semibold text-muted-foreground">Account Type</Label>
-                    <Input value={user.role} readOnly className="glass-input border-gray-300 dark:border-gray-600 h-12 text-base capitalize" />
+                    <Label htmlFor="phone" className="text-sm md:text-base font-semibold text-muted-foreground flex items-center gap-2">
+                      <Phone className="size-4 text-[var(--primary-color)]" />
+                      Phone Number (Registration)
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="+91..."
+                      className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
+                    />
                   </div>
                 </div>
                 
@@ -250,24 +286,23 @@ export function AccountPage() {
                     className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm md:text-base font-semibold text-muted-foreground flex items-center gap-2">
-                    <Phone className="size-4" />
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
-                  />
-                </div>
 
-                <div className="pt-2">
-                  <Button onClick={saveProfile} disabled={savingProfile} className="w-full md:w-auto bg-gradient-to-r from-[var(--primary-color)] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-inverse shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-8 text-base font-semibold">
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                  <Button onClick={saveProfile} disabled={savingProfile} className="w-full sm:w-auto bg-gradient-to-r from-[var(--primary-color)] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-inverse shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-8 text-base font-semibold">
                     {savingProfile ? "Saving..." : "Save Profile Changes"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      await logout();
+                      toast.success("Logged out successfully");
+                      navigate.push("/login");
+                    }}
+                    className="w-full sm:w-auto border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 h-12 px-6 text-base font-medium flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="size-4" />
+                    Log Out
                   </Button>
                 </div>
               </div>

@@ -6,7 +6,6 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { PromoCarousel } from "./PromoCarousel";
 import { AdBanner } from "./AdBanner";
 import { ThemeToggle } from "./ThemeToggle";
 import { FeaturedProductsSection, CategoryGridSection } from "./MobileHomeSections";
@@ -33,9 +32,6 @@ export function MobileHomeView({
   const navigate = useRouter();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
-  const clearanceSection = sections.find(s => s.sectionKey === "clearance_offers" || s.sectionType === "clearance_offers");
-  const panchamiSection = sections.find(s => s.sectionKey === "panchami_specials" || s.sectionType === "promotional_cards");
-  const lovedOnesSection = sections.find(s => s.sectionKey === "loved_ones" || s.sectionType === "loved_ones");
   const featuresSection = sections.find(s => s.sectionKey === "service_features" || s.sectionType === "service_features");
   const shopByCategorySection = sections.find(s => s.sectionKey === "shop_by_category" || s.sectionType === "shop_by_category");
   const specialOffersSection = sections.find(s => s.sectionKey === "special_offers" || s.sectionType === "special_offers");
@@ -137,86 +133,6 @@ export function MobileHomeView({
     },
   ];
 
-  const categories = [
-    {
-      name: "Electronics",
-      image:
-        "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=400&fit=crop",
-      color: "from-blue-500/70 to-blue-600/70",
-      count: "2,451 items",
-    },
-    {
-      name: "Fashion",
-      image:
-        "https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=400&fit=crop",
-      color: "from-pink-500/70 to-pink-600/70",
-      count: "3,892 items",
-    },
-    {
-      name: "Home & Garden",
-      image:
-        "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=400&fit=crop",
-      color: "from-green-500/70 to-green-600/70",
-      count: "1,834 items",
-    },
-    {
-      name: "Sports",
-      image:
-        "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=400&fit=crop",
-      color: "from-orange-500/70 to-orange-600/70",
-      count: "1,245 items",
-    },
-    {
-      name: "Beauty",
-      image:
-        "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop",
-      color: "from-purple-500/70 to-purple-600/70",
-      count: "987 items",
-    },
-    {
-      name: "Books",
-      image:
-        "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400&h=400&fit=crop",
-      color: "from-indigo-500/70 to-indigo-600/70",
-      count: "2,156 items",
-    },
-  ];
-
-  const ads = [
-    {
-      id: "1",
-      title: "Summer Sale Extravaganza",
-      description: "Get up to 70% off on fashion items",
-      discount: "70% OFF",
-      image:
-        "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=1200&h=600&fit=crop",
-      buttonText: "Shop Now",
-      buttonLink: "/products?category=Fashion&sale=true",
-      type: "hero" as const,
-    },
-    {
-      id: "2",
-      title: "Tech Gadgets Bonanza",
-      description: "Latest electronics at unbeatable prices",
-      discount: "50% OFF",
-      image:
-        "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=1200&h=600&fit=crop",
-      buttonText: "Explore Deals",
-      buttonLink: "/products?category=Electronics&sale=true",
-      type: "banner" as const,
-    },
-    {
-      id: "3",
-      title: "Home Makeover Special",
-      description: "Transform your space with our collection",
-      discount: "40% OFF",
-      image:
-        "https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=1200&h=600&fit=crop",
-      buttonText: "Discover More",
-      buttonLink: "/products?category=Home+%26+Garden",
-      type: "square" as const,
-    },
-  ];
 
   const featuredProducts = (propFeaturedProducts && propFeaturedProducts.length > 0)
     ? propFeaturedProducts.map((p: any) => ({
@@ -453,210 +369,7 @@ export function MobileHomeView({
         </div>
       </div>
 
-      {/* Clearance Offers Section */}
-      {clearanceSection?.isActive !== false && (
-        <div className="px-4 py-6 bg-transparent">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl">🔥</span>
-            <h2 className="text-2xl font-bold text-foreground">
-              {clearanceSection?.title || "Clearance offers"}
-            </h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-            {(clearanceSection?.items?.length
-              ? clearanceSection.items
-              : [
-                {
-                  name: "Kurta sets",
-                  discount: "Min. 60% Off",
-                  image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
-                  gradient: "from-yellow-500/80 to-orange-500/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Killer, Spykar...",
-                  discount: "Min. 70% Off",
-                  image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
-                  gradient: "from-blue-500/80 to-indigo-500/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Allen Solly, USPA...",
-                  discount: "Min. 60% Off",
-                  image: "https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=400&h=500&fit=crop",
-                  gradient: "from-teal-500/80 to-cyan-500/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Abros & Action",
-                  discount: "Min. 65% Off",
-                  image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop",
-                  gradient: "from-purple-500/80 to-pink-500/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Campus",
-                  discount: "Min. 50% Off",
-                  image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=500&fit=crop",
-                  gradient: "from-gray-500/80 to-slate-500/80",
-                  link: "/products?category=Fashion",
-                },
-              ]
-            ).map((item: any, index: number) => (
-              <Link
-                key={item._id || index}
-                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
-                className="flex-shrink-0 w-[160px] group"
-              >
-                <div className="relative rounded-2xl overflow-hidden h-[240px] shadow-lg hover:shadow-xl transition-all duration-300">
-                  <ImageWithFallback
-                    src={item.image}
-                    alt={item.name || item.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient || "from-orange-500/80 to-amber-500/80"} opacity-60`} />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
-                    <h3 className="font-bold text-base mb-1">{item.name || item.title}</h3>
-                    <span className="text-sm font-semibold text-green-300">
-                      {item.discount || item.price || item.offer}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Basant Panchami Specials Section */}
-      {panchamiSection?.isActive !== false && (
-        <div className="px-4 py-6 bg-transparent">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl">🌸</span>
-            <h2 className="text-2xl font-bold text-foreground">
-              {panchamiSection?.title || "Basant Panchami Specials"}
-            </h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-            {(panchamiSection?.items?.length
-              ? panchamiSection.items
-              : [
-                {
-                  name: "Kurtas",
-                  price: "From ₹299",
-                  image: "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=400&h=500&fit=crop",
-                  gradient: "from-cyan-500/70 to-blue-500/70",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Dress, co-ords",
-                  price: "Min. 70% Off",
-                  image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=500&fit=crop",
-                  gradient: "from-yellow-500/70 to-orange-500/70",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Floral Kurtas",
-                  price: "From ₹299",
-                  image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop",
-                  gradient: "from-pink-500/70 to-rose-500/70",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Ethnic sets",
-                  price: "Min. 70% Off",
-                  image: "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&h=500&fit=crop",
-                  gradient: "from-purple-500/70 to-indigo-500/70",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Jhumkas",
-                  price: "From ₹99",
-                  image: "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=400&h=500&fit=crop",
-                  gradient: "from-amber-500/70 to-yellow-500/70",
-                  link: "/products?category=Fashion",
-                },
-              ]
-            ).map((item: any, index: number) => (
-              <Link
-                key={item._id || index}
-                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
-                className="flex-shrink-0 w-[180px] group"
-              >
-                <div className="relative rounded-2xl overflow-hidden h-[260px] shadow-lg hover:shadow-xl transition-all duration-300">
-                  <ImageWithFallback
-                    src={item.image}
-                    alt={item.name || item.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${item.gradient || "from-yellow-500/70 to-orange-500/70"} opacity-50`} />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-inverse">
-                    <h3 className="font-bold text-base mb-1">{item.name || item.title}</h3>
-                    <span className="text-sm font-semibold">{item.price || item.discount}</span>
-                    <span className="inline-block ml-2 text-xl">{item.emoji || "🌸"}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Shop for Loved Ones Section */}
-      {lovedOnesSection?.isActive !== false && (
-        <div className="px-4 py-6 bg-transparent">
-          <h2 className="text-2xl font-bold text-foreground mb-4">
-            {lovedOnesSection?.title || "Shop for Loved Ones"}
-          </h2>
-          <div className="grid grid-cols-1 gap-4">
-            {(lovedOnesSection?.items?.length
-              ? lovedOnesSection.items
-              : [
-                {
-                  name: "Men",
-                  description: "Discover men's collection",
-                  image: "https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&h=400&fit=crop",
-                  gradient: "from-blue-600/80 to-blue-800/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Women",
-                  description: "Explore women's collection",
-                  image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&h=400&fit=crop",
-                  gradient: "from-pink-600/80 to-rose-800/80",
-                  link: "/products?category=Fashion",
-                },
-                {
-                  name: "Gen Z Drips",
-                  description: "Trending Gen-Z styles",
-                  image: "https://images.unsplash.com/photo-1523381294911-8d3cead13475?w=800&h=400&fit=crop",
-                  gradient: "from-purple-600/80 to-indigo-800/80",
-                  link: "/products?category=Fashion",
-                },
-              ]
-            ).map((item: any, index: number) => (
-              <Link
-                key={item._id || index}
-                href={item.link || `/products?category=${encodeURIComponent(item.name || item.title)}`}
-                className="group"
-              >
-                <div className="relative rounded-2xl overflow-hidden h-[180px] shadow-lg hover:shadow-xl transition-all duration-300">
-                  <ImageWithFallback
-                    src={item.image}
-                    alt={item.name || item.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient || "from-blue-600/80 to-blue-800/80"} opacity-70`} />
-                  <div className="absolute inset-0 flex flex-col justify-center px-6 text-inverse">
-                    <h3 className="font-bold text-3xl mb-2">{item.name || item.title}</h3>
-                    <p className="text-sm font-medium text-inverse/90">{item.description || item.subtitle}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Featured Products Section */}
       <FeaturedProductsSection />
@@ -682,153 +395,7 @@ export function MobileHomeView({
           ));
         }
 
-        return (
-          <>
-            {/* Fashion Products Section */}
-            <CategoryGridSection
-              title="Fashion Products"
-              category="Fashion"
-              items={[
-                { name: "T-Shirts", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=200&fit=crop" },
-                { name: "Jeans", image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop" },
-                { name: "Dresses", image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=200&h=200&fit=crop" },
-                { name: "Jackets", image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200&h=200&fit=crop" },
-                { name: "Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
-                { name: "Bags", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200&h=200&fit=crop" },
-                { name: "Watches", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop" },
-                { name: "Sunglasses", image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200&h=200&fit=crop" },
-                { name: "Sweaters", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200&h=200&fit=crop" },
-                { name: "Skirts", image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=200&h=200&fit=crop" },
-                { name: "Shorts", image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&h=200&fit=crop" },
-                { name: "Caps", image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=200&h=200&fit=crop" },
-                { name: "Belts", image: "https://images.unsplash.com/photo-1624222247344-550fb60583aa?w=200&h=200&fit=crop" },
-                { name: "Scarves", image: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=200&h=200&fit=crop" },
-                { name: "Suits", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200&h=200&fit=crop" },
-                { name: "Hoodies", image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=200&h=200&fit=crop" }
-              ]}
-            />
-
-            {/* Home & Garden Section */}
-            <CategoryGridSection
-              title="Home & Garden"
-              category="Home"
-              items={[
-                { name: "Furniture", image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop" },
-                { name: "Bedding", image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=200&h=200&fit=crop" },
-                { name: "Lighting", image: "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=200&h=200&fit=crop" },
-                { name: "Decor", image: "https://images.unsplash.com/photo-1615873968403-89e068629265?w=200&h=200&fit=crop" },
-                { name: "Kitchen", image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=200&h=200&fit=crop" },
-                { name: "Storage", image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=200&h=200&fit=crop" },
-                { name: "Rugs", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=200&h=200&fit=crop" },
-                { name: "Curtains", image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop" },
-                { name: "Plants", image: "https://images.unsplash.com/photo-1509937528035-ad76254b0356?w=200&h=200&fit=crop" },
-                { name: "Garden Tools", image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200&h=200&fit=crop" },
-                { name: "Outdoor", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=200&fit=crop" },
-                { name: "Bathroom", image: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=200&h=200&fit=crop" },
-                { name: "Tableware", image: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=200&h=200&fit=crop" },
-                { name: "Mirrors", image: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=200&h=200&fit=crop" },
-                { name: "Wall Art", image: "https://images.unsplash.com/photo-1582738411706-bfc8e691d1c2?w=200&h=200&fit=crop" },
-                { name: "Cushions", image: "https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=200&h=200&fit=crop" }
-              ]}
-            />
-
-            {/* Electronics Products Section */}
-            <CategoryGridSection
-              title="Electronics Products"
-              category="Electronics"
-              items={[
-                { name: "Smartphones", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop" },
-                { name: "Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=200&h=200&fit=crop" },
-                { name: "Headphones", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop" },
-                { name: "Cameras", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=200&h=200&fit=crop" },
-                { name: "Smartwatches", image: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=200&h=200&fit=crop" },
-                { name: "Tablets", image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=200&h=200&fit=crop" },
-                { name: "TVs", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=200&h=200&fit=crop" },
-                { name: "Speakers", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=200&h=200&fit=crop" },
-                { name: "Drones", image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=200&h=200&fit=crop" },
-                { name: "Keyboards", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=200&h=200&fit=crop" },
-                { name: "Gaming Mouse", image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=200&h=200&fit=crop" },
-                { name: "Storage", image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=200&h=200&fit=crop" },
-                { name: "Cables", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
-                { name: "Power Banks", image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=200&h=200&fit=crop" },
-                { name: "Webcams", image: "https://images.unsplash.com/photo-1625948515291-69613efd103f?w=200&h=200&fit=crop" },
-                { name: "Routers", image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=200&h=200&fit=crop" }
-              ]}
-            />
-
-            {/* Sports Products Section */}
-            <CategoryGridSection
-              title="Sports Products"
-              category="Sports"
-              items={[
-                { name: "Running Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop" },
-                { name: "Yoga Mats", image: "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=200&h=200&fit=crop" },
-                { name: "Dumbbells", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=200&fit=crop" },
-                { name: "Sports Wear", image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&h=200&fit=crop" },
-                { name: "Bicycles", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=200&h=200&fit=crop" },
-                { name: "Basketballs", image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&h=200&fit=crop" },
-                { name: "Fitness Trackers", image: "https://images.unsplash.com/photo-1575053267983-b4ed21ff8931?w=200&h=200&fit=crop" },
-                { name: "Protein Shakes", image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=200&h=200&fit=crop" },
-                { name: "Gym Bags", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200&h=200&fit=crop" },
-                { name: "Resistance Bands", image: "https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=200&h=200&fit=crop" },
-                { name: "Tennis Rackets", image: "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=200&h=200&fit=crop" },
-                { name: "Swimming Gear", image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=200&h=200&fit=crop" },
-                { name: "Boxing Gloves", image: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=200&h=200&fit=crop" },
-                { name: "Skateboards", image: "https://images.unsplash.com/photo-1547447134-cd3f5c716030?w=200&h=200&fit=crop" },
-                { name: "Golf Clubs", image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=200&h=200&fit=crop" },
-                { name: "Water Bottles", image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=200&h=200&fit=crop" }
-              ]}
-            />
-
-            {/* Beauty Products Section */}
-            <CategoryGridSection
-              title="Beauty Products"
-              category="Beauty"
-              items={[
-                { name: "Skincare", image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=200&h=200&fit=crop" },
-                { name: "Makeup", image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=200&h=200&fit=crop" },
-                { name: "Perfumes", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&h=200&fit=crop" },
-                { name: "Hair Care", image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=200&h=200&fit=crop" },
-                { name: "Nail Polish", image: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=200&h=200&fit=crop" },
-                { name: "Face Masks", image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=200&h=200&fit=crop" },
-                { name: "Lip Balm", image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=200&h=200&fit=crop" },
-                { name: "Eye Shadow", image: "https://images.unsplash.com/photo-1583241800698-3a8965d70ad9?w=200&h=200&fit=crop" },
-                { name: "Foundation", image: "https://images.unsplash.com/photo-1631214524020-7e18db9a8f92?w=200&h=200&fit=crop" },
-                { name: "Brushes", image: "https://images.unsplash.com/photo-1596704017254-9b121068ec31?w=200&h=200&fit=crop" },
-                { name: "Moisturizers", image: "https://images.unsplash.com/photo-1620916297804-c5f0e5aa291b?w=200&h=200&fit=crop" },
-                { name: "Serums", image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&h=200&fit=crop" },
-                { name: "Lipstick", image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=200&h=200&fit=crop" },
-                { name: "Blush", image: "https://images.unsplash.com/photo-1617897903246-719242758050?w=200&h=200&fit=crop" },
-                { name: "Mascara", image: "https://images.unsplash.com/photo-1631730486572-226d1f595b68?w=200&h=200&fit=crop" },
-                { name: "Body Lotion", image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=200&h=200&fit=crop" }
-              ]}
-            />
-
-            {/* Books Section */}
-            <CategoryGridSection
-              title="Books"
-              category="Books"
-              items={[
-                { name: "Fiction", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
-                { name: "Non-Fiction", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-                { name: "Self-Help", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
-                { name: "Biographies", image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=200&h=200&fit=crop" },
-                { name: "Science", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
-                { name: "History", image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=200&h=200&fit=crop" },
-                { name: "Children", image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=200&h=200&fit=crop" },
-                { name: "Comics", image: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=200&h=200&fit=crop" },
-                { name: "Poetry", image: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=200&h=200&fit=crop" },
-                { name: "Mystery", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-                { name: "Romance", image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=200&fit=crop" },
-                { name: "Thriller", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&h=200&fit=crop" },
-                { name: "Fantasy", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop" },
-                { name: "Horror", image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop" },
-                { name: "Cookbooks", image: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=200&h=200&fit=crop" },
-                { name: "Travel", image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200&h=200&fit=crop" }
-              ]}
-            />
-          </>
-        );
+        return null;
       })()}
 
       {/* For You Section */}
@@ -983,7 +550,7 @@ export function MobileHomeView({
       )}
 
       {/* Categories Section */}
-      {shopByCategorySection?.isActive !== false && (
+      {shopByCategorySection?.isActive !== false && shopByCategorySection?.items?.length > 0 && (
         <div className="px-4 py-6 bg-transparent">
           <Card className="p-5 bg-card border border-border shadow-sm">
             <div className="flex items-center justify-between mb-5">
@@ -995,10 +562,7 @@ export function MobileHomeView({
               </Link>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {(shopByCategorySection?.items?.length
-                ? shopByCategorySection.items
-                : categories
-              ).map((category: any, index: number) => (
+              {shopByCategorySection.items.map((category: any, index: number) => (
                 <Link key={category._id || index}
                   href={category.link || `/products?category=${encodeURIComponent(category.name || category.title)}`}
                   className="group"
@@ -1026,36 +590,26 @@ export function MobileHomeView({
       )}
 
       {/* Ad Banner Section */}
-      {specialOffersSection?.isActive !== false && (
+      {specialOffersSection?.isActive !== false && specialOffersSection?.items?.length > 0 && (
         <div className="px-4 py-6 bg-transparent">
           <h2 className="text-2xl font-bold text-foreground mb-6">
             {specialOffersSection?.title || "Special Offers"}
           </h2>
           <AdBanner
-            ads={
-              specialOffersSection?.items?.length
-                ? specialOffersSection.items.map((it: any, i: number) => ({
-                  id: it._id || String(i),
-                  title: it.title || it.name || "",
-                  description: it.description || it.subtitle || "",
-                  discount: it.discount || it.offer,
-                  image: it.image,
-                  buttonText: it.buttonText || "Shop Now",
-                  buttonLink: it.buttonLink || it.link || "/category",
-                  type: it.type || "hero",
-                  backgroundColor: it.backgroundColor || it.gradient,
-                }))
-                : ads
-            }
+            ads={specialOffersSection.items.map((it: any, i: number) => ({
+              id: it._id || String(i),
+              title: it.title || it.name || "",
+              description: it.description || it.subtitle || "",
+              discount: it.discount || it.offer,
+              image: it.image,
+              buttonText: it.buttonText || "Shop Now",
+              buttonLink: it.buttonLink || it.link || "/category",
+              type: it.type || "hero",
+              backgroundColor: it.backgroundColor || it.gradient,
+            }))}
           />
         </div>
       )}
-
-      {/* Promo Carousel Section */}
-      <div className="py-6 bg-transparent">
-        <h2 className="text-2xl font-bold text-foreground mb-6 px-4">Flash Deals</h2>
-        <PromoCarousel />
-      </div>
 
       {/* CTA Banner for Rewards */}
       {rewardsSection?.isActive !== false && (

@@ -49,8 +49,8 @@ export const authApi = {
   resetPasswordWhatsapp: (body: { phone: string; otp: string; newPassword: string }) =>
     request<{ message: string }>("/api/auth/phone/reset-password", { method: "POST", body: JSON.stringify(body) }),
   me: () => request<{ _id: string; name: string; email?: string; phone?: string; role: string }>("/api/auth/me"),
-  updateMe: (body: { name: string; email: string }) =>
-    request<{ _id: string; name: string; email: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
+  updateMe: (body: { name: string; email: string; phone?: string }) =>
+    request<{ _id: string; name: string; email: string; phone?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
 };
 
 // Banners

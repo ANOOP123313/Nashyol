@@ -69,22 +69,20 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setLoginMethod("phone")}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${
-              loginMethod === "phone"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${loginMethod === "phone"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             <Phone className="h-3.5 w-3.5" /> Phone & Password
           </button>
           <button
             type="button"
             onClick={() => setLoginMethod("email")}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${
-              loginMethod === "email"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${loginMethod === "email"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             <Mail className="h-3.5 w-3.5" /> Email & Password
           </button>

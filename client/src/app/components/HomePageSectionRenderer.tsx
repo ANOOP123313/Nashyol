@@ -466,12 +466,22 @@ function ClearanceOffersSection({ section }: { section: any }) {
 }
 
 // ── 7. SHOP BY CATEGORY ──
+const categoryCardGradients = [
+  "from-blue-600/80 to-blue-700/80",
+  "from-pink-600/80 to-rose-700/80",
+  "from-emerald-600/80 to-teal-700/80",
+  "from-orange-600/80 to-amber-700/80",
+  "from-purple-600/80 to-indigo-700/80",
+  "from-amber-600/80 to-yellow-700/80",
+  "from-cyan-600/80 to-blue-700/80",
+];
+
 function ShopByCategorySection({ section }: { section: any }) {
   const items = Array.isArray(section.items) && section.items.length > 0 ? section.items : [];
   if (items.length === 0) return null;
 
   return (
-    <section className="py-16">
+    <section className="py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -483,31 +493,40 @@ function ShopByCategorySection({ section }: { section: any }) {
             </p>
           </div>
           <Button variant="ghost" className="text-[var(--primary-color)]" asChild>
-            <Link href={section.settings?.viewAllLink || "/category"}>
+            <Link href={section.settings?.viewAllLink || "/products"}>
               View All
               <ArrowRight className="size-4 ml-2" />
             </Link>
           </Button>
         </div>
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-          {items.map((cat: any, index: number) => (
-            <Link
-              key={cat._id || index}
-              href={cat.link || `/category?category=${encodeURIComponent(cat.name || cat.title)}`}
-              className="group flex flex-col items-center"
-            >
-              <div className="relative w-full aspect-square rounded-2xl overflow-hidden mb-2 bg-muted hover:shadow-xl transition-all duration-300 hover:scale-105">
-                <ImageWithFallback
-                  src={cat.image}
-                  alt={cat.name || cat.title}
-                  className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
-                />
-              </div>
-              <p className="text-xs text-center text-foreground font-medium line-clamp-2">
-                {cat.name || cat.title}
-              </p>
-            </Link>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
+          {items.map((cat: any, index: number) => {
+            const grad = categoryCardGradients[index % categoryCardGradients.length];
+            return (
+              <Link
+                key={cat._id || index}
+                href={cat.link || `/products?category=${encodeURIComponent(cat.name || cat.title)}`}
+                className="group block"
+              >
+                <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-border hover:border-[var(--primary-color)] bg-card rounded-2xl sm:rounded-3xl hover:scale-105">
+                  <div className="relative aspect-square">
+                    <ImageWithFallback
+                      src={cat.image}
+                      alt={cat.name || cat.title}
+                      className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-t ${grad} opacity-70 group-hover:opacity-80 transition-opacity`} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-inverse text-center p-3">
+                      <h3 className="font-bold text-sm sm:text-base leading-tight mb-1 text-white">
+                        {cat.name || cat.title}
+                      </h3>
+                      <p className="text-[11px] sm:text-xs text-white/80">Explore</p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -517,6 +536,7 @@ function ShopByCategorySection({ section }: { section: any }) {
 // ── 8. SPECIAL OFFERS & PROMOTIONS (AdBanner) ──
 function SpecialOffersSection({ section }: { section: any }) {
   const items = Array.isArray(section.items) && section.items.length > 0 ? section.items : [];
+  if (items.length === 0) return null;
   const ads: Ad[] = items.map((it: any, i: number) => ({
     id: it._id || String(i),
     title: it.title || it.name || "",
@@ -556,16 +576,20 @@ function SpecialOffersSection({ section }: { section: any }) {
 
 // ── 9. CATEGORY PRODUCTS SECTION (Electronics, Fashion, etc.) ──
 function CategoryProductsSection({ section }: { section: any }) {
-  const items = Array.isArray(section.items) && section.items.length > 0 ? section.items : [];
   const dynamicProducts = Array.isArray(section.dynamicProducts) ? section.dynamicProducts : [];
-  const viewAll = section.settings?.viewAllLink || `/category?category=${encodeURIComponent(section.settings?.categoryName || section.title)}`;
+  const { addItem } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
+
+  if (dynamicProducts.length === 0) return null;
+
+  const viewAll = section.settings?.viewAllLink || `/products?category=${encodeURIComponent(section.settings?.categoryName || section.title)}`;
 
   return (
-    <section className="py-12 bg-transparent">
+    <section className="py-8 sm:py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">{section.title}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{section.title}</h2>
             {section.subtitle && (
               <p className="text-sm text-muted-foreground mt-0.5">{section.subtitle}</p>
             )}
@@ -578,61 +602,129 @@ function CategoryProductsSection({ section }: { section: any }) {
           </Link>
         </div>
 
-        {/* If subcategory/icon cards are present, display them */}
-        {items.length > 0 && (
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 mb-6">
-            {items.map((prod: any, idx: number) => (
+        {/* Dynamic product cards from backend */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {dynamicProducts.map((product: any, index: number) => (
+            <div
+              key={product.id}
+              className="glass-card group overflow-hidden hover:scale-102 sm:hover:scale-105 transition-all duration-300 rounded-lg sm:rounded-xl"
+              style={{ animationDelay: `${(index % 8) * 0.05}s` }}
+            >
               <Link
-                key={prod._id || idx}
-                href={prod.link || `${viewAll}&subcategory=${encodeURIComponent(prod.name || prod.title)}`}
-                className="group flex flex-col items-center"
+                href={`/products/${product.id}`}
+                className="relative block aspect-square overflow-hidden bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
               >
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden mb-2 bg-muted hover:shadow-xl transition-all duration-300 hover:scale-105">
-                  <ImageWithFallback
-                    src={prod.image}
-                    alt={prod.name || prod.title}
-                    className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
+                {product.badge && (
+                  <Badge className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse hover:from-[var(--primary-color)] hover:to-orange-600 pulse-glow text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 border-0">
+                    {product.badge}
+                  </Badge>
+                )}
+                {product.inStock === false && (
+                  <Badge className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 bg-red-600 text-inverse text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 border-0">
+                    Out of Stock
+                  </Badge>
+                )}
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${
+                    isInWishlist(product.id)
+                      ? "bg-red-500 text-white hover:bg-red-600 border-0"
+                      : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleWishlist({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      originalPrice: product.originalPrice,
+                      image: product.image,
+                      category: product.category,
+                      rating: product.rating || 4.8,
+                      reviews: product.reviews || 0,
+                    });
+                  }}
+                >
+                  <Heart
+                    className={`size-3.5 transition-all ${
+                      isInWishlist(product.id)
+                        ? "fill-white text-white"
+                        : "text-muted-foreground hover:text-red-500"
+                    }`}
                   />
-                </div>
-                <p className="text-xs text-center text-foreground font-medium line-clamp-2">
-                  {prod.name || prod.title}
-                </p>
+                </Button>
+                <ImageWithFallback
+                  src={product.image}
+                  alt={product.name}
+                  className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                />
               </Link>
-            ))}
-          </div>
-        )}
-
-        {/* Dynamic product cards from this category */}
-        {dynamicProducts.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-            {dynamicProducts.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between group hover:shadow-xl transition-all">
-                <Link href={`/products/${p.id}`} className="block aspect-square relative overflow-hidden rounded-xl mb-3 bg-muted">
-                  <ImageWithFallback src={p.image} alt={p.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" />
-                  {p.badge && (
-                    <Badge className="absolute top-2 left-2 bg-[var(--primary-color)] text-white text-[10px] font-bold px-2 py-0.5 border-0 shadow">
-                      {p.badge}
-                    </Badge>
-                  )}
-                </Link>
-                <div>
-                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{p.category}</p>
-                  <Link href={`/products/${p.id}`}>
-                    <h3 className="font-semibold text-xs sm:text-sm text-foreground line-clamp-1 hover:text-[var(--primary-color)] transition-colors mt-0.5">
-                      {p.name}
-                    </h3>
+              <div className="p-2 sm:p-3">
+                <Badge variant="outline" className="mb-1 sm:mb-1.5 text-[9px] sm:text-[10px] glass-sm">
+                  {product.category}
+                </Badge>
+                <h3 className="font-semibold text-xs sm:text-sm text-foreground mb-1 sm:mb-1.5 line-clamp-2">
+                  <Link href={`/products/${product.id}`} className="hover:text-[var(--primary-color)] transition-colors">
+                    {product.name}
                   </Link>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-sm sm:text-base font-bold text-[var(--primary-color)]">₹{Number(p.price || 0).toLocaleString()}</span>
-                    {p.originalPrice && p.originalPrice > p.price && (
-                      <span className="text-xs text-muted-foreground line-through">₹{Number(p.originalPrice).toLocaleString()}</span>
-                    )}
+                </h3>
+                <div className="flex items-center gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`size-2.5 sm:size-3 ${
+                          i < Math.floor(product.rating || 4.8)
+                            ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
+                            : "text-muted dark:text-muted-foreground"
+                        }`}
+                      />
+                    ))}
                   </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    {product.rating || 4.8} ({product.reviews || 0})
+                  </span>
                 </div>
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <span className="text-sm sm:text-lg font-bold text-[var(--primary-color)]">
+                    ₹{Number(product.price || 0).toLocaleString()}
+                  </span>
+                  {product.originalPrice && product.originalPrice > product.price && (
+                    <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                      ₹{Number(product.originalPrice).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  className="w-full bg-[var(--primary-color)] text-white hover:bg-orange-600 h-7 sm:h-8 text-xs sm:text-sm font-semibold transition-all duration-200 border-0"
+                  disabled={product.inStock === false}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (product.inStock !== false) {
+                      try {
+                        await addItem(product.id, product.sku || product.id, 1, {
+                          id: product.id,
+                          sku: product.sku || product.id,
+                          name: product.name,
+                          price: product.price,
+                          image: product.image,
+                        });
+                        toast.success(`${product.name} added to cart!`);
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+                      }
+                    }
+                  }}
+                >
+                  {product.inStock === false ? "Out of Stock" : "Add to Cart"}
+                </Button>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
