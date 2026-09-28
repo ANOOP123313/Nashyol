@@ -261,7 +261,7 @@ const RecentOrders = ({ orders }) => {
             >
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm text-gray-900">#{order._id?.slice(-8).toUpperCase()}</p>
+                  <p className="font-medium text-sm text-gray-900">{order.orderNumber || (order._id ? `ORD-${order._id.slice(-6).toUpperCase()}` : "ORD")}</p>
                   {order.couponCode && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500 text-white font-medium">
                       Coupon: {order.couponCode}
@@ -345,14 +345,34 @@ const Leaderboard = ({ leaderboard }) => (
             <tr><th className="py-3">Referrer</th><th>Referrals</th><th>Conversions</th><th>Rate</th></tr>
           </thead>
           <tbody>
-            {leaderboard.map((entry) => (
-              <tr key={entry._id} className="border-b last:border-0">
-                <td className="py-3 text-gray-700">{entry._id || "Unknown"}</td>
-                <td>{entry.referrals}</td>
-                <td>{entry.conversions}</td>
-                <td>{Number(entry.rate || 0).toFixed(1)}%</td>
-              </tr>
-            ))}
+            {leaderboard.map((entry) => {
+              const displayName = entry.name && !/^[0-9a-fA-F]{24}$/.test(entry.name)
+                ? entry.name
+                : entry.referrerName && !/^[0-9a-fA-F]{24}$/.test(entry.referrerName)
+                ? entry.referrerName
+                : entry.email
+                ? entry.email.split("@")[0]
+                : "Top Referrer";
+
+              return (
+                <tr key={entry._id} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                  <td className="py-3 text-gray-800 font-medium">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                        {displayName.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm leading-tight">{displayName}</p>
+                        {entry.email && <p className="text-xs text-gray-400 mt-0.5">{entry.email}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="font-medium text-gray-700">{entry.referrals}</td>
+                  <td className="font-medium text-gray-700">{entry.conversions}</td>
+                  <td className="font-semibold text-green-600">{Number(entry.rate || 0).toFixed(1)}%</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

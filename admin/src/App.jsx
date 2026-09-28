@@ -24,6 +24,8 @@ import Categories from "./pages/Categories";
 import Inventory from "./pages/Inventory";
 import Coupons from "./pages/Coupons";
 import Referrers from "./pages/Referrers";
+import NewsletterSubscribers from "./pages/NewsletterSubscribers";
+import TopOffers from "./pages/TopOffers";
 
 
 function App() {
@@ -50,6 +52,7 @@ function App() {
            <Route path="/vendorsdetails/:id" element={<VendorDetail />} />
            <Route path="/admin-users"  element={<AdminUsers/>}/>
            <Route path="/cms"  element={<Cms/>}/>
+           <Route path="/top-offers" element={<TopOffers />} />
            <Route path="/delivery"  element={<DeliveryStatus/>}/>
            <Route path="/referrals"  element={<ReferralSystem/>}/>
            <Route path="/support"  element={<Support/>}/>
@@ -57,6 +60,7 @@ function App() {
            <Route path="/inventory" element={<Inventory/>}/>
            <Route path="/coupons" element={<Coupons/>}/>
            <Route path="/referrers" element={<Referrers/>}/>
+           <Route path="/newsletter-subscribers" element={<NewsletterSubscribers/>}/>
         
         </Route>
 

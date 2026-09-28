@@ -1,4 +1,6 @@
 import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
+import crypto from "crypto";
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
@@ -110,7 +112,13 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
   totalAmount = Math.max(0, totalAmount - discountAmount);
 
+  const hexSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
+  const orderNumber = `ORD-${hexSuffix}`;
+  const invoiceNumber = `INV-${hexSuffix}`;
+
   const order = await Order.create({
+    orderNumber,
+    invoiceNumber,
     user: req.user._id,
     items,
     totalAmount,
@@ -129,9 +137,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   await sendNotification(
     req.user._id,
     "Order Placed!",
-    `Your order ${order._id} has been placed successfully.`,
+    `Your order ${order.orderNumber} has been placed successfully.`,
     "order",
-    `/orders/${order._id}`
+    `/orders/${order.orderNumber}`
   );
 
   // Trigger WhatsApp order confirmation notification in background
@@ -187,26 +195,41 @@ export const getMyOrders = asyncHandler(async (req, res) => {
   const products = await Product.find({ _id: { $in: productIds } }).select("title images variants").lean();
   const productsById = new Map(products.map((product) => [product._id.toString(), product]));
 
-  const ordersWithImages = orders.map((order) => ({
-    ...order,
-    items: order.items.map((item) => {
-      if (item.image) return item;
-      const product = productsById.get(item.productId?.toString());
-      const variant = product?.variants?.find((entry) => entry.sku === item.sku);
-      return {
-        ...item,
-        title: item.title || product?.title || "Product",
-        image: variant?.image || product?.images?.[0] || null,
-      };
-    }),
-  }));
+  const ordersWithImages = orders.map((order) => {
+    const shortCode = (order._id || "").toString().slice(-6).toUpperCase();
+    const orderNumber = order.orderNumber || `ORD-${shortCode}`;
+    const invoiceNumber = order.invoiceNumber || `INV-${shortCode}`;
+    return {
+      ...order,
+      orderNumber,
+      invoiceNumber,
+      items: order.items.map((item) => {
+        if (item.image) return item;
+        const product = productsById.get(item.productId?.toString());
+        const variant = product?.variants?.find((entry) => entry.sku === item.sku);
+        return {
+          ...item,
+          title: item.title || product?.title || "Product",
+          image: variant?.image || product?.images?.[0] || null,
+        };
+      }),
+    };
+  });
 
   res.json(ordersWithImages);
 });
 
 export const getAllOrdersAdmin = asyncHandler(async (req, res) => {
-  const orders = await Order.find().populate("user", "name email").sort({ createdAt: -1 });
-  res.json(orders);
+  const orders = await Order.find().populate("user", "name email").sort({ createdAt: -1 }).lean();
+  const formatted = orders.map((o) => {
+    const shortCode = (o._id || "").toString().slice(-6).toUpperCase();
+    return {
+      ...o,
+      orderNumber: o.orderNumber || `ORD-${shortCode}`,
+      invoiceNumber: o.invoiceNumber || `INV-${shortCode}`,
+    };
+  });
+  res.json(formatted);
 });
 
 export const getOrdersByUser = asyncHandler(async (req, res) => {
@@ -216,43 +239,66 @@ export const getOrdersByUser = asyncHandler(async (req, res) => {
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
-  if (!order || (order.user.toString() !== req.user._id.toString() && req.user.role !== "admin")) {
+  const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+  const order = await Order.findOne(
+    isObjectId
+      ? { $or: [{ _id: req.params.id }, { orderNumber: req.params.id.toUpperCase() }] }
+      : { orderNumber: req.params.id.toUpperCase() }
+  ).populate("user", "name email");
+
+  if (!order || (order.user?._id?.toString() !== req.user._id.toString() && order.user?.toString() !== req.user._id.toString() && req.user.role !== "admin")) {
     res.status(404);
     throw new Error("Order not found");
   }
-  res.json(order);
+  const shortCode = (order._id || "").toString().slice(-6).toUpperCase();
+  const orderObj = order.toObject ? order.toObject() : order;
+  orderObj.orderNumber = orderObj.orderNumber || `ORD-${shortCode}`;
+  orderObj.invoiceNumber = orderObj.invoiceNumber || `INV-${shortCode}`;
+  res.json(orderObj);
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const targetId = req.params.id;
+  const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && /^[0-9a-fA-F]{24}$/.test(String(targetId));
+
+  const order = await Order.findOne(
+    isObjectId
+      ? { $or: [{ _id: targetId }, { orderNumber: String(targetId).toUpperCase() }] }
+      : { orderNumber: String(targetId).toUpperCase() }
+  );
 
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
   }
 
-  if (order.user.toString() !== req.user._id.toString()) {
+  const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
+  if (userId !== req.user._id.toString() && req.user.role !== "admin" && req.user.role !== "superadmin") {
     res.status(401);
     throw new Error("Not authorized to cancel this order");
   }
 
-  if (order.orderStatus !== "pending") {
+  const currentStatus = (order.orderStatus || "").toLowerCase();
+  if (!["pending", "processing", "placed", "confirmed"].includes(currentStatus)) {
     res.status(400);
-    throw new Error(`Cannot cancel order in ${order.orderStatus} status`);
+    throw new Error(`Cannot cancel order in ${order.orderStatus} status. Only pending or processing orders can be cancelled.`);
   }
 
   order.orderStatus = "cancelled";
   await order.save();
 
   // Restore stock
-  for (const item of order.items) {
-    const product = await Product.findById(item.productId);
-    if (product) {
-      const variant = product.variants.find((v) => v.sku === item.sku);
-      if (variant) {
-        variant.currentStock += item.quantity;
-        await product.save();
+  if (Array.isArray(order.items)) {
+    for (const item of order.items) {
+      if (!item.productId) continue;
+      const product = await Product.findById(item.productId);
+      if (product && Array.isArray(product.variants)) {
+        const variant = product.variants.find((v) => v.sku === item.sku);
+        if (variant) {
+          variant.currentStock = (variant.currentStock || 0) + (item.quantity || 1);
+          product.markModified("variants");
+          await product.save();
+        }
       }
     }
   }

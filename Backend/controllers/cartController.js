@@ -83,17 +83,21 @@ export const updateQuantity = asyncHandler(async (req, res) => {
     throw new Error("Cart not found");
   }
 
-  const item = cart.items.find((i) => i.product.toString() === productId && i.sku === sku);
+  const item = cart.items.find(
+    (i) => i.product.toString() === productId?.toString() && (!sku || i.sku === sku)
+  );
   if (!item) {
     res.status(404);
     throw new Error("Item not in cart");
   }
 
   if (quantity < 1) {
-    cart.items = cart.items.filter((i) => !(i.product.toString() === productId && i.sku === sku));
+    cart.items = cart.items.filter(
+      (i) => !(i.product.toString() === productId?.toString() && (!sku || i.sku === sku))
+    );
   } else {
     const product = await Product.findById(productId);
-    const variant = product?.variants.find((v) => v.sku === sku);
+    const variant = product?.variants?.find((v) => v.sku === item.sku) || product?.variants?.[0];
     if (!variant || variant.currentStock < quantity) {
       res.status(400);
       throw new Error("Invalid quantity or insufficient stock");
@@ -106,11 +110,21 @@ export const updateQuantity = asyncHandler(async (req, res) => {
 });
 
 export const removeFromCart = asyncHandler(async (req, res) => {
-  const { productId, sku } = req.params;
+  const { productId, sku: paramSku } = req.params;
+  const sku = paramSku || req.query.sku || req.body?.sku;
   const cart = await Cart.findOne({ user: req.user._id });
   if (!cart) return res.json({ message: "Cart is empty" });
 
-  cart.items = cart.items.filter((i) => !(i.product.toString() === productId && i.sku === sku));
+  cart.items = cart.items.filter((i) => {
+    const isSameProduct = i.product?.toString() === productId?.toString();
+    if (!isSameProduct) return true;
+    if (sku) {
+      return i.sku !== sku;
+    }
+    return false;
+  });
+
   await cart.save();
   res.status(200).json({ message: "Item removed from cart" });
 });
+

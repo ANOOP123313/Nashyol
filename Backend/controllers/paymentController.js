@@ -46,7 +46,9 @@ export const getAdminPayments = asyncHandler(async (req, res) => {
     return {
       _id: order._id,
       orderId: order._id,
-      paymentId: order.paymentId || `PAY-${order._id.toString().slice(-8).toUpperCase()}`,
+      orderNumber: order.orderNumber || `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+      invoiceNumber: order.invoiceNumber || `INV-${order._id.toString().slice(-6).toUpperCase()}`,
+      paymentId: order.paymentId || `PAY-${order._id.toString().slice(-6).toUpperCase()}`,
       name: order.user?.name || order.address?.fullName || "Customer",
       email: order.user?.email || "N/A",
       phone: order.user?.phone || order.address?.phone || "",

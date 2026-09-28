@@ -166,9 +166,9 @@ export default function VendorDashboard() {
             name: v.storeName || "Supplier",
             owner: v.owner?.name || v.ownerName || "Vendor Manager",
             email: v.email || v.owner?.email || "vendor@supplier.com",
-            products: v.productCount || 0,
+            products: v.productCount ?? v.productsCount ?? 0,
             status: v.approvalStatus === "approved" ? "verified" : (v.approvalStatus === "rejected" ? "suspended" : "unverified"),
-            sales: v.totalRevenue || 0,
+            sales: v.totalSales ?? v.totalRevenue ?? 0,
             phone: v.phone || "N/A",
             address: v.address || "N/A",
           }));
@@ -223,7 +223,10 @@ export default function VendorDashboard() {
 
   const handleAction = async (action, id) => {
     setOpenMenu(null);
-    if (action === "view") { setDetailId(id); return; }
+    if (action === "view") {
+      navigate(`/vendorsdetails/${id}`);
+      return;
+    }
     try {
       if (action === "unverify") {
         await vendorsAPI.updateStatus(id, "pending");
@@ -231,6 +234,13 @@ export default function VendorDashboard() {
         await vendorsAPI.updateStatus(id, "approved");
       } else if (action === "suspend") {
         await vendorsAPI.updateStatus(id, "rejected");
+      } else if (action === "delete") {
+        if (window.confirm("Are you sure you want to delete this vendor account?")) {
+          await vendorsAPI.delete(id);
+          toast.success("Vendor deleted successfully");
+          loadVendors();
+        }
+        return;
       }
       toast.success("Vendor status updated");
       loadVendors();
@@ -395,6 +405,7 @@ export default function VendorDashboard() {
                         : <MenuItem icon="✓" label="Verify Vendor" onClick={(e) => { e.stopPropagation(); handleAction("verify", v.id); }} />}
                       {v.status !== "suspended" &&
                         <MenuItem icon="✕" label="Suspend Account" onClick={(e) => { e.stopPropagation(); handleAction("suspend", v.id); }} color={RED} />}
+                      <MenuItem icon="🗑" label="Delete Vendor" onClick={(e) => { e.stopPropagation(); handleAction("delete", v.id); }} color={RED} />
                     </div>
                   )}
                 </td>

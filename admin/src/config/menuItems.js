@@ -13,11 +13,13 @@ import {
   Megaphone,
   BarChart3,
   FileText,
+  Flame,
   Star,
   MessageSquare,
   Settings,
   RotateCcw,
   Truck,
+  Mail,
 } from "lucide-react";
 
 export const menuItems = [
@@ -38,7 +40,9 @@ export const menuItems = [
   { icon: Megaphone, label: "Marketing", path: "/marketing" },
   { icon: BarChart3, label: "Reports", path: "/reports" },
   { icon: FileText, label: "CMS", path: "/cms" },
+  { icon: Flame, label: "Top Offers", path: "/top-offers" },
   { icon: Star, label: "Reviews", path: "/reviews" },
   { icon: MessageSquare, label: "Support", path: "/support" },
+  { icon: Mail, label: "Newsletter", path: "/newsletter-subscribers" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];

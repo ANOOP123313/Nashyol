@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { cmsAPI, uploadAPI } from "../services/api";
 import HomePageSectionManager from "../components/HomePageSectionManager";
+import TopOffers from "./TopOffers";
 
-const TABS = ["Pages", "Banners", "Home Page", "Blog", "FAQ"];
+const TABS = ["Pages", "Banners", "Home Page", "Top Offers", "Blog", "FAQ"];
 
 export default function ContentManagement() {
   const [activeTab, setActiveTab] = useState("Pages");
@@ -772,6 +773,12 @@ export default function ContentManagement() {
           </div>
         </div>
       )}
+
+      {/* Home Page Section Manager Tab */}
+      {activeTab === "Home Page" && <HomePageSectionManager />}
+
+      {/* Top Offers Tab */}
+      {activeTab === "Top Offers" && <TopOffers />}
 
     </div>
   );

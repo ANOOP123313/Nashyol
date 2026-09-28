@@ -19,5 +19,6 @@ router.get("/user/:userId", authorize("admin", "superadmin"), getOrdersByUser);
 router.get("/:id", getOrderById);
 router.put("/:id/status", authorize("admin", "superadmin"), updateOrderStatus);
 router.patch("/:id/cancel", cancelOrder);
+router.put("/:id/cancel", cancelOrder);
 
 export default router;

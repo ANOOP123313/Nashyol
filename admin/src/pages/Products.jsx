@@ -194,11 +194,57 @@ function CustomDropdown({ value, onChange, options, minWidth = 150 }) {
 // ─────────────────────────────────────────────────
 //  Product Details Page (real data via useProduct)
 // ─────────────────────────────────────────────────
-function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete }) {
-  const { product: fetched, loading, error } = useProduct(productId);
+function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, onToggleStatus }) {
+  const { product: fetched, loading, error, refetch: refetchDetails } = useProduct(productId);
   const product = fetched ? normalise(fetched) : rawProduct;
   const [activeTab, setActiveTab] = useState("specifications");
   const [showCreateCoupon, setShowCreateCoupon] = useState(false);
+  const [newCouponCode, setNewCouponCode] = useState("");
+  const [newCouponDiscount, setNewCouponDiscount] = useState("10");
+  const [newCouponTotal, setNewCouponTotal] = useState("50");
+  const [savingCoupon, setSavingCoupon] = useState(false);
+
+  const handleAddCoupon = async () => {
+    if (!newCouponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    setSavingCoupon(true);
+    try {
+      const newRule = {
+        code: newCouponCode.trim().toUpperCase(),
+        discountPrefix: "₹",
+        discountValue: Number(newCouponDiscount) || 10,
+        rewardType: "discount",
+        rewardValue: Number(newCouponDiscount) || 10,
+        used: 0,
+        total: Number(newCouponTotal) || 50,
+        status: "Active",
+        expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      };
+      const existing = product.referralCoupons || [];
+      await productsAPI.update(product.id, { referralCoupons: [...existing, newRule] });
+      toast.success("Referral coupon rule added!");
+      setShowCreateCoupon(false);
+      setNewCouponCode("");
+      refetchDetails?.();
+    } catch (err) {
+      toast.error(err.message || "Failed to add coupon rule");
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (couponCode) => {
+    try {
+      const updated = (product.referralCoupons || []).filter(c => c.code !== couponCode);
+      await productsAPI.update(product.id, { referralCoupons: updated });
+      toast.success("Coupon rule removed");
+      refetchDetails?.();
+    } catch (err) {
+      toast.error(err.message || "Failed to remove coupon rule");
+    }
+  };
 
   const tabs = [
     { id:"specifications", Icon:List,      label:"Specifications" },
@@ -226,6 +272,13 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete })
           <ChevronLeft size={16}/> Back to Products
         </button>
         <div className="topbar-right" style={{ display:"flex",gap:10 }}>
+          {onToggleStatus && (
+            product.isActive ? (
+              <button onClick={() => onToggleStatus(product, false)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#dc2626",border:"1px solid #fca5a5",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><XCircle size={14} color="#dc2626"/> Deactivate</button>
+            ) : (
+              <button onClick={() => onToggleStatus(product, true)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:600,color:"#16a34a",border:"1px solid #86efac",borderRadius:8,background:"#f0fdf4",cursor:"pointer",fontFamily:"inherit" }}><CheckCircle size={14} color="#16a34a"/> Approve & Activate</button>
+            )
+          )}
           <button onClick={() => onEdit?.(product)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#374151",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Edit2 size={14}/> Edit Product</button>
           <button onClick={() => onDelete?.(product)} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 16px",fontSize:13,fontWeight:500,color:"#ef4444",border:"1px solid #fca5a5",borderRadius:8,background:"#fff",cursor:"pointer",fontFamily:"inherit" }}><Trash2 size={14}/> Delete</button>
         </div>
@@ -346,12 +399,43 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete })
                             <td style={{ padding:"14px 16px" }}><span style={{ fontSize:13,fontWeight:600,color:"#374151" }}>{c.used}/{c.total}</span><div style={{ width:90,height:4,background:"#e5e7eb",borderRadius:9999,marginTop:5 }}><div className="prog-fill" style={{ width:`${pct}%`,height:4,background:"#f97316",borderRadius:9999 }}/></div></td>
                             <td style={{ padding:"14px 16px",fontSize:12,color:"#6b7280",whiteSpace:"nowrap" }}>{c.expiry ? new Date(c.expiry).toLocaleDateString() : "—"}</td>
                             <td style={{ padding:"14px 16px" }}><span style={{ background:cs.bg,color:cs.color,fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:9999 }}>{c.status}</span></td>
-                            <td style={{ padding:"14px 16px" }}><div style={{ display:"flex",gap:10 }}><button style={{ background:"none",border:"none",cursor:"pointer",color:"#6b7280",padding:0,display:"flex" }}><Edit2 size={14}/></button><button style={{ background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:0,display:"flex" }}><Trash2 size={14}/></button></div></td>
+                            <td style={{ padding:"14px 16px" }}><div style={{ display:"flex",gap:10 }}><button onClick={() => handleDeleteCoupon(c.code)} title="Delete coupon rule" style={{ background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:0,display:"flex" }}><Trash2 size={14}/></button></div></td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+              {showCreateCoupon && (
+                <div style={{ position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center" }}>
+                  <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,0.4)" }} onClick={() => setShowCreateCoupon(false)}/>
+                  <div style={{ position:"relative",zIndex:10,width:"100%",maxWidth:400,margin:"0 16px",background:"#fff",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",padding:"24px" }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
+                      <h3 style={{ margin:0,fontSize:16,fontWeight:700,color:"#111827" }}>Add Referral Coupon Rule</h3>
+                      <button onClick={() => setShowCreateCoupon(false)} style={{ background:"none",border:"none",cursor:"pointer",color:"#9ca3af",display:"flex" }}><X size={18}/></button>
+                    </div>
+                    <div style={{ marginBottom:14 }}>
+                      <label style={{ display:"block",fontSize:12,fontWeight:500,color:"#4b5563",marginBottom:4 }}>Coupon Code</label>
+                      <input value={newCouponCode} onChange={e => setNewCouponCode(e.target.value.toUpperCase())} placeholder="e.g. FRIEND20" style={{ width:"100%",borderRadius:8,border:"1px solid #d1d5db",padding:"8px 12px",fontSize:13,outline:"none",fontFamily:"monospace",textTransform:"uppercase" }}/>
+                    </div>
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:18 }}>
+                      <div>
+                        <label style={{ display:"block",fontSize:12,fontWeight:500,color:"#4b5563",marginBottom:4 }}>Discount (₹)</label>
+                        <input type="number" value={newCouponDiscount} onChange={e => setNewCouponDiscount(e.target.value)} placeholder="10" style={{ width:"100%",borderRadius:8,border:"1px solid #d1d5db",padding:"8px 12px",fontSize:13,outline:"none" }}/>
+                      </div>
+                      <div>
+                        <label style={{ display:"block",fontSize:12,fontWeight:500,color:"#4b5563",marginBottom:4 }}>Usage Limit</label>
+                        <input type="number" value={newCouponTotal} onChange={e => setNewCouponTotal(e.target.value)} placeholder="50" style={{ width:"100%",borderRadius:8,border:"1px solid #d1d5db",padding:"8px 12px",fontSize:13,outline:"none" }}/>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex",gap:10,justifyContent:"flex-end" }}>
+                      <button onClick={() => setShowCreateCoupon(false)} style={{ padding:"8px 18px",borderRadius:8,border:"1px solid #d1d5db",background:"#fff",fontSize:13,fontWeight:500,color:"#374151",cursor:"pointer" }}>Cancel</button>
+                      <button onClick={handleAddCoupon} disabled={savingCoupon} style={{ padding:"8px 18px",borderRadius:8,border:"none",background:"#f97316",fontSize:13,fontWeight:600,color:"#fff",cursor:savingCoupon?"not-allowed":"pointer" }}>
+                        {savingCoupon ? "Adding..." : "Add Rule"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </>
@@ -618,7 +702,7 @@ function ProductFormModal({ product, onClose, onSuccess }) {
       description   : form.description,
       paidAmount    : Number(form.paidAmount) || 0,
       deliveryCharge: Number(form.deliveryCharge) || 0,
-      isActive      : form.status !== "Out of Stock",
+      isActive      : form.status === "Approved",
       images        : images.length > 0 ? images : ["https://placehold.co/300x300?text=No+Image"],
       specifications: cleanSpecs,
     };
@@ -626,9 +710,11 @@ function ProductFormModal({ product, onClose, onSuccess }) {
     try {
       const targetId = product?.id || product?._id;
       if (isEdit) {
-        await updateProduct(targetId, payload);
+        const updated = await updateProduct(targetId, payload);
+        onSuccess?.(updated);
       } else {
-        await createProduct(payload);
+        const created = await createProduct(payload);
+        onSuccess?.(created);
       }
     } catch (_) { /* error shown inline */ }
   };
@@ -890,7 +976,17 @@ export default function Products() {
 
   // ── API hooks ──
   const { products: raw, total, loading, error, params, updateParams, goToPage, refetch } = useProducts({ includeInactive: "true" });
-  const { deleteProduct, loading: deleteLoading } = useProductMutations({ onSuccess: () => { setDeletingProduct(null); refetch(); } });
+  const { deleteProduct, updateProduct, loading: deleteLoading } = useProductMutations({ onSuccess: () => { setDeletingProduct(null); refetch(); } });
+
+  const handleToggleStatus = async (product, newIsActive) => {
+    try {
+      await updateProduct(product.id || product._id, { isActive: newIsActive });
+      toast.success(newIsActive ? `Product "${product.name}" approved & published` : `Product "${product.name}" marked inactive`);
+      refetch();
+    } catch (err) {
+      toast.error(err.message || "Failed to update product status");
+    }
+  };
 
   // Normalise backend → UI shape
   const products = raw.map(normalise);
@@ -1050,8 +1146,15 @@ export default function Products() {
             loading={deleteLoading}
             onClose={() => setDeletingProduct(null)}
             onConfirm={async () => {
-              await deleteProduct(deletingProduct.id || deletingProduct._id);
-              setSelectedProduct(null);
+              try {
+                await deleteProduct(deletingProduct.id || deletingProduct._id);
+                toast.success("Product deleted successfully");
+                setSelectedProduct(null);
+                setDeletingProduct(null);
+                refetch();
+              } catch (err) {
+                toast.error(err.message || "Failed to delete product");
+              }
             }}
           />
         )}
@@ -1066,6 +1169,10 @@ export default function Products() {
           onDelete={(p) => {
             const prod = p || (selectedProduct.raw ? normalise(selectedProduct.raw) : selectedProduct);
             setDeletingProduct(prod);
+          }}
+          onToggleStatus={async (p, newStatus) => {
+            await handleToggleStatus(p, newStatus);
+            setSelectedProduct(prev => prev ? { ...prev, raw: { ...prev.raw, isActive: newStatus } } : null);
           }}
         />
       </>
@@ -1100,7 +1207,16 @@ export default function Products() {
             product={deletingProduct}
             loading={deleteLoading}
             onClose={() => setDeletingProduct(null)}
-            onConfirm={() => deleteProduct(deletingProduct.id)}
+            onConfirm={async () => {
+              try {
+                await deleteProduct(deletingProduct.id || deletingProduct._id);
+                toast.success("Product deleted successfully");
+                setDeletingProduct(null);
+                refetch();
+              } catch (err) {
+                toast.error(err.message || "Failed to delete product");
+              }
+            }}
           />
         )}
 
@@ -1225,21 +1341,46 @@ export default function Products() {
                       <td style={{ padding:"14px 12px",fontSize:13,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{product.vendor}</td>
                       <td style={{ padding:"14px 12px",fontSize:14,fontWeight:400,color:"#374151",whiteSpace:"nowrap" }}>₹{product.price.toLocaleString("en-US",{ minimumFractionDigits:2 })}</td>
                       <td style={{ padding:"14px 12px" }}><span style={{ fontSize:14,...sc }}>{product.stock}</span></td>
-                      <td style={{ padding:"14px 12px" }}><span style={{ ...ps,borderRadius:9999,padding:"3px 12px",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center" }}>{product.status}</span></td>
+                      <td style={{ padding:"14px 12px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(product, !product.isActive)}
+                          title={`Click to ${product.isActive ? "Deactivate" : "Approve & Activate"}`}
+                          style={{
+                            ...ps,
+                            borderRadius:9999,
+                            padding:"3px 12px",
+                            fontSize:11,
+                            fontWeight:600,
+                            display:"inline-flex",
+                            alignItems:"center",
+                            gap:4,
+                            border:"none",
+                            cursor:"pointer",
+                            transition:"opacity .15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                        >
+                          {product.status}
+                        </button>
+                      </td>
                       <td style={{ padding:"14px 12px" }}>
                         <div style={{ position:"relative" }} ref={openMenuId === product.id ? menuRef : null}>
                           <button className="three-dots-btn" onClick={() => setOpenMenuId(openMenuId === product.id ? null : product.id)}>
                             <MoreVertical size={16}/>
                           </button>
                           {openMenuId === product.id && (
-                            <div style={{ position:"absolute",right:0,zIndex:30,width:172,background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,boxShadow:"0 10px 30px rgba(0,0,0,.12)",padding:"4px 0",...(product.id && products.indexOf(product) >= products.length - 2 ? { bottom:34 } : { top:34 }) }}>
+                            <div style={{ position:"absolute",right:0,zIndex:30,width:180,background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,boxShadow:"0 10px 30px rgba(0,0,0,.12)",padding:"4px 0",...(product.id && products.indexOf(product) >= products.length - 2 ? { bottom:34 } : { top:34 }) }}>
                               <button onClick={() => { setOpenMenuId(null); setSelectedProduct({ id:product.id, raw:product }); }} onMouseEnter={e => e.currentTarget.style.background="#f3f4f6"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem()}><Eye size={13} color="#9ca3af"/> View Details</button>
                               <button onClick={() => { setOpenMenuId(null); setEditingProduct(product); }} onMouseEnter={e => e.currentTarget.style.background="#f3f4f6"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem()}><Pencil size={13} color="#9ca3af"/> Edit Product</button>
+                              {product.isActive ? (
+                                <button onClick={() => { setOpenMenuId(null); handleToggleStatus(product, false); }} onMouseEnter={e => e.currentTarget.style.background="#fef2f2"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#dc2626")}><XCircle size={13} color="#dc2626"/> Deactivate</button>
+                              ) : (
+                                <button onClick={() => { setOpenMenuId(null); handleToggleStatus(product, true); }} onMouseEnter={e => e.currentTarget.style.background="#f0fdf4"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#16a34a")}><CheckCircle size={13} color="#16a34a"/> Approve & Activate</button>
+                              )}
                               {isPending && (
-                                <>
-                                  <button onClick={() => setOpenMenuId(null)} onMouseEnter={e => e.currentTarget.style.background="#f0fdf4"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#16a34a")}><CheckCircle size={13} color="#16a34a"/> Approve</button>
-                                  <button onClick={() => setOpenMenuId(null)} onMouseEnter={e => e.currentTarget.style.background="#fef2f2"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#dc2626")}><XCircle size={13} color="#dc2626"/> Reject</button>
-                                </>
+                                <button onClick={() => { setOpenMenuId(null); handleToggleStatus(product, false); }} onMouseEnter={e => e.currentTarget.style.background="#fef2f2"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#dc2626")}><XCircle size={13} color="#dc2626"/> Reject</button>
                               )}
                               <div style={{ height:1,background:"#f1f5f9",margin:"4px 0" }}/>
                               <button onClick={() => { setOpenMenuId(null); setDeletingProduct(product); }} onMouseEnter={e => e.currentTarget.style.background="#fef2f2"} onMouseLeave={e => e.currentTarget.style.background=""} style={menuItem("#ef4444")}><Trash2 size={13} color="#f87171"/> Delete</button>

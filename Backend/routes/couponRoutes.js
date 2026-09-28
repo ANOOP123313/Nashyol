@@ -10,8 +10,8 @@ import { protect, authorize } from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 router.get("/validate", validateCoupon);
-router.get("/", protect, authorize("admin"), getCoupons);
-router.post("/", protect, authorize("admin"), createCoupon);
-router.delete("/:id", protect, authorize("admin"), deleteCoupon);
+router.get("/", protect, getCoupons);
+router.post("/", protect, authorize("admin", "superadmin"), createCoupon);
+router.delete("/:id", protect, authorize("admin", "superadmin"), deleteCoupon);
 
 export default router;

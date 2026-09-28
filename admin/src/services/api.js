@@ -289,6 +289,14 @@ export const cmsAPI = {
   toggleHomePageSectionStatus: (id, isActive) => request("PATCH", `/cms/home-page/sections/${id}/status`, { isActive }),
   reorderHomePageSections: (orders) => request("PATCH", "/cms/home-page/sections/reorder", { orders }),
   seedHomePageSections: () => request("POST", "/cms/home-page/seed"),
+
+  // Newsletter Subscribers
+  getNewsletterSubscribers: () => request("GET", "/cms/newsletter/subscribers"),
+  deleteNewsletterSubscriber: (id) => request("DELETE", `/cms/newsletter/subscribers/${id}`),
+
+  // Top Bar Offers & Announcements
+  getTopBarOffers: () => request("GET", "/cms/home-page/top-bar-offers"),
+  updateTopBarOffers: (data) => request("PUT", "/cms/home-page/top-bar-offers", data),
 };
 
 // ─────────────────────────────────────────────

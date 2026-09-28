@@ -98,7 +98,7 @@ export const getAdminStats = asyncHandler(async (req, res) => {
     .select("storeName email totalRevenue");
 
   // 🥇 Leaderboard (Top Referrers)
-  const leaderboard = await Referral.aggregate([
+  const leaderboardRaw = await Referral.aggregate([
     {
       $group: {
         _id: "$referrer",
@@ -111,20 +111,56 @@ export const getAdminStats = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "referrerUser",
+      },
+    },
+    {
+      $unwind: {
+        path: "$referrerUser",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         referrals: 1,
         conversions: 1,
         rate: {
           $multiply: [
-            { $divide: ["$conversions", "$referrals"] },
+            { $divide: ["$conversions", { $cond: [{ $eq: ["$referrals", 0] }, 1, "$referrals"] }] },
             100,
           ],
         },
+        name: { $ifNull: ["$referrerUser.name", "$referrerUser.email"] },
+        referrerName: { $ifNull: ["$referrerUser.name", "$referrerUser.email"] },
       },
     },
     { $sort: { referrals: -1 } },
     { $limit: 5 },
   ]);
+
+  const leaderboard = await Promise.all(
+    leaderboardRaw.map(async (entry) => {
+      let displayName = entry.name || entry.referrerName;
+      let userEmail = "";
+      if ((!displayName || /^[0-9a-fA-F]{24}$/.test(displayName)) && entry._id) {
+        const u = await User.findById(entry._id).select("name email").lean();
+        if (u) {
+          displayName = u.name || u.email;
+          userEmail = u.email || "";
+        }
+      }
+      return {
+        ...entry,
+        name: displayName || (entry._id ? `User (${String(entry._id).slice(-4).toUpperCase()})` : "Top Referrer"),
+        referrerName: displayName || (entry._id ? `User (${String(entry._id).slice(-4).toUpperCase()})` : "Top Referrer"),
+        email: userEmail,
+      };
+    })
+  );
 
   // ================= RESPONSE =================
   res.json({

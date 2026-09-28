@@ -1,5 +1,8 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Referral from "../models/Referral.js";
+import { sendNotification } from "./notificationController.js";
 import generateToken from "../utils/generateToken.js";
 import { formatPhoneNumber } from "../utils/formatPhoneNumber.js";
 import { sendWhatsappOTP } from "../utils/whatsappService.js";
@@ -47,6 +50,11 @@ export const phonePasswordLogin = async (req, res) => {
       return res.status(401).json({ message: "Invalid phone number or password" });
     }
 
+    if (!user.referralCode) {
+      user.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+      await user.save();
+    }
+
     const token = generateToken(user._id);
 
     return res.status(200).json({
@@ -60,6 +68,8 @@ export const phonePasswordLogin = async (req, res) => {
         role: user.role,
         isPhoneVerified: user.isPhoneVerified,
         referralCode: user.referralCode,
+        referralPoints: user.referralPoints || user.walletBalance || 0,
+        referralCount: user.referralCount || 0,
         walletBalance: user.walletBalance,
       },
     });
@@ -203,11 +213,23 @@ export const verifyRegistrationOTP = async (req, res) => {
     }
 
     // Optional referral handling
+    let referrer = null;
     if (referralCode?.trim() && !user.referredBy) {
-      const referrer = await User.findOne({ referralCode: referralCode.trim() });
+      const cleanCode = referralCode.trim();
+      referrer = await User.findOne({
+        $or: [
+          { referralCode: cleanCode.toUpperCase() },
+          { referralCode: cleanCode.toLowerCase() },
+          { referralCode: { $regex: new RegExp(`^${cleanCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }
+        ]
+      });
       if (referrer && referrer._id.toString() !== user._id.toString()) {
         user.referredBy = referrer._id;
       }
+    }
+
+    if (!user.referralCode) {
+      user.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
     }
 
     // Save final details
@@ -222,6 +244,36 @@ export const verifyRegistrationOTP = async (req, res) => {
 
     await user.save();
 
+    if (referrer && referrer._id.toString() !== user._id.toString()) {
+      const rewardPoints = 100;
+      referrer.referralCount = (referrer.referralCount || 0) + 1;
+      referrer.referralPoints = (referrer.referralPoints || 0) + rewardPoints;
+      referrer.walletBalance = (referrer.walletBalance || 0) + rewardPoints;
+      await referrer.save();
+
+      try {
+        await Referral.findOneAndUpdate(
+          { referredUser: user._id },
+          {
+            referrer: referrer._id,
+            referredUser: user._id,
+            rewardGranted: true,
+            rewardAmount: rewardPoints,
+          },
+          { upsert: true, new: true }
+        );
+      } catch (refErr) {
+        console.error("Error creating referral record:", refErr);
+      }
+
+      await sendNotification(
+        referrer._id,
+        "Referral Reward!",
+        `Congratulations! ${user.name} registered using your referral code. You earned ${rewardPoints} referral points!`,
+        "referral"
+      );
+    }
+
     const token = generateToken(user._id);
 
     return res.status(201).json({
@@ -235,6 +287,8 @@ export const verifyRegistrationOTP = async (req, res) => {
         role: user.role,
         isPhoneVerified: user.isPhoneVerified,
         referralCode: user.referralCode,
+        referralPoints: user.referralPoints || user.walletBalance || 0,
+        referralCount: user.referralCount || 0,
         walletBalance: user.walletBalance,
       },
     });

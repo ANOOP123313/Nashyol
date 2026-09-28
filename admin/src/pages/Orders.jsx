@@ -337,10 +337,16 @@ export default function Orders() {
       .then((res) => {
         const data = res.orders || res || [];
         if (Array.isArray(data)) {
-          const mapped = data.map((o) => ({
-            id: `ORD-${(o._id || "").slice(-8).toUpperCase()}`,
-            _id: o._id,
-            referral: !!o.couponCode,
+          const mapped = data.map((o) => {
+            const shortCode = (o._id || "").slice(-6).toUpperCase();
+            const orderNum = o.orderNumber || `ORD-${shortCode}`;
+            const invNum = o.invoiceNumber || `INV-${shortCode}`;
+            return {
+              id: orderNum,
+              orderNumber: orderNum,
+              invoiceNumber: invNum,
+              _id: o._id,
+              referral: !!o.couponCode,
             customer: o.user?.name || o.address?.fullName || "Customer",
             vendor: o.items?.[0]?.vendorId?.storeName || "",
             amount: o.totalAmount || 0,
@@ -357,7 +363,8 @@ export default function Orders() {
               price: it.price || 0,
               img: "📦",
             })),
-          }));
+          };
+        });
           setOrders(mapped);
         }
       })

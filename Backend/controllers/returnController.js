@@ -104,38 +104,78 @@ const seedDefaultReturnsIfEmpty = async () => {
 export const createReturn = asyncHandler(async (req, res) => {
   const { orderId, items, reason, refundMethod } = req.body;
 
-  const order = await Order.findById(orderId);
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
+  if (!orderId) {
+    res.status(400);
+    throw new Error("Order identifier is required");
   }
 
-  if (order.user.toString() !== req.user._id.toString()) {
+  const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && /^[0-9a-fA-F]{24}$/.test(String(orderId));
+  const order = await Order.findOne(
+    isObjectId
+      ? { $or: [{ _id: orderId }, { orderNumber: String(orderId).toUpperCase() }] }
+      : { orderNumber: String(orderId).toUpperCase() }
+  );
+
+  if (!order) {
+    res.status(404);
+    throw new Error(`Order not found with identifier "${orderId}"`);
+  }
+
+  if (order.user.toString() !== req.user._id.toString() && req.user.role !== "admin" && req.user.role !== "superadmin") {
     res.status(401);
     throw new Error("Not authorized to request return for this order");
   }
 
   // Calculate potential refund amount based on returned items
   let refundAmount = 0;
+  const processedItems = [];
+
   if (items && Array.isArray(items)) {
     for (const retItem of items) {
       const orderItem = order.items.find(
-        (i) => i.productId.toString() === retItem.productId.toString()
+        (i) =>
+          i.productId?.toString() === retItem.productId?.toString() ||
+          i._id?.toString() === retItem.productId?.toString() ||
+          i.sku === retItem.productId
       );
-      if (orderItem) {
-        refundAmount += (orderItem.price || 0) * (retItem.quantity || 1);
+
+      const qty = retItem.quantity || 1;
+      const price = orderItem?.price || 0;
+      refundAmount += price * qty;
+
+      // Ensure valid productId reference for Return schema
+      const prodId = orderItem?.productId || (mongoose.Types.ObjectId.isValid(retItem.productId) ? retItem.productId : order.items[0]?.productId);
+      if (prodId) {
+        processedItems.push({
+          productId: prodId,
+          quantity: qty,
+          reason: retItem.reason || reason || "Return requested",
+          condition: retItem.condition || "used",
+        });
       }
+    }
+  }
+
+  if (processedItems.length === 0 && order.items.length > 0) {
+    for (const oItem of order.items) {
+      processedItems.push({
+        productId: oItem.productId,
+        quantity: oItem.quantity,
+        reason: reason || "Return requested",
+        condition: "used",
+      });
+      refundAmount += (oItem.price || 0) * oItem.quantity;
     }
   }
 
   const trackingNumber = "TRK-" + Math.random().toString(36).substring(2, 9).toUpperCase();
 
   const returnReq = await Return.create({
-    orderId,
+    orderId: order._id,
     userId: req.user._id,
-    items,
+    items: processedItems,
     reason: reason || items?.[0]?.reason || "Return / refund requested by customer",
-    refundAmount,
+    refundAmount: refundAmount || order.totalAmount || 0,
     refundMethod: refundMethod || "Original Payment Method",
     deliveryStatus: "Pickup Pending",
     tracking: trackingNumber,

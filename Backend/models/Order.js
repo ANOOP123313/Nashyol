@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import crypto from "crypto";
 
 const orderSchema = new mongoose.Schema(
   {
@@ -58,6 +59,18 @@ const orderSchema = new mongoose.Schema(
       pincode: String,
     },
 
+    orderNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+
+    invoiceNumber: {
+      type: String,
+      index: true,
+    },
+
     paymentId: String,
 
     couponCode: String,
@@ -65,6 +78,18 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.pre("save", function (next) {
+  if (!this.orderNumber) {
+    const hex = crypto.randomBytes(3).toString("hex").toUpperCase();
+    this.orderNumber = `ORD-${hex}`;
+  }
+  if (!this.invoiceNumber) {
+    const hex = this.orderNumber ? this.orderNumber.replace("ORD-", "") : crypto.randomBytes(3).toString("hex").toUpperCase();
+    this.invoiceNumber = `INV-${hex}`;
+  }
+  next();
+});
 
 orderSchema.index({ createdAt: -1 });
 

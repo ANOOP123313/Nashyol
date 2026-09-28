@@ -1,5 +1,50 @@
 import Vendor from "../models/Vendor.js";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
+import Product from "../models/Product.js";
+
+// Helper to compute live sales from orders and product count
+const enrichVendorsWithSalesAndProducts = async (vendors) => {
+  const orders = await Order.find({ orderStatus: { $ne: "cancelled" } }).select("items").lean();
+  const salesMap = {};
+  for (const order of orders) {
+    for (const item of (order.items || [])) {
+      if (item.vendorId) {
+        const vId = item.vendorId.toString();
+        if (!salesMap[vId]) salesMap[vId] = { sales: 0, count: 0 };
+        salesMap[vId].sales += (Number(item.price) || 0) * (Number(item.quantity) || 1);
+        salesMap[vId].count += (Number(item.quantity) || 1);
+      }
+    }
+  }
+
+  const products = await Product.find().select("variants").lean();
+  const productCountMap = {};
+  for (const p of products) {
+    const vIds = new Set();
+    for (const v of (p.variants || [])) {
+      if (v.currentVendor) vIds.add(v.currentVendor.toString());
+    }
+    for (const vId of vIds) {
+      productCountMap[vId] = (productCountMap[vId] || 0) + 1;
+    }
+  }
+
+  return vendors.map((v) => {
+    const vObj = v.toObject ? v.toObject() : { ...v };
+    const vId = vObj._id.toString();
+    const computedSales = salesMap[vId]?.sales || vObj.totalRevenue || 0;
+    const computedProducts = productCountMap[vId] || 0;
+    return {
+      ...vObj,
+      totalSales: computedSales,
+      totalRevenue: computedSales,
+      productCount: computedProducts,
+      productsCount: computedProducts,
+      salesCount: salesMap[vId]?.count || 0,
+    };
+  });
+};
 
 // ─────────────────────────────────────────
 //  VENDOR SELF-SERVICE
@@ -99,7 +144,8 @@ export const getAllApprovedVendors = async (req, res) => {
       .populate("owner", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(vendors);
+    const enriched = await enrichVendorsWithSalesAndProducts(vendors);
+    res.status(200).json(enriched);
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
@@ -178,16 +224,14 @@ export const adminCreateVendor = async (req, res) => {
  */
 export const getVendorById = async (req, res) => {
   try {
-    const vendor = await Vendor.findOne({
-      _id: req.params.id,
-      approvalStatus: "approved",
-    }).populate("owner", "name email");
+    const vendor = await Vendor.findById(req.params.id).populate("owner", "name email");
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found." });
     }
 
-    res.status(200).json(vendor);
+    const [enriched] = await enrichVendorsWithSalesAndProducts([vendor]);
+    res.status(200).json(enriched);
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
@@ -210,7 +254,8 @@ export const adminGetAllVendors = async (req, res) => {
       .populate("owner", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(vendors);
+    const enriched = await enrichVendorsWithSalesAndProducts(vendors);
+    res.status(200).json(enriched);
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
@@ -219,14 +264,20 @@ export const adminGetAllVendors = async (req, res) => {
 /**
  * PATCH /api/vendors/admin/:id/approval
  * Approve or reject a vendor (admin only).
- * Body: { status: "approved" | "rejected" }
+ * Body: { status: "approved" | "rejected" } or { approvalStatus: "approved" | ... }
  */
 export const adminUpdateApprovalStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const rawStatus = req.body.status || req.body.approvalStatus;
+    let status = (rawStatus || "").toLowerCase();
+
+    // Map common aliases
+    if (status === "verified" || status === "active") status = "approved";
+    if (status === "unverified") status = "pending";
+    if (status === "suspended") status = "rejected";
 
     if (!["approved", "rejected", "pending"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value." });
+      return res.status(400).json({ message: "Invalid status value: " + rawStatus });
     }
 
     const vendor = await Vendor.findByIdAndUpdate(

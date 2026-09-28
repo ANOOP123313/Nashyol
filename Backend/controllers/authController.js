@@ -1,5 +1,8 @@
 import asyncHandler from "express-async-handler";
+import crypto from "crypto";
 import User from "../models/User.js";
+import Referral from "../models/Referral.js";
+import { sendNotification } from "./notificationController.js";
 import { body, validationResult } from "express-validator";
 import { generateToken } from "../utils/generateToken.js";
 
@@ -19,7 +22,7 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, email, password } = req.body;
+  const { name, email, password, referralCode } = req.body;
 
   const exists = await User.findOne({ email });
 
@@ -27,12 +30,61 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Email already registered" });
   }
 
+  let referredBy = null;
+  let referrerUser = null;
+  if (referralCode && referralCode.trim()) {
+    const cleanCode = referralCode.trim();
+    referrerUser = await User.findOne({
+      $or: [
+        { referralCode: cleanCode.toUpperCase() },
+        { referralCode: cleanCode.toLowerCase() },
+        { referralCode: { $regex: new RegExp(`^${cleanCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }
+      ]
+    });
+    if (referrerUser) {
+      referredBy = referrerUser._id;
+    }
+  }
+
+  const hexCode = crypto.randomBytes(4).toString("hex").toUpperCase();
   const user = await User.create({
     name,
     email,
     password,
     role: "user",
+    referralCode: hexCode,
+    referredBy,
   });
+
+  if (referrerUser && referrerUser._id.toString() !== user._id.toString()) {
+    const rewardPoints = 100;
+    referrerUser.referralCount = (referrerUser.referralCount || 0) + 1;
+    referrerUser.referralPoints = (referrerUser.referralPoints || 0) + rewardPoints;
+    referrerUser.walletBalance = (referrerUser.walletBalance || 0) + rewardPoints;
+    await referrerUser.save();
+
+    try {
+      await Referral.findOneAndUpdate(
+        { referredUser: user._id },
+        {
+          referrer: referrerUser._id,
+          referredUser: user._id,
+          rewardGranted: true,
+          rewardAmount: rewardPoints,
+        },
+        { upsert: true, new: true }
+      );
+    } catch (refErr) {
+      console.error("Error creating referral record:", refErr);
+    }
+
+    await sendNotification(
+      referrerUser._id,
+      "Referral Reward!",
+      `Congratulations! ${user.name} registered using your referral code. You earned ${rewardPoints} referral points!`,
+      "referral"
+    );
+  }
 
   const token = generateToken(user._id);
 
@@ -41,6 +93,9 @@ export const register = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     role: user.role,
+    referralCode: user.referralCode,
+    referralPoints: user.referralPoints || 0,
+    referralCount: user.referralCount || 0,
     token,
   });
 
@@ -80,6 +135,11 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
+  if (!user.referralCode) {
+    user.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+    await user.save();
+  }
+
   const token = generateToken(user._id);
 
   res.json({
@@ -88,6 +148,9 @@ export const login = asyncHandler(async (req, res) => {
     email: user.email,
     phone: user.phone || "",
     role: user.role,
+    referralCode: user.referralCode,
+    referralPoints: user.referralPoints || user.walletBalance || 0,
+    referralCount: user.referralCount || 0,
     token,
   });
 

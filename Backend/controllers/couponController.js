@@ -34,9 +34,20 @@ export const validateCoupon = asyncHandler(async (req, res) => {
   });
 });
 
-// ── Get All Coupons (Admin) ──
+// ── Get All Coupons (Admin or Active for users) ──
 export const getCoupons = asyncHandler(async (req, res) => {
-  const coupons = await Coupon.find().sort({ createdAt: -1 });
+  if (req.user && (req.user.role === "admin" || req.user.role === "superadmin")) {
+    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    return res.json(coupons);
+  }
+  const coupons = await Coupon.find({
+    isActive: true,
+    $or: [
+      { expiryDate: { $gt: new Date() } },
+      { expiryDate: null },
+      { expiryDate: { $exists: false } },
+    ],
+  }).sort({ createdAt: -1 });
   res.json(coupons);
 });
 

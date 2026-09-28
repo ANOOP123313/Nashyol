@@ -3,6 +3,7 @@ import HomePageSection from "../models/HomePageSection.js";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
 import Newsletter from "../models/Newsletter.js";
+import User from "../models/User.js";
 
 // Helper: Seed default home page sections matching current design and content 1:1
 export const getInitialSectionsData = async () => {
@@ -663,6 +664,37 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
           query._id = { $in: sec.settings.products };
         }
 
+        let subCategories = [];
+        let categoryDoc = null;
+        try {
+          if (sec.settings?.category) {
+            const catId = sec.settings.category._id || sec.settings.category;
+            categoryDoc = await Category.findById(catId).lean();
+          }
+          if (!categoryDoc && sec.title) {
+            const cleanTitle = sec.title.replace(/\s*Products$/i, "").trim();
+            categoryDoc = await Category.findOne({
+              $or: [
+                { name: new RegExp(`^${cleanTitle}`, "i") },
+                { slug: new RegExp(`^${cleanTitle}`, "i") },
+              ],
+              isActive: true,
+            }).lean();
+          }
+          if (categoryDoc && Array.isArray(categoryDoc.subCategories)) {
+            subCategories = categoryDoc.subCategories
+              .filter((s) => s.isActive !== false && s.name)
+              .map((s) => ({
+                _id: s._id,
+                name: s.name,
+                slug: s.slug || s.name,
+                image: s.image || "",
+                icon: s.icon || "📦",
+                productCount: s.productCount || 0,
+              }));
+          }
+        } catch (_) {}
+
         try {
           const products = await Product.find(query)
             .populate("category", "name")
@@ -673,6 +705,8 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
           return {
             ...sec,
             items: [], // Never return hardcoded mock items
+            subCategories,
+            categoryName: categoryDoc ? categoryDoc.name : (sec.title || "").replace(/\s*Products$/i, "").trim(),
             dynamicProducts: products.map((p) => {
               const firstVariant = p.variants?.[0] || {};
               return {
@@ -691,7 +725,7 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
           };
         } catch (err) {
           console.error(`Error resolving products for section ${sec.sectionKey}:`, err);
-          return { ...sec, items: [], dynamicProducts: [] };
+          return { ...sec, items: [], subCategories: [], dynamicProducts: [] };
         }
       }
       return sec;
@@ -914,3 +948,126 @@ export const subscribeNewsletter = asyncHandler(async (req, res) => {
     message: "Thank you for subscribing! You'll receive our latest updates and offers.",
   });
 });
+
+// @desc    Get all newsletter subscribers with registered user details (Admin)
+// @route   GET /api/cms/newsletter/subscribers
+// @access  Private/Admin
+export const getNewsletterSubscribers = asyncHandler(async (req, res) => {
+  const subscribers = await Newsletter.find().sort({ createdAt: -1 });
+  const emails = subscribers.map((s) => s.email.toLowerCase());
+
+  const matchedUsers = await User.find({ email: { $in: emails } }).select("name email phone role createdAt");
+  const userMap = new Map();
+  matchedUsers.forEach((u) => {
+    if (u.email) userMap.set(u.email.toLowerCase(), u);
+  });
+
+  const enriched = subscribers.map((s) => {
+    const userObj = userMap.get(s.email.toLowerCase());
+    return {
+      _id: s._id,
+      email: s.email,
+      isActive: s.isActive !== false,
+      subscribedAt: s.subscribedAt || s.createdAt,
+      userName: userObj?.name || null,
+      userPhone: userObj?.phone || null,
+      userRole: userObj?.role || "Guest",
+      userId: userObj?._id || null,
+      isRegistered: Boolean(userObj),
+    };
+  });
+
+  res.json(enriched);
+});
+
+// @desc    Delete a newsletter subscriber (Admin)
+// @route   DELETE /api/cms/newsletter/subscribers/:id
+// @access  Private/Admin
+export const deleteNewsletterSubscriber = asyncHandler(async (req, res) => {
+  const subscriber = await Newsletter.findById(req.params.id);
+  if (!subscriber) {
+    res.status(404);
+    throw new Error("Subscriber not found");
+  }
+  await subscriber.deleteOne();
+  res.json({ success: true, message: "Subscriber removed successfully" });
+});
+
+// @desc    Get top bar announcements / offers (Public)
+// @route   GET /api/cms/home-page/top-bar-offers
+// @access  Public
+export const getTopBarOffers = asyncHandler(async (req, res) => {
+  const section = await HomePageSection.findOne({ sectionKey: "top_bar_offers" });
+  if (!section) {
+    return res.json({
+      success: true,
+      messages: [
+        "✨ Free shipping on orders over ₹500",
+        "🎉 20% OFF on your first order - Use code: WELCOME20",
+        "🔥 Flash Sale! Up to 50% OFF on selected items",
+        "💎 New Arrivals - Shop the latest trends now",
+        "🎁 Earn reward points with every purchase",
+      ],
+      supportText: "24/7 Customer Support 🎧",
+      isActive: true,
+      intervalSeconds: 4,
+    });
+  }
+
+  const messages = Array.isArray(section.items) && section.items.length > 0
+    ? section.items.map((i) => i.title || i.name).filter(Boolean)
+    : [
+        "✨ Free shipping on orders over ₹500",
+        "🎉 20% OFF on your first order - Use code: WELCOME20",
+      ];
+
+  res.json({
+    success: true,
+    messages,
+    supportText: section.subtitle || "24/7 Customer Support 🎧",
+    isActive: section.isActive !== false,
+    intervalSeconds: section.settings?.productLimit || 4,
+  });
+});
+
+// @desc    Update top bar announcements / offers (Admin)
+// @route   PUT /api/cms/home-page/top-bar-offers
+// @access  Private/Admin
+export const updateTopBarOffers = asyncHandler(async (req, res) => {
+  const { messages, supportText, isActive, intervalSeconds } = req.body;
+
+  const items = Array.isArray(messages)
+    ? messages.map((msg, idx) => ({
+        title: typeof msg === "string" ? msg : msg.title || msg.text || "",
+        displayOrder: idx + 1,
+      }))
+    : [];
+
+  const section = await HomePageSection.findOneAndUpdate(
+    { sectionKey: "top_bar_offers" },
+    {
+      sectionKey: "top_bar_offers",
+      sectionType: "custom",
+      title: "Top Bar Announcements & Offers",
+      subtitle: supportText || "24/7 Customer Support 🎧",
+      isActive: isActive !== false,
+      items,
+      settings: {
+        productLimit: Number(intervalSeconds) || 4,
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+
+  res.json({
+    success: true,
+    message: "Top bar offers updated successfully",
+    data: {
+      messages: section.items.map((i) => i.title),
+      supportText: section.subtitle,
+      isActive: section.isActive,
+      intervalSeconds: section.settings?.productLimit || 4,
+    },
+  });
+});
+

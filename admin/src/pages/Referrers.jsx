@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { dashboardAPI, referralsAPI } from "../services/api";
 
@@ -146,123 +147,11 @@ function GenerateCouponModal({ referrer, onClose, onSuccess }) {
   );
 }
 
-const statusColors = { Shipped: { bg: "#1d4ed8", color: "#dcfce7" }, Delivered: { bg: "#dcfce7", color: "#15803d" }, Pending: { bg: "#fef3c7", color: "#b45309" }, Cancelled: { bg: "#fee2e2", color: "#dc2626" } };
-
-/* ── Order Detail Page ── */
-function OrderDetail({ orderId, onBack }) {
-  const isMobile = useWindowWidth() < 768;
-  const order = orderId;
-  if (!order) return null;
-  const sc = statusColors[order.status] || { bg: "#f3f4f6", color: "#374151" };
-
-  return (
-    <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Segoe UI',-apple-system,sans-serif" }}>
-      <div style={{ padding: isMobile ? "20px 16px" : "32px 36px" }}>
-        {/* Back */}
-        <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "14px", padding: 0, marginBottom: "16px" }}>
-          <IcArrowLeft /> Back to Orders
-        </button>
-
-        {/* Title row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-          <div>
-            <h1 style={{ fontSize: isMobile ? "24px" : "30px", fontWeight: "700", color: "#111", margin: "0 0 6px" }}>Order #{order.id}</h1>
-            <p style={{ fontSize: "14px", color: "#9ca3af", margin: 0 }}>Order placed on {order.date}</p>
-          </div>
-          <span style={{ display: "inline-block", padding: "6px 18px", borderRadius: "8px", fontSize: "14px", fontWeight: "600", background: sc.bg, color: sc.color }}>{order.status}</span>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 360px", gap: "20px", alignItems: "start" }}>
-          {/* Left: Order Items */}
-          <div style={{ background: "#fff", borderRadius: "13px", border: "1px solid #eef0f3", padding: isMobile ? "16px" : "24px 28px" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: "600", color: "#374151", margin: "0 0 20px" }}>Order Items</h3>
-            {order.items.map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px 0", borderBottom: i < order.items.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                <div style={{ width: "72px", height: "72px", borderRadius: "10px", background: "#fef9c3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", flexShrink: 0 }}>{item.img}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "15px", fontWeight: "600", color: "#111" }}>{item.name}</div>
-                  <div style={{ fontSize: "13px", color: "#9ca3af", marginTop: "3px" }}>Quantity: {item.qty}</div>
-                </div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#111" }}>{item.price}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Right: Cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Customer */}
-            <div style={{ background: "#fff", borderRadius: "13px", border: "1px solid #eef0f3", padding: "22px 24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "14px" }}>
-                <IcUsers s={17} c="#374151" />
-                <h3 style={{ fontSize: "15px", fontWeight: "600", color: "#374151", margin: 0 }}>Customer</h3>
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: "600", color: "#111", marginBottom: "4px" }}>{order.customer}</div>
-              <div style={{ fontSize: "13px", color: "#9ca3af" }}>{order.email}</div>
-            </div>
-
-            {/* Delivery */}
-            <div style={{ background: "#fff", borderRadius: "13px", border: "1px solid #eef0f3", padding: "22px 24px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                  <h3 style={{ fontSize: "15px", fontWeight: "600", color: "#374151", margin: 0 }}>Delivery</h3>
-                </div>
-                <button style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "13px", fontWeight: "500" }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Edit
-                </button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "5px" }}>Status</div>
-                  <span style={{ display: "inline-block", padding: "4px 14px", borderRadius: "6px", fontSize: "13px", fontWeight: "600", background: sc.bg, color: sc.color }}>{order.status}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "4px" }}>Carrier</div>
-                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#111" }}>{order.carrier}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "4px" }}>Tracking Number</div>
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#f59e0b" }}>{order.tracking}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "4px" }}>Estimated Delivery</div>
-                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#111" }}>{order.estDelivery}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment */}
-            <div style={{ background: "#fff", borderRadius: "13px", border: "1px solid #eef0f3", padding: "22px 24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "16px" }}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                <h3 style={{ fontSize: "15px", fontWeight: "600", color: "#374151", margin: 0 }}>Payment</h3>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#6b7280" }}>
-                  <span>Subtotal:</span><span style={{ color: "#111", fontWeight: "500" }}>{order.subtotal}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#6b7280" }}>
-                  <span>Tax:</span><span style={{ color: "#111", fontWeight: "500" }}>{order.tax}</span>
-                </div>
-                <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "10px", display: "flex", justifyContent: "space-between", fontSize: "15px" }}>
-                  <span style={{ fontWeight: "600", color: "#111" }}>Total:</span>
-                  <span style={{ fontWeight: "700", color: "#f59e0b", fontSize: "16px" }}>{order.total}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Referrer Detail ── */
 function ReferrerDetail({ referrer, onBack, onRefresh }) {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const isMobile = useWindowWidth() < 768;
   const isTablet = useWindowWidth() < 1024;
   const [history, setHistory] = useState([]);
@@ -291,8 +180,6 @@ function ReferrerDetail({ referrer, onBack, onRefresh }) {
   const handleCopyCode = () => {
     navigator.clipboard.writeText(referrer.code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
-
-  if (selectedOrder) return <OrderDetail orderId={selectedOrder} onBack={() => setSelectedOrder(null)} />;
 
   return (
     <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Segoe UI',-apple-system,sans-serif" }}>
@@ -388,7 +275,7 @@ function ReferrerDetail({ referrer, onBack, onRefresh }) {
                     <div><span style={{ color: "#9ca3af" }}>Discount: </span><span style={{ color: "#ef4444", fontWeight: "600" }}>{row.discount}</span></div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}><IcCalendar s={11} />{row.date}</div>
                   </div>
-                  <button onClick={() => setSelectedOrder(row.orderId)} style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "none", border: "1px solid #fde68a", borderRadius: "7px", padding: "6px 12px", cursor: "pointer", color: "#f59e0b", fontSize: "12px", fontWeight: "600", marginTop: "10px" }}>
+                  <button onClick={() => navigate(row.realOrderId ? `/orders/${row.realOrderId}` : "/orders")} style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "none", border: "1px solid #fde68a", borderRadius: "7px", padding: "6px 12px", cursor: "pointer", color: "#f59e0b", fontSize: "12px", fontWeight: "600", marginTop: "10px" }}>
                     <IcExtLink c="#f59e0b" s={13} /> View Order
                   </button>
                 </div>
@@ -421,7 +308,7 @@ function ReferrerDetail({ referrer, onBack, onRefresh }) {
                           {row.rewardStatus}
                         </span>
                       </td>
-                      <td style={{ padding: "13px 10px" }}><button onClick={() => setSelectedOrder(row.orderId)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><IcExtLink c="#f59e0b" /></button></td>
+                      <td style={{ padding: "13px 10px" }}><button onClick={() => navigate(row.realOrderId ? `/orders/${row.realOrderId}` : "/orders")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><IcExtLink c="#f59e0b" /></button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -546,6 +433,11 @@ export default function ReferrersPage() {
     });
   };
 
+  const referralStats = {
+    referrers: referrersList.length,
+    referrals: referrersList.reduce((acc, r) => acc + (r.referrals || 0), 0),
+    rewards: referrersList.reduce((acc, r) => acc + (r.rewardNum || (typeof r.reward === "number" ? r.reward : 0) || 0), 0),
+  };
 
   return (
     <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Segoe UI',-apple-system,sans-serif" }}>

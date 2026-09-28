@@ -73,22 +73,27 @@ export const protect = async (req, res, next) => {
         }
         req.user = user;
         return next();
+      } else {
+        // User account was deleted from the database
+        return res.status(401).json({ message: "User account no longer exists. Please log in again." });
       }
     } catch (error) {
       console.warn("Token verification failed:", error.message);
+      return res.status(401).json({ message: "Not authorized, token failed" });
     }
   }
 
-  // Fallback for development & admin panel requests when token is missing
+  // Fallback ONLY for development requests originating strictly from the admin panel UI (:5173) without any token
   const origin = req.headers.origin || "";
   const referer = req.headers.referer || "";
-  const isDevOrAdmin =
-    process.env.NODE_ENV !== "production" ||
-    origin.includes("localhost:5173") ||
-    origin.includes("127.0.0.1:5173") ||
-    referer.includes(":5173");
+  const isAdminOrigin =
+    (origin.includes("localhost:5173") ||
+     origin.includes("127.0.0.1:5173") ||
+     referer.includes(":5173")) &&
+    !origin.includes(":3000") &&
+    !referer.includes(":3000");
 
-  if (isDevOrAdmin) {
+  if (isAdminOrigin && process.env.NODE_ENV !== "production") {
     try {
       const adminUser =
         (await User.findOne({ role: "admin" })) ||

@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { NotificationDropdown } from "../components/NotificationDropdown";
+import { AdminSearchBar } from "../components/AdminSearchBar";
 import { Toaster } from "../components/ui/sonner";
 import { getToken, clearToken, authAPI } from "../services/api";
 import { toast } from "sonner";
@@ -121,15 +122,7 @@ export function AdminLayout() {
 
         {/* Header */}
         <header className="h-16 bg-white border-b flex items-center justify-between px-6 shrink-0 z-20">
-          <div className="flex items-center gap-4 w-full max-w-md">
-            <Search className="text-gray-400 cursor-pointer" size={18} onClick={() => searchQuery.trim() && navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`)} />
-            <Input
-              placeholder="Search products, orders, vendors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-            />
-          </div>
+          <AdminSearchBar />
 
           <div className="flex items-center gap-5">
 

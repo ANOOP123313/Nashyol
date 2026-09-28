@@ -83,6 +83,11 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    referralPoints: {
+      type: Number,
+      default: 0,
+    },
+
     // OTP fields for WhatsApp verification / password reset
     otp: {
       type: String,
@@ -114,7 +119,7 @@ userSchema.pre("save", async function (next) {
 // Generate referral code before saving
 userSchema.pre("save", function (next) {
   if (!this.referralCode) {
-    this.referralCode = crypto.randomBytes(4).toString("hex");
+    this.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
   }
   next();
 });

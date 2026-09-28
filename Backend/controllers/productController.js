@@ -275,6 +275,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       if (req.body.price !== undefined) product.variants[0].sellingPrice = Number(req.body.price);
       if (req.body.stock !== undefined) product.variants[0].currentStock = Number(req.body.stock);
     }
+    product.markModified("variants");
   }
 
   const updateData = { ...req.body };
@@ -343,7 +344,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 });
 
 
-// ── Delete Product (Soft Delete) ──
+// ── Delete Product ──
 export const deleteProduct = asyncHandler(async (req, res) => {
 
   const product = await Product.findById(req.params.id);
@@ -353,10 +354,8 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  product.isActive = false;
+  await Product.findByIdAndDelete(req.params.id);
 
-  await product.save();
-
-  res.json({ message: "Product removed (soft delete)" });
+  res.json({ message: "Product deleted successfully" });
 
 });

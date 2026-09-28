@@ -406,9 +406,13 @@ export default function OrderDetail({ order: orderProp, onBack }) {
   useEffect(() => {
     if (id && !orderProp) {
       ordersAPI.getById(id).then(res => {
-        if (res) {
+          const shortCode = (res._id || id || "").slice(-6).toUpperCase();
+          const ordNum = res.orderNumber || `ORD-${shortCode}`;
+          const invNum = res.invoiceNumber || `INV-${shortCode}`;
           setOrder({
-            id: res._id || id,
+            id: ordNum,
+            orderNumber: ordNum,
+            invoiceNumber: invNum,
             customer: res.user?.name || res.address?.fullName || "N/A",
             email: res.user?.email || "N/A",
             date: res.createdAt ? new Date(res.createdAt).toLocaleDateString() : "N/A",
@@ -428,7 +432,6 @@ export default function OrderDetail({ order: orderProp, onBack }) {
               estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "N/A"
             }
           });
-        }
       }).catch(() => {});
     }
   }, [id, orderProp]);

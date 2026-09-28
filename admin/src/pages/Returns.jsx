@@ -90,7 +90,7 @@ export default function ReturnsRefunds() {
           return {
             id: `RET-${(r._id || "").slice(-5).toUpperCase()}`,
             _id: r._id,
-            orderId: `ORD-${(r.orderId?._id || r.orderId || "").slice(-8).toUpperCase()}`,
+            orderId: r.orderId?.orderNumber || `ORD-${(r.orderId?._id || r.orderId || "").slice(-6).toUpperCase()}`,
             rawOrderId: r.orderId?._id || r.orderId,
             customer: r.userId?.name || "Customer",
             email: r.userId?.email || "N/A",

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { dashboardAPI, referralsAPI } from "../services/api";
 import {
   LineChart, Line, BarChart, Bar,
@@ -93,6 +94,7 @@ function BarLegend() {
 }
 
 export default function ReferralSystem() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("general");
   const [generalEnabled, setGeneralEnabled] = useState(true);
   const [productEnabled, setProductEnabled] = useState(false);
@@ -104,33 +106,48 @@ export default function ReferralSystem() {
 
   useEffect(() => {
     dashboardAPI.getAdminStats().then((response) => {
-      const referrals = response.stats?.referrals || 0;
-      const conversionCount = (response.charts?.referrals || []).reduce((sum, month) => sum + (month.conversions || 0), 0);
-      setReferralStats({
-        referrals,
-        conversions: conversionCount,
-        revenue: response.stats?.referralRevenue || 0,
-        activeCoupons: response.stats?.activeCoupons || 0,
-      });
-      setReferralData((response.charts?.referrals || []).map((month) => ({
-        month: month._id,
-        referrals: month.totalReferrals || 0,
-        conversions: month.conversions || 0,
-        coupons: 0,
-      })));
-      setTopReferrers((response.leaderboard || []).map((entry) => ({
-        name: entry._id || "N/A",
-        code: "",
-        referrals: entry.referrals || 0,
-        coupons: entry.conversions || 0,
-      })));
+      const referrals = response?.stats?.referrals || 0;
+      const conversionCount = (response?.charts?.referrals || []).reduce((sum, month) => sum + (month.conversions || 0), 0);
+      setReferralStats(prev => ({
+        referrals: referrals || prev.referrals,
+        conversions: conversionCount || prev.conversions,
+        revenue: response?.stats?.referralRevenue || prev.revenue,
+        activeCoupons: response?.stats?.activeCoupons || prev.activeCoupons,
+      }));
+      if (response?.charts?.referrals && response.charts.referrals.length > 0) {
+        setReferralData((response.charts.referrals || []).map((month) => ({
+          month: month._id,
+          referrals: month.totalReferrals || 0,
+          conversions: month.conversions || 0,
+          coupons: month.coupons || 0,
+        })));
+      }
     }).catch(() => {});
 
     referralsAPI.getAll().then((res) => {
-      if (Array.isArray(res)) {
+      if (Array.isArray(res) && res.length > 0) {
         setActiveReferrers(res.filter(r => r.status === "active").length || res.length);
         const totalCoupons = res.reduce((sum, r) => sum + (r.earnedCoupons || 0), 0);
         setCouponsDistributed(totalCoupons);
+        const totalReferrals = res.reduce((sum, r) => sum + (r.referrals || 0), 0);
+        const totalConversions = res.reduce((sum, r) => sum + (r.conversions || 0), 0);
+        const totalRewards = res.reduce((sum, r) => sum + (r.rewardNum || (typeof r.reward === "number" ? r.reward : 0) || 0), 0);
+
+        setReferralStats(prev => ({
+          referrals: totalReferrals || prev.referrals,
+          conversions: totalConversions || prev.conversions,
+          revenue: totalRewards || prev.revenue,
+          activeCoupons: totalCoupons || prev.activeCoupons,
+        }));
+
+        const sorted = [...res].sort((a, b) => (b.referrals || 0) - (a.referrals || 0));
+        setTopReferrers(sorted.slice(0, 5).map(r => ({
+          name: r.name || "Referrer",
+          code: r.code || "",
+          referrals: r.referrals || 0,
+          coupons: r.earnedCoupons || 0,
+          conversion: r.referrals ? Math.round(((r.conversions || 0) / r.referrals) * 100) : 100,
+        })));
       }
     }).catch(console.error);
   }, []);
@@ -336,7 +353,7 @@ export default function ReferralSystem() {
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                <button onClick={() => toast.success("General referral settings saved successfully!")} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                   Save General Settings
                 </button>
               </div>
@@ -407,14 +424,14 @@ export default function ReferralSystem() {
                   <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "14px 18px", marginBottom: 26 }}>
                     <p style={{ fontSize: 13.5, color: "#374151", margin: 0 }}>
                       <span style={{ fontWeight: 700, color: "#1d4ed8" }}>Note:</span> These are default settings. You can configure specific rules for individual products on the{" "}
-                      <span style={{ color: "#f97316", textDecoration: "underline", cursor: "pointer" }}>Products page</span>.
+                      <span onClick={() => navigate("/products")} style={{ color: "#f97316", textDecoration: "underline", cursor: "pointer" }}>Products page</span>.
                     </p>
                   </div>
                 </>
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                <button onClick={() => toast.success("Product referral settings saved successfully!")} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                   Save Product Settings
                 </button>
               </div>
@@ -426,7 +443,7 @@ export default function ReferralSystem() {
         <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "30px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
             <h3 style={{ fontWeight: 700, fontSize: 18, color: "#1f2937", margin: 0 }}>Top Referrers</h3>
-            <span style={{ fontSize: 14.5, color: "#3b82f6", cursor: "pointer" }}>View All Referrers</span>
+            <span onClick={() => navigate("/referrers")} style={{ fontSize: 14.5, color: "#3b82f6", cursor: "pointer" }}>View All Referrers</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column" }}>

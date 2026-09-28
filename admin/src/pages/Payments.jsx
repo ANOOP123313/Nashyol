@@ -343,7 +343,7 @@ export default function Payments() {
                         {item.orders}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
-                        <span>#{item.orderId?.slice(-8)?.toUpperCase()}</span>
+                        <span>{item.orderNumber || (item.orderId ? `ORD-${item.orderId.toString().slice(-6).toUpperCase()}` : "ORD")}</span>
                         <span>•</span>
                         <Link
                           to={`/orders/${item.orderId}`}

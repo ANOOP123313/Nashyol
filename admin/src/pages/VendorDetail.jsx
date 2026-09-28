@@ -429,7 +429,16 @@ export default function VendorDetail() {
   const [newProduct,       setNewProduct]       = useState({ name:"",sku:"",category:"",price:"",stock:"",paidAmount:"",description:"" });
 
   // handlers
-  const handleUpdateStatus = () => { setVendorStatus(selectedStatus); setShowStatusModal(false); };
+  const handleUpdateStatus = async () => {
+    try {
+      const backendStatus = selectedStatus === "verified" || selectedStatus === "active" ? "approved" : (selectedStatus === "suspended" ? "rejected" : "pending");
+      await vendorsAPI.updateStatus(id || vendorData?.id || vendorData?._id, backendStatus);
+      setVendorStatus(selectedStatus);
+      setShowStatusModal(false);
+    } catch (e) {
+      console.error("Failed to update status:", e);
+    }
+  };
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.category || !newProduct.price || !newProduct.stock) return;

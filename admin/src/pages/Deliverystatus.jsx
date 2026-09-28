@@ -524,7 +524,7 @@ export default function DeliveryStatus() {
         const data = res.orders || res || [];
         if (Array.isArray(data)) {
           const mapped = data.map((o) => ({
-            id: `ORD-${(o._id || "101").slice(-8).toUpperCase()}`,
+            id: o.orderNumber || `ORD-${(o._id || "101").slice(-6).toUpperCase()}`,
             _id: o._id,
             status: o.orderStatus === "delivered" ? "Delivered" : o.orderStatus === "shipped" ? "In Transit" : "Pending",
             customer: o.user?.name || o.address?.fullName || "Customer",
@@ -540,7 +540,7 @@ export default function DeliveryStatus() {
             })),
             amount: `₹${(o.totalAmount || 0).toFixed(2)}`,
             carrier: "FedEx",
-            tracking: o.paymentId || `TRK${(o._id || "").slice(-8).toUpperCase()}`,
+            tracking: o.paymentId ? `TRK-${o.paymentId.slice(-6).toUpperCase()}` : `TRK-${(o._id || "").slice(-6).toUpperCase()}`,
             trackingColor: "text-orange-500",
           }));
           setOrdersList(mapped);

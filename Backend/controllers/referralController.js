@@ -1,4 +1,5 @@
 import asyncHandler from "express-async-handler";
+import crypto from "crypto";
 import User from "../models/User.js";
 import Referral from "../models/Referral.js";
 import Coupon from "../models/Coupon.js";
@@ -18,7 +19,20 @@ export const applyReferralCode = asyncHandler(async (req, res) => {
     throw new Error("You have already been referred");
   }
 
-  const referrer = await User.findOne({ referralCode });
+  const cleanCode = referralCode ? referralCode.trim() : "";
+  if (!cleanCode) {
+    res.status(400);
+    throw new Error("Please provide a valid referral code");
+  }
+
+  const referrer = await User.findOne({
+    $or: [
+      { referralCode: cleanCode.toUpperCase() },
+      { referralCode: cleanCode.toLowerCase() },
+      { referralCode: { $regex: new RegExp(`^${cleanCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }
+    ]
+  });
+
   if (!referrer) {
     res.status(404);
     throw new Error("Referral code not found");
@@ -34,20 +48,33 @@ export const applyReferralCode = asyncHandler(async (req, res) => {
   await user.save();
 
   // Create a record in Referral model
-  await Referral.create({
-    referrer: referrer._id,
-    referredUser: user._id,
-  });
+  const rewardPoints = 100;
+  try {
+    await Referral.findOneAndUpdate(
+      { referredUser: user._id },
+      {
+        referrer: referrer._id,
+        referredUser: user._id,
+        rewardGranted: true,
+        rewardAmount: rewardPoints,
+      },
+      { upsert: true, new: true }
+    );
+  } catch (err) {
+    console.error("Error creating referral record:", err);
+  }
 
-  // Increment referrer's count
-  referrer.referralCount += 1;
+  // Increment referrer's count & points
+  referrer.referralCount = (referrer.referralCount || 0) + 1;
+  referrer.referralPoints = (referrer.referralPoints || 0) + rewardPoints;
+  referrer.walletBalance = (referrer.walletBalance || 0) + rewardPoints;
   await referrer.save();
 
   // Notify referrer
   await sendNotification(
     referrer._id,
     "New Referral!",
-    `${user.name} used your referral code. You'll get a reward after their first order!`,
+    `${user.name || "A new friend"} registered using your referral code. You earned ${rewardPoints} referral points!`,
     "referral"
   );
 
@@ -62,17 +89,16 @@ export const rewardReferrer = async (order) => {
   const referral = await Referral.findOne({
     referrer: buyer.referredBy._id,
     referredUser: buyer._id,
-    rewardGranted: false,
   });
 
   if (!referral) return;
 
   const rewardAmount = order.totalAmount * 0.05; // 5% reward
-  buyer.referredBy.walletBalance += rewardAmount;
+  buyer.referredBy.walletBalance = (buyer.referredBy.walletBalance || 0) + rewardAmount;
   await buyer.referredBy.save();
 
   referral.rewardGranted = true;
-  referral.rewardAmount = rewardAmount;
+  referral.rewardAmount = (referral.rewardAmount || 0) + rewardAmount;
   await referral.save();
 
   // Log transaction
@@ -82,7 +108,7 @@ export const rewardReferrer = async (order) => {
     "deposit",
     "wallet",
     "completed",
-    `Referral reward from order ${order._id}`,
+    `Referral reward from order ${order.orderNumber || order._id}`,
     order._id
   );
 
@@ -90,12 +116,10 @@ export const rewardReferrer = async (order) => {
   await sendNotification(
     buyer.referredBy._id,
     "Referral Reward Granted!",
-    `You've received ${rewardAmount} reward for ${buyer.name}'s order.`,
+    `You've received ₹${rewardAmount.toFixed(2)} reward for ${buyer.name}'s order.`,
     "referral",
-    `/orders/${order._id}`
+    `/orders/${order.orderNumber || order._id}`
   );
-
-  console.log(`Referral reward of ${rewardAmount} granted to ${buyer.referredBy.name}`);
 };
 
 // @desc    Get referral stats
@@ -103,13 +127,74 @@ export const rewardReferrer = async (order) => {
 // @access  Private
 export const getReferralStats = asyncHandler(async (req, res) => {
   const user = req.user;
-  const referrals = await Referral.find({ referrer: user._id }).populate("referredUser", "name createdAt");
-  
+  if (!user.referralCode) {
+    user.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+    await User.findByIdAndUpdate(user._id, { referralCode: user.referralCode });
+  }
+
+  // 1. Fetch existing Referral documents
+  let referrals = await Referral.find({ referrer: user._id })
+    .populate("referredUser", "name email phone createdAt")
+    .sort({ createdAt: -1 });
+
+  // 2. Also check if any users in User collection have referredBy === user._id
+  const directReferredUsers = await User.find({ referredBy: user._id }).select("name email phone createdAt");
+  const existingRefereeIds = new Set(
+    referrals
+      .map((r) => r.referredUser?._id?.toString() || (typeof r.referredUser === "string" ? r.referredUser : null))
+      .filter(Boolean)
+  );
+
+  for (const refUser of directReferredUsers) {
+    if (!existingRefereeIds.has(refUser._id.toString())) {
+      try {
+        const createdRef = await Referral.findOneAndUpdate(
+          { referredUser: refUser._id },
+          {
+            referrer: user._id,
+            referredUser: refUser._id,
+            rewardGranted: true,
+            rewardAmount: 100,
+          },
+          { upsert: true, new: true }
+        );
+        referrals.unshift({
+          ...createdRef.toObject(),
+          referredUser: refUser,
+        });
+        existingRefereeIds.add(refUser._id.toString());
+      } catch (e) {
+        // ignore duplicate key
+      }
+    }
+  }
+
+  const referralCount = Math.max(referrals.length, user.referralCount || 0);
+  const calculatedPoints = referralCount * 100;
+  const points = Math.max(user.referralPoints || 0, user.walletBalance || 0, calculatedPoints);
+
+  if ((user.referralCount || 0) < referralCount || (user.referralPoints || 0) < points) {
+    await User.findByIdAndUpdate(user._id, {
+      referralCount,
+      referralPoints: points,
+    });
+  }
+
   res.json({
     referralCode: user.referralCode,
-    referralCount: user.referralCount,
-    walletBalance: user.walletBalance,
-    referrals,
+    referralCount,
+    walletBalance: user.walletBalance || 0,
+    referralPoints: points,
+    points,
+    referrals: referrals.map((r) => ({
+      _id: r._id,
+      name: r.referredUser?.name || "Friend",
+      email: r.referredUser?.email || (r.referredUser?.phone ? `+91 ${r.referredUser.phone}` : "—"),
+      date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "Recent",
+      points: r.rewardAmount || 100,
+      rewardGranted: r.rewardGranted !== false,
+      status: r.rewardGranted !== false ? "Rewarded" : "Pending",
+    })),
   });
 });
 
@@ -118,17 +203,19 @@ export const getReferralStats = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 export const getAdminReferrers = asyncHandler(async (req, res) => {
   const users = await User.find({
-    $or: [
-      { referralCode: { $exists: true, $ne: "" } },
-      { referralCount: { $gt: 0 } },
-      { role: "customer" },
-    ],
-  }).select("name email phone referralCode referralCount walletBalance isBlocked createdAt updatedAt");
+    role: { $ne: "admin" },
+  }).select("name email phone referralCode referralCount referralPoints walletBalance isBlocked createdAt updatedAt");
 
   const allReferrals = await Referral.find();
   const allCoupons = await Coupon.find();
 
   const referrers = users.map((user) => {
+    let code = user.referralCode;
+    if (!code) {
+      code = crypto.randomBytes(4).toString("hex").toUpperCase();
+      User.findByIdAndUpdate(user._id, { referralCode: code }).catch(() => {});
+    }
+
     const userReferrals = allReferrals.filter(
       (r) => r.referrer && r.referrer.toString() === user._id.toString()
     );
@@ -138,18 +225,21 @@ export const getAdminReferrers = asyncHandler(async (req, res) => {
       (c) => c.earnedBy === user._id.toString() || c.earnedBy === user.email
     );
 
+    const totalPoints = user.referralPoints || user.walletBalance || (userReferrals.length * 100) || earnedReward || 0;
+
     return {
       id: user._id,
       _id: user._id,
       name: user.name || "Referrer",
       email: user.email || "—",
-      phone: user.phone || "+1 (555) 000-0000",
-      code: user.referralCode || `REF${user._id.toString().slice(-6).toUpperCase()}`,
+      phone: user.phone || "+91 98765 43210",
+      code,
       referrals: userReferrals.length || user.referralCount || 0,
-      conversions,
+      conversions: conversions || userReferrals.length,
       earnedCoupons: userCoupons.length,
-      reward: `$${(earnedReward || user.walletBalance || 0).toFixed(2)}`,
-      rewardNum: earnedReward || user.walletBalance || 0,
+      reward: `₹${totalPoints.toFixed(2)}`,
+      rewardNum: totalPoints,
+      points: totalPoints,
       status: user.isBlocked ? "inactive" : "active",
       joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Recently",
       lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "Recently",
@@ -186,9 +276,10 @@ export const getAdminReferrerDetail = asyncHandler(async (req, res) => {
     return {
       customer: r.referredUser?.name || "Referred User",
       email: r.referredUser?.email || "—",
-      orderId: userOrder ? userOrder._id.toString().slice(-6).toUpperCase() : `ORD-${r._id.toString().slice(-4).toUpperCase()}`,
-      orderValue: `$${orderVal.toFixed(2)}`,
-      discount: `$${discount}`,
+      orderId: userOrder ? (userOrder.orderNumber || `ORD-${userOrder._id.toString().slice(-6).toUpperCase()}`) : `ORD-${r._id.toString().slice(-4).toUpperCase()}`,
+      realOrderId: userOrder ? userOrder._id : null,
+      orderValue: `₹${orderVal.toFixed(2)}`,
+      discount: `₹${discount}`,
       date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "Recently",
       rewardStatus: r.rewardGranted ? "Rewarded" : "Pending",
     };
@@ -202,11 +293,13 @@ export const getAdminReferrerDetail = asyncHandler(async (req, res) => {
     code: c.code,
     type: c.type || "General Referral Reward",
     typeColor: c.type === "Product Referral Reward" ? "#2563eb" : "#f59e0b",
-    value: c.discountType === "percentage" ? `${c.discountValue}%` : `$${c.discountValue}`,
+    value: c.discountType === "percentage" ? `${c.discountValue}%` : `₹${c.discountValue}`,
     status: c.isActive ? "active" : "used",
     expires: c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : "30 days",
     usedDate: c.usedCount > 0 ? "Used" : "Not yet",
   }));
+
+  const totalPoints = user.referralPoints || user.walletBalance || (referrals.length * 100) || 0;
 
   res.json({
     referrer: {
@@ -214,12 +307,13 @@ export const getAdminReferrerDetail = asyncHandler(async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      phone: user.phone || "+1 (555) 000-0000",
+      phone: user.phone || "+91 98765 43210",
       code: user.referralCode || `REF${user._id.toString().slice(-6).toUpperCase()}`,
       referrals: referrals.length || user.referralCount || 0,
-      conversions: referrals.filter((r) => r.rewardGranted).length,
+      conversions: referrals.filter((r) => r.rewardGranted).length || referrals.length,
       earnedCoupons: earnedCoupons.length,
-      reward: `$${(user.walletBalance || 0).toFixed(2)}`,
+      reward: `₹${totalPoints.toFixed(2)}`,
+      points: totalPoints,
       status: user.isBlocked ? "inactive" : "active",
       joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Recently",
       lastActive: user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "Recently",
