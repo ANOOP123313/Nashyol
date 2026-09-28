@@ -13,6 +13,8 @@ import {
   CreditCard,
   ChevronRight,
   Box,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -41,6 +43,10 @@ export function OrdersPage() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [orderPlacedModalOpen, setOrderPlacedModalOpen] = useState(false);
   const [demoOrderData, setDemoOrderData] = useState<any>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<any>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("Changed my mind");
 
   useEffect(() => {
     if (authLoading) return;
@@ -52,33 +58,40 @@ export function OrdersPage() {
 
     setOrdersLoading(true);
     ordersApi.myOrders()
-      .then((data) => setOrders(data.map((order: any) => ({
-        id: `#${order._id.slice(-8)}`,
-        orderNumber: order._id,
-        date: new Date(order.createdAt).toLocaleDateString(),
-        dateTime: order.createdAt,
-        status: formatStatus(order.orderStatus),
-        deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
-        total: order.totalAmount || 0,
-        productAmount: (order.items || []).reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0),
-        codCharge: order.paymentMethod === "cod" ? Number(order.deliveryCharge) || 0 : 0,
-        items: (order.items || []).map((item: any) => ({
-          id: item.productId,
-          name: item.title?.replace(/ \([^)]*\)$/, "") || "Product",
-          quantity: item.quantity,
-          price: item.price,
-          image: item.image || null,
-        })),
-        shippingAddress: {
-          name: order.address?.fullName || "",
-          address: order.address?.street || "",
-          city: order.address?.city || "",
-          state: order.address?.state || "",
-          zip: order.address?.pincode || "",
-        },
-        paymentMethod: order.paymentMethod || "Not specified",
-        trackingNumber: order.trackingNumber || null,
-      }))))
+      .then((data) => setOrders(data.map((order: any) => {
+        const shortSuffix = (order._id || "").toString().slice(-6).toUpperCase();
+        const ordNumber = order.orderNumber || `ORD-${shortSuffix}`;
+        const invNumber = order.invoiceNumber || `INV-${shortSuffix}`;
+        return {
+          id: `#${shortSuffix}`,
+          orderNumber: ordNumber,
+          invoiceNumber: invNumber,
+          rawId: order._id,
+          date: new Date(order.createdAt).toLocaleDateString(),
+          dateTime: order.createdAt,
+          status: formatStatus(order.orderStatus),
+          deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
+          total: order.totalAmount || 0,
+          productAmount: (order.items || []).reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0),
+          codCharge: order.paymentMethod === "cod" ? Number(order.deliveryCharge) || 0 : 0,
+          items: (order.items || []).map((item: any) => ({
+            id: item.productId,
+            name: item.title?.replace(/ \([^)]*\)$/, "") || "Product",
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image || null,
+          })),
+          shippingAddress: {
+            name: order.address?.fullName || "",
+            address: order.address?.street || "",
+            city: order.address?.city || "",
+            state: order.address?.state || "",
+            zip: order.address?.pincode || "",
+          },
+          paymentMethod: order.paymentMethod || "Not specified",
+          trackingNumber: order.trackingNumber || null,
+        };
+      })))
       .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load your orders"))
       .finally(() => setOrdersLoading(false));
   }, [authLoading, user, router]);
@@ -138,11 +151,12 @@ export function OrdersPage() {
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "normal");
     pdf.text("Customer Invoice", 20, y + 8);
-    pdf.text(`Order: ${order.orderNumber}`, pageWidth - 20, y, { align: "right" });
-    pdf.text(`Date: ${order.date}`, pageWidth - 20, y + 7, { align: "right" });
-    pdf.text(`Status: ${order.status}`, pageWidth - 20, y + 14, { align: "right" });
+    pdf.text(`Invoice: ${order.invoiceNumber || "INV-" + (order.orderNumber ? order.orderNumber.replace("ORD-", "") : "")}`, pageWidth - 20, y, { align: "right" });
+    pdf.text(`Order: ${order.orderNumber}`, pageWidth - 20, y + 7, { align: "right" });
+    pdf.text(`Date: ${order.date}`, pageWidth - 20, y + 14, { align: "right" });
+    pdf.text(`Status: ${order.status}`, pageWidth - 20, y + 21, { align: "right" });
 
-    y += 30;
+    y += 35;
     pdf.setDrawColor(249, 115, 22);
     pdf.line(20, y, pageWidth - 20, y);
     y += 15;
@@ -189,9 +203,9 @@ export function OrdersPage() {
     }
     y += 9;
     pdf.setFontSize(14);
-    pdf.text(`Total: Rs. ${Number(order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
-    pdf.save(`invoice-${String(order.orderNumber).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
-    toast.success("Invoice PDF downloaded", { description: `Invoice for ${order.orderNumber}` });
+    const invCode = order.invoiceNumber || `INV-${String(order.orderNumber).replace("ORD-", "")}`;
+    pdf.save(`invoice-${String(invCode).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
+    toast.success("Invoice PDF downloaded", { description: `${invCode} (${order.orderNumber})` });
   };
 
   const handleOrderPlaced = (order: any) => {
@@ -212,6 +226,35 @@ export function OrdersPage() {
     };
     setDemoOrderData(demoData);
     setOrderPlacedModalOpen(true);
+  };
+
+  const handleCancelOrder = (order: any) => {
+    setOrderToCancel(order);
+    setCancelReason("Changed my mind");
+    setCancelModalOpen(true);
+  };
+
+  const confirmCancelOrder = async () => {
+    if (!orderToCancel) return;
+    const targetId = orderToCancel.rawId || orderToCancel._id || orderToCancel.orderNumber || orderToCancel.id;
+    setCancelling(true);
+    try {
+      await ordersApi.cancel(targetId);
+      toast.success("Order cancelled successfully");
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderToCancel.id || o.rawId === targetId || o.orderNumber === orderToCancel.orderNumber
+            ? { ...o, status: "Cancelled" }
+            : o
+        )
+      );
+      setCancelModalOpen(false);
+      setOrderToCancel(null);
+    } catch (err: any) {
+      toast.error("Failed to cancel order: " + (err.message || "Error"));
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -280,86 +323,92 @@ export function OrdersPage() {
                 </div>
               </div>
 
-              <Separator className="my-4" />
-
-              {/* Order Items Preview */}
-              <div className="mb-4">
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {order.items.slice(0, 4).map((item, idx) => (
-                    item.image ? (
-                      <img
-                        key={idx}
-                        src={item.image}
-                        alt={item.name}
-                        className="size-16 object-cover rounded-lg border dark:border-gray-700 flex-shrink-0"
-                      />
-                    ) : (
-                      <div key={idx} className="size-16 bg-muted rounded-lg border dark:border-gray-700 flex items-center justify-center flex-shrink-0">
-                        <Package className="size-6 text-muted-foreground" />
+              {/* Order Items matching screenshot */}
+              <div className="space-y-3 mb-6 mt-4">
+                {order.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="size-14 sm:size-16 rounded-xl bg-white dark:bg-gray-900 border border-border p-1 shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <Package className="size-6 text-muted-foreground" />
+                        )}
                       </div>
-                    )
-                  ))}
-                  {order.items.length > 4 && (
-                    <div className="size-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        +{order.items.length - 4}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base text-foreground line-clamp-2">
+                          {item.name} <span className="text-xs text-muted-foreground font-normal">x{item.quantity}</span>
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {order.items.map((item: any) => (
-                  <div key={`${order.id}-${item.id}-${item.name}`} className="flex items-center justify-between gap-4 text-sm">
-                    <span className="font-medium text-foreground truncate">{item.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
-                    <span className="text-muted-foreground flex-shrink-0">₹{(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="text-sm sm:text-base font-medium text-muted-foreground shrink-0">
+                      ₹{(item.price * item.quantity).toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Action Buttons matching screenshot */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
                 <Button
                   variant="outline"
                   onClick={() => handleViewDetails(order)}
-                  className="h-11"
+                  className="flex-1 min-w-[120px] h-10 border-border bg-card/50 hover:bg-muted font-medium text-xs sm:text-sm"
                 >
                   <Eye className="size-4 mr-2" />
                   Details
                 </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadInvoice(order)}
+                  className="flex-1 min-w-[120px] h-10 border-border bg-card/50 hover:bg-muted font-medium text-xs sm:text-sm"
+                >
+                  <Download className="size-4 mr-2" />
+                  Invoice
+                </Button>
+
+                {["pending", "processing", "placed", "confirmed"].includes((order.status || "").toLowerCase()) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCancelOrder(order)}
+                    className="flex-1 min-w-[120px] h-10 border-red-500/30 text-red-500 hover:bg-red-500/10 font-medium text-xs sm:text-sm"
+                  >
+                    <XCircle className="size-4 mr-2" />
+                    Cancel Order
+                  </Button>
+                )}
+
                 {order.trackingNumber && (
                   <Button
                     variant="outline"
                     onClick={() => handleTrackOrder(order.orderNumber)}
-                    className="h-11"
+                    className="flex-1 min-w-[120px] h-10 border-border bg-card/50 hover:bg-muted font-medium text-xs sm:text-sm"
                   >
                     <Truck className="size-4 mr-2" />
                     Track
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownloadInvoice(order)}
-                  className="h-11"
-                >
-                  <Download className="size-4 mr-2" />
-                  Invoice
-                </Button>
+
                 {order.status === "Delivered" && (
                   <Button
                     variant="outline"
                     onClick={() => handleReturnRequest(order)}
-                    className="h-11 border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    className="flex-1 min-w-[120px] h-10 border-orange-500/30 text-orange-500 hover:bg-orange-500/10 font-medium text-xs sm:text-sm"
                   >
                     <RotateCcw className="size-4 mr-2" />
                     Return
                   </Button>
                 )}
+
                 <Button
                   variant="outline"
                   onClick={() => handleOrderPlaced(order)}
-                  className="h-11"
+                  className="flex-1 min-w-[120px] h-10 border-border bg-card/50 hover:bg-muted font-medium text-xs sm:text-sm"
                 >
                   <Box className="size-4 mr-2" />
                   Order Placed
@@ -544,10 +593,71 @@ export function OrdersPage() {
           onClose={() => setReturnModalOpen(false)}
           orderData={{
             orderNumber: selectedOrder.orderNumber,
+            rawId: selectedOrder.rawId || selectedOrder._id,
+            _id: selectedOrder.rawId || selectedOrder._id,
             orderDate: selectedOrder.date,
             items: selectedOrder.items,
           }}
         />
+      )}
+
+      {/* Cancel Order Confirmation Modal */}
+      {orderToCancel && (
+        <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+          <DialogContent className="max-w-md p-6 rounded-2xl">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-red-100 dark:bg-red-950/40 text-red-600 rounded-xl">
+                  <AlertTriangle className="size-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-bold text-foreground">Cancel Order</DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Order {orderToCancel.id || orderToCancel.orderNumber}</p>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-foreground">
+                Are you sure you want to cancel this order? This action cannot be undone and any reserved stock will be released.
+              </p>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-2">Reason for cancellation</label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full h-11 px-3 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                >
+                  <option value="Changed my mind">Changed my mind</option>
+                  <option value="Ordered by mistake">Ordered by mistake</option>
+                  <option value="Found a better price">Found a better price</option>
+                  <option value="Delivery time is too long">Delivery time is too long</option>
+                  <option value="Incorrect shipping address entered">Incorrect shipping address entered</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelModalOpen(false)}
+                  disabled={cancelling}
+                  className="flex-1 h-11"
+                >
+                  Keep Order
+                </Button>
+                <Button
+                  onClick={confirmCancelOrder}
+                  disabled={cancelling}
+                  className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white font-semibold"
+                >
+                  {cancelling ? "Cancelling..." : "Confirm Cancel"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Order Placed Modal */}

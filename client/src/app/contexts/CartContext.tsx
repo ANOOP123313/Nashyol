@@ -131,15 +131,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeItem = useCallback(
     async (productId: string, sku: string) => {
+      setItems((prev) => prev.filter((i) => !(i.id === productId && (!sku || i.sku === sku))));
       if (token) {
         try {
           await cartApi.remove(productId, sku);
           await refreshCart();
         } catch (e) {
-          throw e;
+          console.error("Failed to remove item from cart:", e);
+          await refreshCart();
         }
-      } else {
-        setItems((prev) => prev.filter((i) => !(i.id === productId && i.sku === sku)));
       }
     },
     [token, refreshCart]

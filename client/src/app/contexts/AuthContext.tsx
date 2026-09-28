@@ -11,6 +11,8 @@ type User = {
   role: string;
   isPhoneVerified?: boolean;
   referralCode?: string;
+  referralPoints?: number;
+  referralCount?: number;
   walletBalance?: number;
 } | null;
 

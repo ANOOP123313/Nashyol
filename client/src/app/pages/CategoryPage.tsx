@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -130,6 +130,10 @@ function CategoryPageInner() {
   const [sortBy, setSortBy] = useState("featured");
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("");
   const [selectedMinRating, setSelectedMinRating] = useState<number | null>(null);
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [onSaleOnly, setOnSaleOnly] = useState(false);
+  const [showAllSubs, setShowAllSubs] = useState(false);
+  const SUBCAT_LIMIT = 8;
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const { addItem } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
@@ -172,6 +176,58 @@ function CategoryPageInner() {
     { label: "Over ₹50,000", value: "50000-999999" },
   ];
 
+  // Client-side filtering & sorting
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = [...products];
+
+    // 1. Price Range
+    if (selectedPriceRange) {
+      const [min, max] = selectedPriceRange.split("-").map(Number);
+      result = result.filter((p) => {
+        const price = Number(p.price) || 0;
+        return price >= min && (isNaN(max) || price <= max);
+      });
+    }
+
+    // 2. Minimum Rating
+    if (selectedMinRating !== null) {
+      result = result.filter((p) => (Number(p.rating) || 0) >= selectedMinRating);
+    }
+
+    // 3. In Stock Only
+    if (inStockOnly) {
+      result = result.filter((p) => p.inStock === true);
+    }
+
+    // 4. On Sale Only
+    if (onSaleOnly) {
+      result = result.filter((p) => Boolean(p.originalPrice) || p.badge?.toLowerCase().includes("sale"));
+    }
+
+    // 5. Sorting
+    if (sortBy === "price-low") {
+      result.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    } else if (sortBy === "price-high") {
+      result.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    } else if (sortBy === "rating") {
+      result.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+    } else if (sortBy === "newest") {
+      result.sort((a, b) => (new Date(b.createdAt || 0).getTime()) - (new Date(a.createdAt || 0).getTime()));
+    } else if (sortBy === "featured") {
+      result.sort((a, b) => (b.badge === "Featured" || b.badge === "Sale" ? -1 : 1));
+    }
+
+    return result;
+  }, [products, selectedPriceRange, selectedMinRating, inStockOnly, onSaleOnly, sortBy]);
+
+  const activeFilterCount = (selectedPriceRange ? 1 : 0) + (selectedMinRating !== null ? 1 : 0) + (inStockOnly ? 1 : 0) + (onSaleOnly ? 1 : 0);
+
+  const clearAllFilters = () => {
+    setSelectedPriceRange("");
+    setSelectedMinRating(null);
+    setInStockOnly(false);
+    setOnSaleOnly(false);
+  };
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -214,16 +270,28 @@ function CategoryPageInner() {
         <h3 className="font-semibold text-foreground mb-3">Availability</h3>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Checkbox id="in-stock" />
-            <Label htmlFor="in-stock" className="text-sm cursor-pointer text-foreground dark:text-muted">In Stock</Label>
+            <Checkbox
+              id="in-stock"
+              checked={inStockOnly}
+              onCheckedChange={(checked) => setInStockOnly(!!checked)}
+            />
+            <Label htmlFor="in-stock" className="text-sm cursor-pointer text-foreground dark:text-muted">In Stock Only</Label>
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox id="on-sale" />
-            <Label htmlFor="on-sale" className="text-sm cursor-pointer text-foreground dark:text-muted">On Sale</Label>
+            <Checkbox
+              id="on-sale"
+              checked={onSaleOnly}
+              onCheckedChange={(checked) => setOnSaleOnly(!!checked)}
+            />
+            <Label htmlFor="on-sale" className="text-sm cursor-pointer text-foreground dark:text-muted">On Sale Only</Label>
           </div>
         </div>
       </div>
-      <Button variant="outline" className="w-full" onClick={() => { setSelectedPriceRange(""); setSelectedMinRating(null); }}>
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={clearAllFilters}
+      >
         Clear Filters
       </Button>
     </div>
@@ -301,10 +369,20 @@ function CategoryPageInner() {
                     </Link>
                   )}
                 </div>
-                <span className="text-muted-foreground text-sm font-medium">{subcategories.length} categories</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-sm font-medium">{subcategories.length} categories</span>
+                  {subcategories.length > SUBCAT_LIMIT && (
+                    <button
+                      onClick={() => setShowAllSubs(!showAllSubs)}
+                      className="text-xs bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/20 border border-[var(--primary-color)]/30 px-3 py-1 rounded-full font-medium transition-colors cursor-pointer"
+                    >
+                      {showAllSubs ? `Show Less (${SUBCAT_LIMIT})` : `View All (${subcategories.length})`}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 sm:gap-3">
-                {subcategories.map((cat) => {
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-8 gap-2 sm:gap-3">
+                {(showAllSubs ? subcategories : subcategories.slice(0, SUBCAT_LIMIT)).map((cat) => {
                   const isActive = subcategoryParam?.toLowerCase() === cat.name.toLowerCase();
                   const targetHref = isActive
                     ? `/category?category=${encodeURIComponent(categoryParam)}`
@@ -355,7 +433,7 @@ function CategoryPageInner() {
                 {subcategoryParam ? subcategoryParam : categoryParam} Products
               </h2>
               <p className="text-muted-foreground text-sm mt-0.5">
-                Showing {products.length} products
+                Showing {filteredAndSortedProducts.length} {filteredAndSortedProducts.length !== products.length ? `of ${products.length} ` : ""}products
               </p>
             </div>
 
@@ -370,6 +448,11 @@ function CategoryPageInner() {
                   >
                     <SlidersHorizontal className="w-4 h-4" />
                     <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <Badge className="ml-1 bg-[var(--primary-color)] text-white text-[10px] px-1.5 py-0.2">
+                        {activeFilterCount}
+                      </Badge>
+                    )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 overflow-y-auto bg-card border-border">
@@ -402,22 +485,35 @@ function CategoryPageInner() {
           </div>
 
           {/* Grid or Empty State */}
-          {products.length === 0 ? (
+          {filteredAndSortedProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <ShoppingBag className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">No products found</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                {products.length === 0 ? "No products found" : "No products match current filters"}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                We couldn&apos;t find any products in this {subcategoryParam ? "subcategory" : "category"} yet.
+                {products.length === 0
+                  ? `We couldn't find any products in this ${subcategoryParam ? "subcategory" : "category"} yet.`
+                  : "Try clearing or adjusting your selected filters to see more results."}
               </p>
-              <Link href={`/category?category=${encodeURIComponent(categoryParam)}`}>
-                <Button className="bg-[var(--primary-color)] hover:bg-orange-600 border-0">
-                  View All {categoryParam}
+              {products.length === 0 ? (
+                <Link href={`/category?category=${encodeURIComponent(categoryParam)}`}>
+                  <Button className="bg-[var(--primary-color)] hover:bg-orange-600 border-0">
+                    View All {categoryParam}
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  onClick={clearAllFilters}
+                  className="bg-[var(--primary-color)] hover:bg-orange-600 border-0"
+                >
+                  Clear Filters
                 </Button>
-              </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {products.map((product, index) => (
+              {filteredAndSortedProducts.map((product, index) => (
                 <div
                   key={product.id}
                   className="bg-card border border-border group overflow-hidden hover:scale-[1.03] transition-all duration-300 rounded-xl shadow-sm hover:shadow-lg"

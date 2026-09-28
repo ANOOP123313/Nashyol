@@ -577,17 +577,19 @@ function SpecialOffersSection({ section }: { section: any }) {
 // ── 9. CATEGORY PRODUCTS SECTION (Electronics, Fashion, etc.) ──
 function CategoryProductsSection({ section }: { section: any }) {
   const dynamicProducts = Array.isArray(section.dynamicProducts) ? section.dynamicProducts : [];
+  const subCategories = Array.isArray(section.subCategories) ? section.subCategories : [];
+  const categoryName = section.categoryName || (section.title || "").replace(/\s*Products$/i, "").trim();
   const { addItem } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   if (dynamicProducts.length === 0) return null;
 
-  const viewAll = section.settings?.viewAllLink || `/products?category=${encodeURIComponent(section.settings?.categoryName || section.title)}`;
+  const viewAll = section.settings?.viewAllLink || `/products?category=${encodeURIComponent(categoryName)}`;
 
   return (
     <section className="py-8 sm:py-12 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{section.title}</h2>
             {section.subtitle && (
@@ -602,9 +604,42 @@ function CategoryProductsSection({ section }: { section: any }) {
           </Link>
         </div>
 
-        {/* Dynamic product cards from backend */}
+        {/* Real Subcategories from DB (single line limit) */}
+        {subCategories.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-8 gap-2 sm:gap-3">
+              {subCategories.slice(0, 8).map((sub: any) => {
+                const subTarget = `/category?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(sub.name)}`;
+                return (
+                  <Link
+                    key={sub._id || sub.name}
+                    href={subTarget}
+                    className="group flex flex-col items-center text-center"
+                  >
+                    <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-1.5 bg-muted/80 border border-border/60 hover:border-[var(--primary-color)] transition-all duration-300 group-hover:scale-105 shadow-sm hover:shadow-md flex items-center justify-center">
+                      {sub.image ? (
+                        <ImageWithFallback
+                          src={sub.image}
+                          alt={sub.name}
+                          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
+                        />
+                      ) : (
+                        <span className="text-xl sm:text-2xl">{sub.icon || "📦"}</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-foreground/85 group-hover:text-[var(--primary-color)] font-medium line-clamp-2 leading-tight transition-colors">
+                      {sub.name}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic product cards from backend (single line limit: 4 cards) */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {dynamicProducts.map((product: any, index: number) => (
+          {dynamicProducts.slice(0, 4).map((product: any, index: number) => (
             <div
               key={product.id}
               className="glass-card group overflow-hidden hover:scale-102 sm:hover:scale-105 transition-all duration-300 rounded-lg sm:rounded-xl"

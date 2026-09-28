@@ -10,12 +10,12 @@ import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Checkbox } from "../components/ui/checkbox";
 import { Badge } from "../components/ui/badge";
-import { Package, Truck, CheckCircle2 } from "lucide-react";
+import { Package, Truck, CheckCircle2, Tag, Percent, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGateway } from "../components/PaymentGateway";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
-import { ordersApi, addressesApi, settingsApi } from "@/services/api";
+import { ordersApi, addressesApi, settingsApi, couponsApi } from "@/services/api";
 
 export function CheckoutPage() {
   const router = useRouter();
@@ -37,11 +37,54 @@ export function CheckoutPage() {
   const [codCharge, setCodCharge] = useState(0);
   const [hasGlobalCodCharge, setHasGlobalCodCharge] = useState(false);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    discountType?: string;
+    discountValue?: number;
+  } | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
   const shipping = subtotal > 100 ? 0 : 10;
   const codDeliveryCharge = paymentMethod === "cod"
     ? hasGlobalCodCharge ? codCharge : items.reduce((sum, item) => sum + (item.deliveryCharge || 0) * item.quantity, 0)
     : 0;
-  const total = subtotal + shipping + codDeliveryCharge;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const total = Math.max(0, subtotal - couponDiscount + shipping + codDeliveryCharge);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    setIsApplyingCoupon(true);
+    try {
+      const res = await couponsApi.validate(couponCode.trim(), subtotal);
+      if (res && res.valid) {
+        setAppliedCoupon({
+          code: couponCode.trim().toUpperCase(),
+          discountAmount: res.discountAmount || 0,
+          discountType: (res as any).discountType,
+          discountValue: (res as any).discountValue,
+        });
+        toast.success(`Coupon "${couponCode.trim().toUpperCase()}" applied! Saved ₹${(res.discountAmount || 0).toFixed(2)}`);
+      } else {
+        toast.error(res?.message || "Invalid or expired coupon");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to validate coupon");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    toast.info("Coupon removed");
+  };
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -71,6 +114,46 @@ export function CheckoutPage() {
       if (user.email) {
         setEmail(user.email);
       }
+      if (user.phone) {
+        setPhone(user.phone);
+      }
+
+      // Fetch saved profile address
+      addressesApi.list()
+        .then((items: any) => {
+          if (Array.isArray(items) && items.length > 0) {
+            const saved = items.find((a: any) => a.isDefault) || items[0];
+            if (saved && (saved.street || saved.city || saved.state || saved.pincode)) {
+              if (saved.fullName) {
+                const parts = saved.fullName.split(" ");
+                setFirstName(parts[0] || "");
+                setLastName(parts.slice(1).join(" ") || "");
+              }
+              if (saved.phone) setPhone(saved.phone);
+              setAddress(saved.street || "");
+              setCity(saved.city || "");
+              setState(saved.state || "");
+              setZip(saved.pincode || "");
+              return;
+            }
+          }
+          // If address details are not saved in profile, form remains empty
+          setAddress("");
+          setCity("");
+          setState("");
+          setZip("");
+        })
+        .catch(() => {
+          setAddress("");
+          setCity("");
+          setState("");
+          setZip("");
+        });
+    } else {
+      setAddress("");
+      setCity("");
+      setState("");
+      setZip("");
     }
   }, [user]);
 
@@ -111,6 +194,7 @@ export function CheckoutPage() {
     setIsProcessing(true);
     try {
       const orderData = {
+        couponCode: appliedCoupon?.code,
         address: {
           fullName: `${firstName} ${lastName}`,
           phone,
@@ -197,35 +281,35 @@ export function CheckoutPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="John" className="rounded-xl border-border" />
+                  <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Enter your first name" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" className="rounded-xl border-border" />
+                  <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Enter your last name" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" className="rounded-xl border-border" />
+                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="address">Street Address</Label>
-                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" className="rounded-xl border-border" />
+                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Enter your street address" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
-                  <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="New York" className="rounded-xl border-border" />
+                  <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Enter your city" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="state">State / Province</Label>
-                  <Input id="state" value={state} onChange={(e) => setState(e.target.value)} placeholder="NY" className="rounded-xl border-border" />
+                  <Input id="state" value={state} onChange={(e) => setState(e.target.value)} placeholder="Enter your state" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="zip">ZIP / Postal Code</Label>
-                  <Input id="zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="10001" className="rounded-xl border-border" />
+                  <Input id="zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="Enter your zip code" className="rounded-xl border-border" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="rounded-xl border-border" />
+                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter your phone number" className="rounded-xl border-border" />
                 </div>
               </div>
             </Card>
@@ -287,6 +371,48 @@ export function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Coupon Code Section */}
+              <div className="my-5 p-3.5 bg-muted/60 dark:bg-card rounded-2xl border border-dashed border-border">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Tag className="size-4 text-[var(--primary-color)]" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Have a Coupon Code?</span>
+                </div>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-emerald-500 text-white rounded-full">
+                        <Check className="size-3" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 font-mono tracking-wide">{appliedCoupon.code}</p>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Discount applied: -₹{appliedCoupon.discountAmount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-transparent">
+                      <X className="size-3.5 mr-1" /> Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. SAVE20"
+                      className="h-10 text-xs sm:text-sm uppercase tracking-wider bg-background border-border"
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={isApplyingCoupon || !couponCode.trim()}
+                      className="h-10 px-4 text-xs font-semibold bg-[var(--primary-color)] hover:bg-orange-600 text-white shrink-0"
+                    >
+                      {isApplyingCoupon ? "Applying..." : "Apply"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <Separator className="my-6 bg-muted" />
 
               <div className="space-y-3">
@@ -294,6 +420,12 @@ export function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="font-semibold text-foreground">₹{subtotal.toFixed(2)}</span>
                 </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="flex items-center gap-1"><Tag className="size-3.5" /> Coupon Discount ({appliedCoupon?.code})</span>
+                    <span>-₹{couponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-muted-foreground">
                   <span>Shipping</span>
                   <span className="font-semibold text-green-600">{shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span>

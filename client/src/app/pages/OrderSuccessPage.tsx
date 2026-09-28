@@ -15,7 +15,7 @@ function formatOrder(raw: any, currentUser?: any) {
   if (!raw) return null;
 
   const rawId = raw._id || raw.id || raw.orderNumber || "";
-  const orderNumber = raw.orderNumber || (rawId ? `ORD-${rawId.slice(-8).toUpperCase()}` : `ORD-${Date.now().toString(36).toUpperCase()}`);
+  const orderNumber = raw.orderNumber || (rawId ? `ORD-${rawId.slice(-6).toUpperCase()}` : `ORD-${Date.now().toString(36).toUpperCase()}`);
 
   const addr = raw.shippingAddress || raw.address || {};
   const name = addr.fullName || addr.name || currentUser?.name || "Valued Customer";

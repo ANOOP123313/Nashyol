@@ -4,6 +4,8 @@ import { categoriesApi } from "./api";
 export interface SubcategoryItem {
   name: string;
   image: string;
+  icon?: string;
+  productCount?: number;
   link?: string;
 }
 
@@ -81,6 +83,8 @@ export async function getCategorySubcategories(categoryName: string): Promise<Su
         .map((sc: any) => ({
           name: sc.name.trim(),
           image: sc.image || "",
+          icon: sc.icon || "📁",
+          productCount: sc.productCount || 0,
           link: `/category?category=${encodeURIComponent(foundLiveCat.name || canonical)}&subcategory=${encodeURIComponent(sc.name.trim())}`,
         }));
       return activeSubs;

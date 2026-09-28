@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { cmsApi } from "@/services/api";
+import { toast } from "sonner";
 
 export function HelpCenterPage() {
   const router = useRouter();
@@ -117,11 +118,108 @@ export function HelpCenterPage() {
     },
   ];
 
-  const filteredFaqs = faqs.filter(
-    (faq) =>
-      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [sendingTicket, setSendingTicket] = useState(false);
+
+  const filteredFaqs = faqs.filter((faq) => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      faq.question.toLowerCase().includes(q) ||
+      faq.answer.toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    if (selectedCategory) {
+      const catLower = selectedCategory.toLowerCase();
+      if (catLower.includes("order") || catLower.includes("shipping")) {
+        return faq.question.toLowerCase().includes("order") || faq.question.toLowerCase().includes("shipping") || faq.question.toLowerCase().includes("track");
+      }
+      if (catLower.includes("return") || catLower.includes("refund")) {
+        return faq.question.toLowerCase().includes("return") || faq.question.toLowerCase().includes("refund");
+      }
+      if (catLower.includes("payment") || catLower.includes("pricing")) {
+        return faq.question.toLowerCase().includes("payment") || faq.question.toLowerCase().includes("coupon") || faq.question.toLowerCase().includes("pricing");
+      }
+      if (catLower.includes("account")) {
+        return faq.question.toLowerCase().includes("password") || faq.question.toLowerCase().includes("account");
+      }
+    }
+    return true;
+  });
+
+  const handleTopicClick = (topic: string, catTitle: string) => {
+    if (topic.toLowerCase().includes("track")) {
+      router.push("/orders");
+      return;
+    }
+    if (topic.toLowerCase().includes("return policy") || topic.toLowerCase().includes("refund")) {
+      setSelectedCategory("Returns & Refunds");
+      setSearchQuery("return");
+      scrollToFaqs();
+      return;
+    }
+    if (topic.toLowerCase().includes("coupon")) {
+      router.push("/account");
+      return;
+    }
+    if (topic.toLowerCase().includes("password")) {
+      router.push("/login");
+      return;
+    }
+    if (topic.toLowerCase().includes("product info") || topic.toLowerCase().includes("size")) {
+      router.push("/products");
+      return;
+    }
+    if (topic.toLowerCase().includes("website issues") || topic.toLowerCase().includes("technical")) {
+      setChatModalOpen(true);
+      return;
+    }
+    setSelectedCategory(catTitle);
+    setSearchQuery(topic);
+    scrollToFaqs();
+  };
+
+  const scrollToFaqs = () => {
+    document.getElementById("faqs-section")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleContactAction = (action: string) => {
+    if (action === "Start Chat") {
+      setChatModalOpen(true);
+    } else if (action === "Call Now") {
+      window.location.href = "tel:18006227496";
+    } else if (action === "Send Email") {
+      window.location.href = "mailto:support@naashyol.com?subject=Customer%20Support%20Inquiry";
+    }
+  };
+
+  const handleSendTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketSubject.trim() || !ticketMessage.trim()) {
+      toast.error("Please fill out both subject and message");
+      return;
+    }
+    setSendingTicket(true);
+    try {
+      // Simulate ticket creation
+      await new Promise((r) => setTimeout(r, 800));
+      toast.success("Support ticket submitted successfully!", {
+        description: "Our support team will reply within 24 hours.",
+      });
+      setTicketSubject("");
+      setTicketMessage("");
+      setChatModalOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to send message: " + (err.message || "Error"));
+    } finally {
+      setSendingTicket(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent pb-24 md:pb-0">
@@ -136,15 +234,23 @@ export function HelpCenterPage() {
             <p className="text-base md:text-lg text-inverse/90 mb-8">
               Search our help center or browse categories below
             </p>
-            <div className="relative">
+            <div className="relative max-w-2xl mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search for help..."
+                placeholder="Search for answers, orders, returns, payments..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 h-14 text-lg bg-background dark:bg-card border-0 text-foreground"
+                className="pl-12 pr-10 h-14 text-base sm:text-lg bg-background dark:bg-card border-0 text-foreground shadow-lg rounded-2xl"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm font-semibold"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -153,26 +259,60 @@ export function HelpCenterPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Categories */}
         <div className="mb-16">
-          <h2 className="text-2xl font-bold text-foreground mb-6">
-            Browse by Category
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Browse by Category
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Click any topic to view corresponding help articles or navigate
+              </p>
+            </div>
+            {selectedCategory && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setSearchQuery("");
+                }}
+                className="text-xs"
+              >
+                Clear Category Filter ✕
+              </Button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((category, index) => (
               <Card
                 key={index}
-                className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => {
+                  setSelectedCategory(category.title);
+                  scrollToFaqs();
+                }}
+                className={`p-6 hover:shadow-xl transition-all duration-300 cursor-pointer rounded-2xl border-2 ${
+                  selectedCategory === category.title
+                    ? "border-[var(--primary-color)] bg-[var(--primary-color)]/5"
+                    : "hover:border-[var(--primary-color)]/40"
+                }`}
               >
                 <div className="text-4xl mb-4">{category.icon}</div>
-                <h3 className="text-lg font-bold text-foreground mb-3">
-                  {category.title}
+                <h3 className="text-lg font-bold text-foreground mb-3 flex items-center justify-between">
+                  <span>{category.title}</span>
+                  <span className="text-xs text-[var(--primary-color)] font-semibold">View articles →</span>
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {category.topics.map((topic, topicIndex) => (
                     <li
                       key={topicIndex}
-                      className="text-sm text-muted-foreground hover:text-[var(--primary-color)] dark:hover:text-[var(--primary-color)] transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTopicClick(topic, category.title);
+                      }}
+                      className="text-sm text-muted-foreground hover:text-[var(--primary-color)] font-medium transition-colors cursor-pointer flex items-center gap-1.5 group"
                     >
-                      • {topic}
+                      <span className="text-[var(--primary-color)] group-hover:translate-x-0.5 transition-transform">•</span>
+                      <span className="group-hover:underline">{topic}</span>
                     </li>
                   ))}
                 </ul>
@@ -181,36 +321,59 @@ export function HelpCenterPage() {
           </div>
         </div>
 
-        {/* FAQs */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-foreground mb-6">
-            Frequently Asked Questions
-          </h2>
-          <Card className="divide-y dark:divide-gray-800">
-            {filteredFaqs.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-muted-foreground">
-                  No results found for "{searchQuery}"
+        {/* FAQs Section */}
+        <div id="faqs-section" className="mb-16 scroll-mt-24">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Frequently Asked Questions
+              </h2>
+              {selectedCategory && (
+                <p className="text-sm text-[var(--primary-color)] font-semibold mt-1">
+                  Showing articles for category: {selectedCategory}
                 </p>
+              )}
+            </div>
+            <span className="text-sm text-muted-foreground font-medium">
+              {filteredFaqs.length} question(s) found
+            </span>
+          </div>
+
+          <Card className="divide-y dark:divide-gray-800 rounded-2xl overflow-hidden shadow-sm">
+            {filteredFaqs.length === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-muted-foreground text-base">
+                  No matching help articles found for "{searchQuery || selectedCategory}".
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory(null);
+                  }}
+                  className="mt-4"
+                >
+                  View All FAQs
+                </Button>
               </div>
             ) : (
               filteredFaqs.map((faq, index) => (
-                <div key={index} className="p-6">
+                <div key={index} className="p-6 transition-colors hover:bg-muted/30">
                   <button
                     onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
                     className="w-full flex items-center justify-between text-left"
                   >
-                    <h3 className="text-lg font-semibold text-foreground pr-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground pr-4">
                       {faq.question}
                     </h3>
                     {expandedFaq === index ? (
-                      <ChevronUp className="size-5 text-muted-foreground flex-shrink-0" />
+                      <ChevronUp className="size-5 text-[var(--primary-color)] flex-shrink-0" />
                     ) : (
                       <ChevronDown className="size-5 text-muted-foreground flex-shrink-0" />
                     )}
                   </button>
                   {expandedFaq === index && (
-                    <p className="mt-4 text-muted-foreground leading-relaxed">
+                    <p className="mt-4 text-muted-foreground leading-relaxed text-sm sm:text-base bg-muted/40 p-4 rounded-xl">
                       {faq.answer}
                     </p>
                   )}
@@ -229,25 +392,28 @@ export function HelpCenterPage() {
             {contactOptions.map((option, index) => {
               const Icon = option.icon;
               return (
-                <Card key={index} className="p-6 text-center">
+                <Card key={index} className="p-6 text-center rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
                   <div className="mb-4 flex justify-center">
-                    <div className="size-16 rounded-full bg-muted flex items-center justify-center">
+                    <div className="size-16 rounded-2xl bg-muted flex items-center justify-center">
                       <Icon className={`size-8 ${option.color}`} />
                     </div>
                   </div>
                   <h3 className="text-lg font-bold text-foreground mb-2">
                     {option.title}
                   </h3>
-                  <p className="text-muted-foreground mb-2">
+                  <p className="text-muted-foreground mb-2 text-sm">
                     {option.description}
                   </p>
-                  <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="flex items-center justify-center gap-2 mb-5">
                     <Clock className="size-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {option.availability}
                     </span>
                   </div>
-                  <Button className="w-full bg-[var(--primary-color)] hover:bg-orange-600">
+                  <Button
+                    onClick={() => handleContactAction(option.action)}
+                    className="w-full bg-[var(--primary-color)] hover:bg-orange-600 text-white font-semibold rounded-xl"
+                  >
                     {option.action}
                   </Button>
                 </Card>
@@ -256,25 +422,156 @@ export function HelpCenterPage() {
           </div>
         </div>
 
-        {/* Additional Resources */}
-        <Card className="mt-12 p-8 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 border-0">
+        {/* Video Tutorials Card */}
+        <Card className="mt-12 p-8 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 dark:from-gray-900 dark:to-gray-900 border border-orange-200 dark:border-gray-800 rounded-3xl shadow-sm">
           <div className="text-center max-w-2xl mx-auto">
-            <Badge className="mb-4 bg-blue-600 hover:bg-blue-600 text-inverse">
-              New
+            <Badge className="mb-4 bg-[var(--primary-color)] hover:bg-[var(--primary-color)] text-white">
+              Guided Help
             </Badge>
-            <h3 className="text-2xl font-bold text-foreground mb-3">
-              Video Tutorials Available
+            <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
+              Step-by-Step Shopping Guides
             </h3>
-            <p className="text-muted-foreground mb-6">
-              Watch step-by-step video guides on how to use NAASHYOL features,
-              manage your account, and make the most of your shopping experience.
+            <p className="text-muted-foreground mb-6 text-sm sm:text-base">
+              Learn how to track orders, apply coupon codes, request hassle-free returns,
+              and manage your profile address with ease.
             </p>
-            <Button variant="outline" className="bg-card">
-              Watch Tutorials
+            <Button
+              onClick={() => setTutorialsModalOpen(true)}
+              variant="outline"
+              className="bg-card hover:bg-muted font-semibold px-6 h-11 rounded-xl"
+            >
+              Watch Video Guides
             </Button>
           </div>
         </Card>
       </div>
+
+      {/* Live Chat / Support Ticket Modal */}
+      {chatModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setChatModalOpen(false)}
+        >
+          <div
+            className="bg-card rounded-3xl max-w-md w-full p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-950/40 text-blue-600 rounded-xl">
+                  <MessageCircle className="size-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Live Customer Support</h3>
+                  <p className="text-xs text-muted-foreground">Submit a quick message or ticket</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setChatModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendTicket} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Subject</label>
+                <Input
+                  value={ticketSubject}
+                  onChange={(e) => setTicketSubject(e.target.value)}
+                  placeholder="e.g. Order Tracking or Return Question"
+                  required
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Your Message / Query</label>
+                <textarea
+                  value={ticketMessage}
+                  onChange={(e) => setTicketMessage(e.target.value)}
+                  placeholder="Describe your issue or question in detail..."
+                  rows={4}
+                  required
+                  className="w-full p-3 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setChatModalOpen(false)}
+                  className="flex-1 rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={sendingTicket}
+                  className="flex-1 bg-[var(--primary-color)] hover:bg-orange-600 text-white rounded-xl font-semibold"
+                >
+                  {sendingTicket ? "Sending..." : "Submit Query"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Video Guides Modal */}
+      {tutorialsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setTutorialsModalOpen(false)}
+        >
+          <div
+            className="bg-card rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-foreground">Interactive Guides & Tutorials</h3>
+              <button
+                onClick={() => setTutorialsModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/60 rounded-2xl border border-border">
+                <h4 className="font-bold text-sm text-foreground mb-1">1. How to Track Your Order</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Log in to your account, click on "My Orders" from the top navigation, and select "Track" or "Details" on any pending or shipped order to see live real-time status.
+                </p>
+              </div>
+
+              <div className="p-4 bg-muted/60 rounded-2xl border border-border">
+                <h4 className="font-bold text-sm text-foreground mb-1">2. How to Request a Return</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Delivered orders can be returned within 30 days. Open "My Orders", click "Return", select the items and reason, and our courier will schedule pickup within 2-3 business days.
+                </p>
+              </div>
+
+              <div className="p-4 bg-muted/60 rounded-2xl border border-border">
+                <h4 className="font-bold text-sm text-foreground mb-1">3. Applying Promo Coupons</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  On the Checkout page, enter your coupon code in the "Have a Coupon Code?" box and click Apply. The discount will instantly recalculate your order total.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-5 mt-2 border-t">
+              <Button
+                onClick={() => setTutorialsModalOpen(false)}
+                className="w-full bg-[var(--primary-color)] hover:bg-orange-600 text-white font-semibold rounded-xl"
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

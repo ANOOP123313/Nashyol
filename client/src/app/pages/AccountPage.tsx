@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, Package, Heart, Gift, Settings, LogOut, Mail, Phone, MapPin, Award, RotateCcw, AlertCircle, CheckCircle2, Clock, XCircle, Ticket, Star, TrendingUp, Zap } from "lucide-react";
+import { User, Package, Heart, Gift, Settings, LogOut, Mail, Phone, MapPin, Award, RotateCcw, AlertCircle, CheckCircle2, Clock, XCircle, Ticket, Star, TrendingUp, Zap, Copy, Check, Share2, Users } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -11,7 +11,7 @@ import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { addressesApi, ordersApi, returnsApi, reviewsApi } from "../../services/api";
+import { addressesApi, ordersApi, returnsApi, reviewsApi, referralsApi, couponsApi } from "../../services/api";
 import { toast } from "sonner";
 
 export function AccountPage() {
@@ -24,10 +24,14 @@ export function AccountPage() {
   const [addressId, setAddressId] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
-  const [orders, setOrders] = useState<Array<{ _id: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>([]);
+  const [orders, setOrders] = useState<Array<{ _id: string; orderNumber?: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>([]);
   const [returns, setReturns] = useState<Array<{ id: string; orderNumber: string; productName: string; status: string; requestDate: string; refundAmount: number; reason: string }>>([]);
   const [reviews, setReviews] = useState<Array<{ _id: string; rating: number; comment: string; isApproved: boolean; createdAt: string; product?: { title?: string } }>>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [referralStats, setReferralStats] = useState<any>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) navigate.replace("/login?redirect=/account");
@@ -51,13 +55,21 @@ export function AccountPage() {
       })
       .catch(() => undefined);
 
+    referralsApi.stats()
+      .then((data) => setReferralStats(data))
+      .catch(() => undefined);
+
+    couponsApi.list()
+      .then((data) => setUserCoupons(Array.isArray(data) ? data : []))
+      .catch(() => undefined);
+
     setActivityLoading(true);
     Promise.all([ordersApi.myOrders(), returnsApi.myReturns(), reviewsApi.myReviews()])
       .then(([ordersData, returnsData, reviewsData]) => {
         setOrders(ordersData);
         setReturns(returnsData.map((item) => ({
           id: item._id,
-          orderNumber: item.orderId?._id || "Order",
+          orderNumber: (item.orderId as any)?.orderNumber || (item.orderId?._id ? `ORD-${item.orderId._id.slice(-6).toUpperCase()}` : (item.orderId ? `ORD-${String(item.orderId).slice(-6).toUpperCase()}` : "Order")),
           productName: item.items?.map((entry) => entry.productId?.title || "Product").join(", ") || "Returned product",
           status: item.status,
           requestDate: item.createdAt,
@@ -197,7 +209,7 @@ export function AccountPage() {
                 className="bg-white/10 hover:bg-white/20 text-inverse border-white/30 backdrop-blur-md shadow-md gap-2 font-medium"
               >
                 <LogOut className="size-4" />
-                <span>Log Out</span>
+                <span>Logout</span>
               </Button>
             </div>
           </div>
@@ -235,75 +247,60 @@ export function AccountPage() {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4 md:space-y-6">
-            {/* Personal Information Card with Glassmorphic Effect */}
+            {/* Personal Information Display Card (Read-Only) */}
             <div className="glass-panel p-6 md:p-8 max-w-2xl hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6 md:mb-8">
-                <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-2xl shadow-lg">
-                  <User className="size-5 md:size-6 text-inverse" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-2xl shadow-lg">
+                    <User className="size-5 md:size-6 text-inverse" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">
+                      Profile Information
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Account details are fixed after registration
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold text-foreground">
-                  Profile Information
-                </h2>
+                <Badge variant="outline" className="w-fit bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-semibold px-3 py-1 flex items-center gap-1.5">
+                  <CheckCircle2 className="size-3.5" />
+                  Verified Account
+                </Badge>
               </div>
-              
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm md:text-base font-semibold text-muted-foreground">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
-                    />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Full Name Display */}
+                <div className="p-4 rounded-xl bg-background/70 dark:bg-card/70 border border-border shadow-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                    <User className="size-4 text-[var(--primary-color)]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Full Name</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm md:text-base font-semibold text-muted-foreground flex items-center gap-2">
-                      <Phone className="size-4 text-[var(--primary-color)]" />
-                      Phone Number (Registration)
-                    </Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="+91..."
-                      className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm md:text-base font-semibold text-muted-foreground flex items-center gap-2">
-                    <Mail className="size-4" />
-                    Email Address
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base"
-                  />
+                  <p className="text-base font-bold text-foreground truncate">
+                    {user.name || name || "—"}
+                  </p>
                 </div>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                  <Button onClick={saveProfile} disabled={savingProfile} className="w-full sm:w-auto bg-gradient-to-r from-[var(--primary-color)] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-inverse shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-8 text-base font-semibold">
-                    {savingProfile ? "Saving..." : "Save Profile Changes"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      await logout();
-                      toast.success("Logged out successfully");
-                      navigate.push("/login");
-                    }}
-                    className="w-full sm:w-auto border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 h-12 px-6 text-base font-medium flex items-center justify-center gap-2"
-                  >
-                    <LogOut className="size-4" />
-                    Log Out
-                  </Button>
+                {/* Phone Number Display */}
+                <div className="p-4 rounded-xl bg-background/70 dark:bg-card/70 border border-border shadow-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                    <Phone className="size-4 text-[var(--primary-color)]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Phone Number</span>
+                  </div>
+                  <p className="text-base font-bold text-foreground truncate">
+                    {user.phone || phone || "Not provided"}
+                  </p>
+                </div>
+
+                {/* Email Address Display */}
+                <div className="p-4 rounded-xl bg-background/70 dark:bg-card/70 border border-border shadow-sm md:col-span-2">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                    <Mail className="size-4 text-[var(--primary-color)]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Email Address</span>
+                  </div>
+                  <p className="text-base font-bold text-foreground truncate font-mono">
+                    {user.email || email || "—"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -388,7 +385,7 @@ export function AccountPage() {
               <div key={order._id} className="glass-card p-5 md:p-7 max-w-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div>
-                    <h2 className="text-lg font-bold text-foreground">Order #{order._id.slice(-8)}</h2>
+                    <h2 className="text-lg font-bold text-foreground">Order #{order.orderNumber ? order.orderNumber.replace("ORD-", "") : (order._id ? order._id.slice(-6).toUpperCase() : "")}</h2>
                     <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
                   </div>
                   <Badge className="capitalize">{order.orderStatus}</Badge>
@@ -539,267 +536,176 @@ export function AccountPage() {
           </TabsContent>
 
           <TabsContent value="rewards" className="space-y-6">
-            {/* Rewards Points Summary */}
+            {/* Unique Referral Code Card */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-amber-600 to-amber-500 text-white p-6 md:p-8 rounded-3xl shadow-2xl">
+              <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-2 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold tracking-wider uppercase">
+                    <Gift className="size-3.5" /> Refer & Earn Rewards
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+                    Your Unique Referral Code
+                  </h2>
+                  <p className="text-white/90 text-sm md:text-base leading-relaxed">
+                    Give this code to friends when they register an account. You earn <strong>100 referral points</strong> for each user who signs up with your code!
+                  </p>
+                </div>
+
+                <div className="bg-white/15 backdrop-blur-lg border border-white/30 p-4 md:p-5 rounded-2xl flex flex-col items-center gap-3 shrink-0">
+                  <span className="text-xs uppercase font-bold tracking-widest text-white/80">Referral Code</span>
+                  <div className="font-mono text-3xl md:text-4xl font-black tracking-widest text-white px-4 py-1.5 bg-black/20 rounded-xl border border-white/20 select-all">
+                    {user?.referralCode || referralStats?.referralCode || "NASHYOL"}
+                  </div>
+                  <div className="flex items-center gap-2 w-full">
+                    <Button
+                      onClick={() => {
+                        const code = user?.referralCode || referralStats?.referralCode || "";
+                        if (code) {
+                          navigator.clipboard.writeText(code);
+                          setCopiedCode(true);
+                          toast.success("Referral code copied to clipboard!");
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }
+                      }}
+                      className="flex-1 bg-white text-orange-600 hover:bg-white/90 font-bold rounded-xl shadow-md gap-1.5 h-10"
+                    >
+                      {copiedCode ? <Check className="size-4" /> : <Copy className="size-4" />}
+                      <span>{copiedCode ? "Copied" : "Copy Code"}</span>
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const code = user?.referralCode || referralStats?.referralCode || "";
+                        const url = typeof window !== "undefined" ? `${window.location.origin}/register?ref=${code}` : "";
+                        if (url) {
+                          navigator.clipboard.writeText(url);
+                          setCopiedLink(true);
+                          toast.success("Referral link copied!");
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }
+                      }}
+                      variant="outline"
+                      className="bg-white/20 hover:bg-white/30 text-white border-white/40 rounded-xl font-bold h-10 px-3"
+                      title="Copy registration link"
+                    >
+                      {copiedLink ? <Check className="size-4" /> : <Share2 className="size-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Referral Stats Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="glass-card p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl">
+                    <Zap className="size-5" />
+                  </div>
+                  <p className="text-muted-foreground text-sm font-semibold">Total Referral Points</p>
+                </div>
+                <p className="text-3xl md:text-4xl font-extrabold text-foreground">
+                  {referralStats?.points ?? user?.referralPoints ?? user?.walletBalance ?? 0}
+                  <span className="text-base font-semibold text-muted-foreground ml-1.5">pts</span>
+                </p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">Shown in rewards wallet</p>
+              </div>
+
+              <div className="glass-card p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg rounded-2xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <Users className="size-5" />
+                  </div>
+                  <p className="text-muted-foreground text-sm font-semibold">Friends Referred</p>
+                </div>
+                <p className="text-3xl md:text-4xl font-extrabold text-foreground">
+                  {referralStats?.referralCount ?? user?.referralCount ?? (referralStats?.referrals?.length || 0)}
+                  <span className="text-base font-semibold text-muted-foreground ml-1.5">registered</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">+100 pts for each signup</p>
+              </div>
+
+              <div className="glass-card p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg rounded-2xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
+                    <Award className="size-5" />
+                  </div>
+                  <p className="text-muted-foreground text-sm font-semibold">Referral Status</p>
+                </div>
+                <p className="text-2xl md:text-3xl font-extrabold text-foreground">Active Member</p>
+                <p className="text-xs text-muted-foreground mt-1">Earn rewards on every friend</p>
+              </div>
+            </div>
+
+            {/* Referral Points History */}
             <div className="glass-card p-6 md:p-8 border border-gray-200/50 dark:border-gray-700/50 shadow-xl rounded-2xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 shadow-lg rounded-xl">
-                    <TrendingUp className="size-6 text-inverse" />
+                    <Gift className="size-6 text-inverse" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-foreground">
-                      Reward Points
+                      Referral Points & Activity
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Earn points with every purchase
+                      Friends who registered using your referral code and points earned
                     </p>
                   </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-[var(--primary-color)] to-orange-600 p-6 shadow-lg rounded-2xl">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Zap className="size-6 text-inverse" />
-                    <p className="text-inverse/90 text-sm font-medium">Total Points</p>
-                  </div>
-                  <p className="text-4xl font-bold text-inverse">2,450</p>
-                </div>
-                
-                <div className="bg-card p-6 border border-border rounded-2xl shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Star className="size-6 text-yellow-500" />
-                    <p className="text-muted-foreground text-sm font-medium">Points This Month</p>
-                  </div>
-                  <p className="text-4xl font-bold text-foreground">350</p>
-                </div>
-                
-                <div className="bg-card p-6 border border-border rounded-2xl shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Award className="size-6 text-purple-500" />
-                    <p className="text-muted-foreground text-sm font-medium">Level</p>
-                  </div>
-                  <p className="text-4xl font-bold text-foreground">Gold</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Available Coupons */}
-            <div className="glass-card p-6 md:p-8 border border-gray-200/50 dark:border-gray-700/50 shadow-xl rounded-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 shadow-lg rounded-xl">
-                  <Ticket className="size-6 text-inverse" />
+              {referralStats?.referrals && referralStats.referrals.length > 0 ? (
+                <div className="space-y-3">
+                  {referralStats.referrals.map((ref: any, idx: number) => (
+                    <div key={ref._id || idx} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl font-bold text-sm">
+                          {(ref.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground">{ref.name || "Friend"}</p>
+                          <p className="text-xs text-muted-foreground">Joined using your referral code · {ref.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
+                          +{ref.points || 100} pts
+                        </span>
+                        <div className="text-[11px]">
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold">
+                            {ref.status || "Rewarded"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">
-                    Available Coupons
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Save on your next purchase
+              ) : (
+                <div className="text-center py-10 px-4 border border-dashed border-border rounded-2xl bg-muted/20">
+                  <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-600 mx-auto flex items-center justify-center mb-3">
+                    <Users className="size-6" />
+                  </div>
+                  <h3 className="font-bold text-foreground text-lg mb-1">No referrals yet</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                    Share your unique referral code with friends and family. As soon as they register, you will receive referral points right here!
                   </p>
+                  <Button
+                    onClick={() => {
+                      const code = user?.referralCode || referralStats?.referralCode || "";
+                      if (code) {
+                        navigator.clipboard.writeText(code);
+                        setCopiedCode(true);
+                        toast.success("Referral code copied!");
+                        setTimeout(() => setCopiedCode(false), 2000);
+                      }
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl"
+                  >
+                    <Copy className="size-4 mr-2" /> Copy Your Referral Code
+                  </Button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Coupon 1 */}
-                <div className="relative bg-gradient-to-r from-[var(--primary-color)] to-orange-600 p-6 shadow-xl overflow-hidden rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 -mr-16 -mt-16 rotate-45"></div>
-                  <div className="relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <p className="text-inverse/90 text-sm font-medium mb-1">Welcome Offer</p>
-                        <p className="text-4xl font-bold text-inverse mb-1">20% OFF</p>
-                        <p className="text-inverse/90 text-xs">On orders above ₹50</p>
-                      </div>
-                      <Ticket className="size-8 text-inverse/50" />
-                    </div>
-                    <Separator className="my-4 bg-background/30" />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-inverse/90 text-xs mb-1">Code</p>
-                        <p className="text-inverse font-bold tracking-wider">WELCOME20</p>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-background text-[var(--primary-color)] hover:bg-background/90 font-semibold rounded-lg"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                    <p className="text-inverse/80 text-xs mt-3">Valid until: Mar 31, 2026</p>
-                  </div>
-                </div>
-
-                {/* Coupon 2 */}
-                <div className="relative bg-gradient-to-r from-purple-600 to-purple-700 p-6 shadow-xl overflow-hidden rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 -mr-16 -mt-16 rotate-45"></div>
-                  <div className="relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <p className="text-inverse/90 text-sm font-medium mb-1">Free Shipping</p>
-                        <p className="text-4xl font-bold text-inverse mb-1">₹0</p>
-                        <p className="text-inverse/90 text-xs">On all orders</p>
-                      </div>
-                      <Ticket className="size-8 text-inverse/50" />
-                    </div>
-                    <Separator className="my-4 bg-background/30" />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-inverse/90 text-xs mb-1">Code</p>
-                        <p className="text-inverse font-bold tracking-wider">FREESHIP</p>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-background text-purple-600 hover:bg-background/90 font-semibold rounded-lg"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                    <p className="text-inverse/80 text-xs mt-3">Valid until: Apr 15, 2026</p>
-                  </div>
-                </div>
-
-                {/* Coupon 3 */}
-                <div className="relative bg-gradient-to-r from-green-600 to-green-700 p-6 shadow-xl overflow-hidden rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 -mr-16 -mt-16 rotate-45"></div>
-                  <div className="relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <p className="text-inverse/90 text-sm font-medium mb-1">Spring Sale</p>
-                        <p className="text-4xl font-bold text-inverse mb-1">₹15 OFF</p>
-                        <p className="text-inverse/90 text-xs">On orders above ₹100</p>
-                      </div>
-                      <Ticket className="size-8 text-inverse/50" />
-                    </div>
-                    <Separator className="my-4 bg-background/30" />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-inverse/90 text-xs mb-1">Code</p>
-                        <p className="text-inverse font-bold tracking-wider">SPRING15</p>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-background text-green-600 hover:bg-background/90 font-semibold rounded-lg"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                    <p className="text-inverse/80 text-xs mt-3">Valid until: May 1, 2026</p>
-                  </div>
-                </div>
-
-                {/* Coupon 4 */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 p-6 shadow-xl overflow-hidden rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 -mr-16 -mt-16 rotate-45"></div>
-                  <div className="relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <p className="text-inverse/90 text-sm font-medium mb-1">Member Special</p>
-                        <p className="text-4xl font-bold text-inverse mb-1">30% OFF</p>
-                        <p className="text-inverse/90 text-xs">On electronics</p>
-                      </div>
-                      <Ticket className="size-8 text-inverse/50" />
-                    </div>
-                    <Separator className="my-4 bg-background/30" />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-inverse/90 text-xs mb-1">Code</p>
-                        <p className="text-inverse font-bold tracking-wider">TECH30</p>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-background text-blue-600 hover:bg-background/90 font-semibold rounded-lg"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                    <p className="text-inverse/80 text-xs mt-3">Valid until: Mar 25, 2026</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Rewards History */}
-            <div className="glass-card p-6 md:p-8 border border-gray-200/50 dark:border-gray-700/50 shadow-xl rounded-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 shadow-lg rounded-xl">
-                  <Gift className="size-6 text-inverse" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">
-                    Rewards History
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Your recent rewards activity
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <TrendingUp className="size-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Purchase Reward</p>
-                      <p className="text-sm text-muted-foreground">Order #ORD-2024-156</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-600 dark:text-green-400">+150 pts</p>
-                    <p className="text-xs text-muted-foreground">Feb 22, 2026</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <TrendingUp className="size-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Purchase Reward</p>
-                      <p className="text-sm text-muted-foreground">Order #ORD-2024-143</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-600 dark:text-green-400">+200 pts</p>
-                    <p className="text-xs text-muted-foreground">Feb 18, 2026</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <Star className="size-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Referral Bonus</p>
-                      <p className="text-sm text-muted-foreground">Friend joined</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-blue-600 dark:text-blue-400">+500 pts</p>
-                    <p className="text-xs text-muted-foreground">Feb 15, 2026</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <Ticket className="size-5 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Coupon Redeemed</p>
-                      <p className="text-sm text-muted-foreground">WELCOME20</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-red-600 dark:text-red-400">-300 pts</p>
-                    <p className="text-xs text-muted-foreground">Feb 10, 2026</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

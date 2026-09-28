@@ -91,7 +91,7 @@ export function HomePage() {
   const featuredProducts = apiFeatured;
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[linear-gradient(45deg,#6b7280_0%,#9ca3af_20%,#d1d5db_40%,#fed7aa_70%,#ea580c_100%)] dark:bg-transparent">
+    <div className="min-h-screen relative overflow-hidden bg-background dark:bg-transparent">
       {/* Background blur accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-gradient-to-br from-stone-300/80 via-orange-200/60 to-transparent blur-3xl dark:opacity-10" />

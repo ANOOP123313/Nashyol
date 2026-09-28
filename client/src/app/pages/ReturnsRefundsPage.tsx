@@ -211,10 +211,10 @@ export function ReturnsRefundsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-border pb-4 mb-4">
                   <div>
                     <span className="text-xs text-gray-500 font-mono">
-                      RETURN #{trackedReturn._id?.slice(-8)?.toUpperCase()}
+                      RETURN #{trackedReturn._id?.slice(-6)?.toUpperCase()}
                     </span>
                     <div className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">
-                      Order: ORD-{(trackedReturn.orderId?._id || trackedReturn.orderId || "")?.slice(-8)?.toUpperCase()}
+                      Order: {trackedReturn.orderId?.orderNumber || (trackedReturn.orderId?._id ? `ORD-${trackedReturn.orderId._id.slice(-6).toUpperCase()}` : (trackedReturn.orderId ? `ORD-${String(trackedReturn.orderId).slice(-6).toUpperCase()}` : "ORD"))}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

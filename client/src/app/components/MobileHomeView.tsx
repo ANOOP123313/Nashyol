@@ -178,7 +178,7 @@ export function MobileHomeView({
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[linear-gradient(45deg,#6b7280_0%,#9ca3af_20%,#d1d5db_40%,#fed7aa_70%,#ea580c_100%)] dark:bg-transparent">
+    <div className="min-h-screen relative overflow-hidden bg-background dark:bg-transparent">
       {/* Mobile Header with Glass Effect */}
       <div className="bg-gradient-to-r from-[var(--primary-color)] to-orange-600 text-inverse px-4 py-4 sticky top-0 z-50 shadow-xl">
         <div className="flex items-center justify-center">

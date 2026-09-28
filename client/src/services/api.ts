@@ -28,7 +28,14 @@ async function request<T>(
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || res.statusText || "Request failed");
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      if (pathNorm.includes("/auth/me")) {
+        localStorage.removeItem("token");
+      }
+    }
+    throw new Error(data.message || res.statusText || "Request failed");
+  }
   return data as T;
 }
 
@@ -238,6 +245,14 @@ export const cmsApi = {
 
 export const homePageApi = {
   getHomePage: () => request<{ success: boolean; sections: any[] }>("/api/cms/home-page"),
+  getTopBarOffers: () =>
+    request<{
+      success: boolean;
+      messages: string[];
+      supportText: string;
+      isActive: boolean;
+      intervalSeconds: number;
+    }>("/api/cms/home-page/top-bar-offers"),
   subscribeNewsletter: (email: string) =>
     request<{ success: boolean; message: string }>("/api/cms/newsletter/subscribe", {
       method: "POST",

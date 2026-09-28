@@ -30,6 +30,21 @@ function RegisterForm() {
   const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
+    const refCode = searchParams.get("ref") || searchParams.get("referral");
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase().trim());
+      try {
+        localStorage.setItem("nashyol_ref_code", refCode.toUpperCase().trim());
+      } catch {}
+    } else {
+      try {
+        const saved = localStorage.getItem("nashyol_ref_code");
+        if (saved) setReferralCode(saved);
+      } catch {}
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
     if (countdown > 0) {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -293,6 +308,11 @@ function RegisterForm() {
                 onChange={(e) => setReferralCode(e.target.value)}
                 className="mt-1 uppercase h-11"
               />
+              {referralCode && (
+                <p className="mt-1.5 text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="size-3.5" /> Referral code {referralCode} applied
+                </p>
+              )}
             </div>
 
             <Button
