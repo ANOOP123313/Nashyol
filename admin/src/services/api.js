@@ -62,10 +62,11 @@ const request = async (method, path, body = undefined, isRetry = false) => {
     await ensureAdminToken();
   }
 
+  const hasBody = body != null && method !== "GET" && method !== "HEAD";
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: buildHeaders(),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(hasBody ? { body: JSON.stringify(body) } : {}),
   });
 
   if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
@@ -189,9 +190,21 @@ export const vendorsAPI = {
 };
 
 // ─────────────────────────────────────────────
-//  Inventory / Vendor Stock
+//  Inventory
 // ─────────────────────────────────────────────
 export const inventoryAPI = {
+  getAll: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request("GET", `/inventory${qs ? `?${qs}` : ""}`);
+  },
+  getAvailable: () => request("GET", "/inventory/available"),
+  getById: (id) => request("GET", `/inventory/${id}`),
+  create: (data) => request("POST", "/inventory", data),
+  update: (id, data) => request("PUT", `/inventory/${id}`, data),
+  adjustStock: (id, data) => request("POST", `/inventory/${id}/adjust`, data),
+  resetStatus: (id) => request("POST", `/inventory/${id}/reset-status`),
+  delete: (id) => request("DELETE", `/inventory/${id}`),
+
   submitStock: (data) => request("POST", "/vendor-stock", data),
   selectVendor: (data) => request("PUT", "/vendor-stock/select", data),
   getVariantStock: (productId, sku) => request("GET", `/vendor-stock/${productId}/${sku}`),
@@ -201,9 +214,40 @@ export const inventoryAPI = {
 //  Coupons
 // ─────────────────────────────────────────────
 export const couponsAPI = {
-  getAll: (params) => request("GET", "/coupons", null, { params }),
+  getAll: (params) => {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+    return request("GET", `/coupons${qs}`);
+  },
   create: (data) => request("POST", "/coupons", data),
   delete: (id) => request("DELETE", `/coupons/${id}`),
+};
+
+// ─────────────────────────────────────────────
+//  Uploads
+// ─────────────────────────────────────────────
+export const uploadAPI = {
+  upload: (image) => request("POST", "/upload", { image }),
+  uploadImage: async (fileOrBase64) => {
+    let base64 = fileOrBase64;
+    if (fileOrBase64 instanceof File) {
+      base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(fileOrBase64);
+      });
+    }
+    return request("POST", "/upload", { image: base64 });
+  },
+};
+
+// ─────────────────────────────────────────────
+//  Blog Categories
+// ─────────────────────────────────────────────
+export const blogCategoriesAPI = {
+  getAll: () => request("GET", "/cms/blog-categories"),
+  create: (name) => request("POST", "/cms/blog-categories", { name }),
+  delete: (id) => request("DELETE", `/cms/blog-categories/${id}`),
 };
 
 // ─────────────────────────────────────────────
@@ -260,7 +304,7 @@ export const settingsAPI = {
 //  CMS & Banners
 // ─────────────────────────────────────────────
 export const cmsAPI = {
-  getBanners: () => request("GET", "/banners"),
+  getBanners: () => request("GET", "/banners/admin"),
   createBanner: (data) => request("POST", "/banners", data),
   updateBanner: (id, data) => request("PUT", `/banners/${id}`, data),
   deleteBanner: (id) => request("DELETE", `/banners/${id}`),
@@ -321,19 +365,23 @@ export const transactionsAPI = {
 };
 
 // ─────────────────────────────────────────────
-//  Upload
+//  Warehouses
 // ─────────────────────────────────────────────
-export const uploadAPI = {
-  uploadImage: async (fileOrBase64) => {
-    let base64 = fileOrBase64;
-    if (fileOrBase64 instanceof File) {
-      base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(fileOrBase64);
-      });
-    }
-    return request("POST", "/upload", { image: base64 });
-  },
+export const warehousesAPI = {
+  getAll: () => request("GET", "/warehouses"),
+  getById: (id) => request("GET", `/warehouses/${id}`),
+  create: (data) => request("POST", "/warehouses", data),
+  update: (id, data) => request("PUT", `/warehouses/${id}`, data),
+  delete: (id) => request("DELETE", `/warehouses/${id}`),
 };
+
+// ─────────────────────────────────────────────
+//  Notifications
+// ─────────────────────────────────────────────
+export const notificationsAPI = {
+  getAdminNotifications: () => request("GET", "/notifications/admin"),
+  getMyNotifications: () => request("GET", "/notifications"),
+  markAsRead: (id) => request("PUT", `/notifications/${id}/read`),
+};
+
+

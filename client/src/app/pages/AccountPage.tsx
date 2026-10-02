@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User, Package, Heart, Gift, Settings, LogOut, Mail, Phone, MapPin, Award, RotateCcw, AlertCircle, CheckCircle2, Clock, XCircle, Ticket, Star, TrendingUp, Zap, Copy, Check, Share2, Users } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { User, Package, Heart, Gift, Settings, LogOut, Mail, Phone, MapPin, Award, RotateCcw, AlertCircle, CheckCircle2, Clock, XCircle, Ticket, Star, TrendingUp, Zap, Copy, Check, Share2, Users, Camera, Upload, Trash2, Loader2, Search, FileText, Eye, Truck, Printer, CreditCard } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -11,12 +11,15 @@ import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { addressesApi, ordersApi, returnsApi, reviewsApi, referralsApi, couponsApi } from "../../services/api";
+import { addressesApi, ordersApi, returnsApi, reviewsApi, referralsApi, couponsApi, uploadApi, paymentsApi } from "../../services/api";
 import { toast } from "sonner";
+import { OrdersPage } from "./OrdersPage";
 
 export function AccountPage() {
   const navigate = useRouter();
-  const { user, loading: authLoading, updateUser, logout } = useAuth();
+  const { user, loading: authLoading, updateUser, updateAvatar, logout } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -24,7 +27,7 @@ export function AccountPage() {
   const [addressId, setAddressId] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
-  const [orders, setOrders] = useState<Array<{ _id: string; orderNumber?: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>([]);
+  const [orders, setOrders] = useState<Array<{ _id: string; orderNumber?: string; returnStatus?: string; items: Array<{ title?: string; quantity: number; price: number; attributes?: Array<{ name: string; value: string }> }>; totalAmount: number; orderStatus: string; createdAt: string }>>([]);
   const [returns, setReturns] = useState<Array<{ id: string; orderNumber: string; productName: string; status: string; requestDate: string; refundAmount: number; reason: string }>>([]);
   const [reviews, setReviews] = useState<Array<{ _id: string; rating: number; comment: string; isApproved: boolean; createdAt: string; product?: { title?: string } }>>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -112,10 +115,69 @@ export function AccountPage() {
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        try {
+          // Attempt to upload to upload endpoint
+          const uploadRes = await uploadApi.uploadBase64({ image: base64, folder: "avatars" });
+          const avatarUrl = uploadRes.url || base64;
+          await updateAvatar(avatarUrl);
+          toast.success("Profile picture updated successfully!");
+        } catch {
+          // Fallback to storing base64 image data directly
+          try {
+            await updateAvatar(base64);
+            toast.success("Profile picture updated!");
+          } catch (innerErr: any) {
+            toast.error(innerErr.message || "Failed to update profile picture");
+          }
+        } finally {
+          setUploadingAvatar(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setUploadingAvatar(false);
+      toast.error(err.message || "Error reading image file");
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      setUploadingAvatar(true);
+      await updateAvatar("");
+      toast.success("Profile picture removed");
+    } catch {
+      toast.error("Failed to remove profile picture");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const s = (status || "").toLowerCase();
+    switch (s) {
+      case "refunded":
+        return <CheckCircle2 className="size-5 text-emerald-500" />;
       case "approved":
         return <CheckCircle2 className="size-5 text-green-500" />;
       case "pending":
@@ -130,26 +192,31 @@ export function AccountPage() {
   };
 
   const getStatusBadge = (status: string) => {
+    const s = (status || "").toLowerCase();
     const variants: Record<string, { className: string; label: string }> = {
+      refunded: {
+        className: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800",
+        label: "Refunded",
+      },
       approved: {
-        className: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
+        className: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800",
         label: "Approved",
       },
       pending: {
-        className: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400",
-        label: "Pending",
+        className: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800",
+        label: "Pending Review",
       },
       processing: {
-        className: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+        className: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800",
         label: "Processing",
       },
       rejected: {
-        className: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+        className: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800",
         label: "Rejected",
       },
     };
 
-    const variant = variants[status] || variants.pending;
+    const variant = variants[s] || variants.pending;
     return (
       <Badge className={variant.className}>
         {variant.label}
@@ -168,13 +235,45 @@ export function AccountPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4 md:gap-6">
-              {/* Avatar with Ring */}
-              <div className="relative">
+              {/* Avatar with Camera Upload & First Letter Fallback */}
+              <div className="relative group">
                 <div className="absolute inset-0 bg-background/30 rounded-full blur-xl"></div>
-                <div className="relative size-20 md:size-24 bg-gradient-to-br from-white to-orange-100 dark:from-orange-200 dark:to-orange-300 rounded-full flex items-center justify-center text-[var(--primary-color)] font-bold text-2xl md:text-3xl flex-shrink-0 shadow-2xl ring-4 ring-white/50">
-                  {user.name.slice(0, 2).toUpperCase()}
+                <div className="relative size-20 md:size-24 bg-gradient-to-br from-white to-orange-100 dark:from-orange-200 dark:to-orange-300 rounded-full flex items-center justify-center text-[var(--primary-color)] font-bold text-2xl md:text-3xl flex-shrink-0 shadow-2xl ring-4 ring-white/50 overflow-hidden">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span>{(user.name?.trim()?.charAt(0) || "U").toUpperCase()}</span>
+                  )}
+
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <Loader2 className="size-6 text-white animate-spin" />
+                    </div>
+                  )}
                 </div>
-                <div className="absolute -bottom-1 -right-1 size-6 md:size-8 bg-green-500 rounded-full border-4 border-white dark:border-gray-900 shadow-lg"></div>
+
+                {/* Camera upload action button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute -bottom-1 -right-1 size-7 md:size-8 bg-[var(--primary-color)] hover:bg-orange-600 text-white rounded-full border-2 border-white dark:border-gray-900 shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-50"
+                  title="Upload profile picture"
+                >
+                  <Camera className="size-3.5 md:size-4" />
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="hidden"
+                />
               </div>
               
               {/* User Info */}
@@ -267,6 +366,52 @@ export function AccountPage() {
                   <CheckCircle2 className="size-3.5" />
                   Verified Account
                 </Badge>
+              </div>
+
+              {/* Profile Photo Management Row */}
+              <div className="mb-6 p-4 rounded-xl bg-background/80 dark:bg-card/80 border border-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="size-14 rounded-full bg-gradient-to-br from-[var(--primary-color)] to-orange-600 text-inverse font-bold text-xl flex items-center justify-center overflow-hidden border-2 border-[var(--primary-color)]/20 shadow-md shrink-0">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{(user.name?.trim()?.charAt(0) || "U").toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Profile Picture</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {user.avatar ? "Custom photo is set" : `Showing first letter "${(user.name?.trim()?.charAt(0) || "U").toUpperCase()}"`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="gap-1.5 text-xs font-medium"
+                  >
+                    {uploadingAvatar ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                    <span>{user.avatar ? "Change Photo" : "Upload Photo"}</span>
+                  </Button>
+                  {user.avatar && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveAvatar}
+                      disabled={uploadingAvatar}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 text-xs gap-1"
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>Remove</span>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -378,30 +523,8 @@ export function AccountPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="orders" className="space-y-4 md:space-y-6">
-            {activityLoading ? <p className="text-muted-foreground">Loading your orders...</p> : orders.length === 0 ? (
-              <div className="glass-card p-8 text-center text-muted-foreground">You have no orders yet.</div>
-            ) : orders.map((order) => (
-              <div key={order._id} className="glass-card p-5 md:p-7 max-w-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">Order #{order.orderNumber ? order.orderNumber.replace("ORD-", "") : (order._id ? order._id.slice(-6).toUpperCase() : "")}</h2>
-                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <Badge className="capitalize">{order.orderStatus}</Badge>
-                </div>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  {order.items.map((item, index) => (
-                    <div key={`${order._id}-${index}`} className="flex justify-between gap-4">
-                      <span>{item.title || "Product"} x {item.quantity}</span>
-                      <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <Separator className="my-4" />
-                <p className="text-right font-bold text-foreground">Total: ₹{order.totalAmount.toFixed(2)}</p>
-              </div>
-            ))}
+          <TabsContent value="orders">
+            <OrdersPage hideHero={true} />
           </TabsContent>
 
           <TabsContent value="returns">

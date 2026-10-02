@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    avatar: {
+      type: String,
+      default: "",
+    },
+
     phone: {
       type: String,
       unique: true,

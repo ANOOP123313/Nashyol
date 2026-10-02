@@ -21,6 +21,7 @@ export const getCart = asyncHandler(async (req, res) => {
         quantity: i.quantity,
         productId: i.product._id,
         variant,
+        attributes: i.attributes,
         price,
       };
     });
@@ -29,15 +30,13 @@ export const getCart = asyncHandler(async (req, res) => {
 });
 
 export const addToCart = asyncHandler(async (req, res) => {
-  const { productId, sku, quantity = 1 } = req.body;
+  const { productId, sku, quantity = 1, attributes } = req.body;
   const product = await Product.findById(productId);
   if (!product || !product.isActive) {
     res.status(404);
     throw new Error("Product not found");
   }
 
-  // Product listing cards from older clients may not include a SKU. Use the
-  // first active, in-stock variant in that case so add-to-cart remains usable.
   const requestedVariant = sku && sku !== productId
     ? product.variants.find((v) => v.sku === sku)
     : null;
@@ -66,8 +65,9 @@ export const addToCart = asyncHandler(async (req, res) => {
       throw new Error("Insufficient stock");
     }
     existing.quantity = newQty;
+    if (attributes) existing.attributes = attributes;
   } else {
-    cart.items.push({ product: productId, sku: cartSku, quantity });
+    cart.items.push({ product: productId, sku: cartSku, quantity, attributes });
   }
   await cart.save();
   

@@ -4,6 +4,8 @@ import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
+import Inventory from "../models/Inventory.js";
+import { calculateStatus } from "./inventoryController.js";
 
 const escapeRegex = (s) => (s ? String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : "");
 
@@ -219,16 +221,39 @@ export const createProduct = asyncHandler(async (req, res) => {
     specifications = [];
   }
 
+  let inventoryDoc = null;
+  const inventoryId = req.body.inventoryId || req.body.inventory || null;
+  if (inventoryId) {
+    inventoryDoc = await Inventory.findById(inventoryId);
+  }
+  if (!inventoryDoc && req.body.sku) {
+    inventoryDoc = await Inventory.findOne({ sku: req.body.sku });
+  }
+  if (!inventoryDoc && title) {
+    inventoryDoc = await Inventory.findOne({
+      title: { $regex: new RegExp(`^${escapeRegex(title)}$`, "i") },
+      isAddedToProducts: { $ne: true },
+    });
+  }
+
+  const finalInventoryId = inventoryDoc?._id || inventoryId || null;
+  const finalSku = req.body.sku || inventoryDoc?.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
   let variants = req.body.variants;
-  if (!variants || variants.length === 0) {
-    const price = Number(req.body.price) || 99;
-    const stock = Number(req.body.stock) || 10;
+  if (!variants || !Array.isArray(variants) || variants.length === 0) {
+    const price = Number(req.body.price) || inventoryDoc?.price || 99;
+    const stock = req.body.stock !== undefined ? Number(req.body.stock) : (inventoryDoc?.currentStock ?? 10);
     variants = [{
-      sku: `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      sku: finalSku,
       sellingPrice: price,
       currentStock: stock,
       isActive: req.body.isActive !== undefined ? req.body.isActive : true,
     }];
+  } else {
+    variants = variants.map((v, idx) => ({
+      ...v,
+      sku: v.sku || `${finalSku}-VAR-${idx + 1}`
+    }));
   }
 
   const rawSubCategory = req.body.subCategory || req.body.subcategory || "";
@@ -237,17 +262,43 @@ export const createProduct = asyncHandler(async (req, res) => {
   const productData = {
     ...req.body,
     title,
-    brand,
-    description,
+    brand: brand || inventoryDoc?.brand || "Generic",
+    description: description || inventoryDoc?.description || "",
     category: categoryId,
     subCategory,
     variants,
     specifications,
+    inventory: finalInventoryId,
     createdBy: req.user?._id || new mongoose.Types.ObjectId(),
   };
 
+  console.log("productData.variants BEFORE SAVE:", JSON.stringify(productData.variants, null, 2));
+
   const product = new Product(productData);
   const createdProduct = await product.save();
+
+  if (inventoryDoc) {
+    try {
+      inventoryDoc.isAddedToProducts = true;
+      inventoryDoc.product = createdProduct._id;
+      if (createdProduct.variants?.[0]?.currentStock !== undefined) {
+        inventoryDoc.currentStock = createdProduct.variants[0].currentStock;
+        inventoryDoc.status = calculateStatus(inventoryDoc.currentStock, inventoryDoc.reorderPoint);
+      }
+      await inventoryDoc.save();
+    } catch (invErr) {
+      console.error("Error linking inventory item:", invErr);
+    }
+  } else if (finalInventoryId) {
+    try {
+      await Inventory.findByIdAndUpdate(finalInventoryId, {
+        isAddedToProducts: true,
+        product: createdProduct._id,
+      });
+    } catch (invErr) {
+      console.error("Error linking inventory item:", invErr);
+    }
+  }
 
   res.status(201).json(createdProduct);
 });
@@ -271,7 +322,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
         currentStock: Number(req.body.stock) || 0,
         isActive: true,
       }];
-    } else {
+    } else if (!req.body.variants || req.body.variants.length === 0) {
       if (req.body.price !== undefined) product.variants[0].sellingPrice = Number(req.body.price);
       if (req.body.stock !== undefined) product.variants[0].currentStock = Number(req.body.stock);
     }
@@ -279,6 +330,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const updateData = { ...req.body };
+
+  if (updateData.variants && Array.isArray(updateData.variants)) {
+    const baseSku = product.variants?.[0]?.sku ? product.variants[0].sku.split('-VAR-')[0] : `SKU-${Date.now()}`;
+    updateData.variants = updateData.variants.map((v, idx) => {
+      // Re-use existing SKU if matching attributes
+      const existing = product.variants.find(oldV => 
+        oldV.attributes?.[0]?.name === v.attributes?.[0]?.name && 
+        oldV.attributes?.[0]?.value === v.attributes?.[0]?.value
+      );
+      return {
+        ...v,
+        sku: v.sku || existing?.sku || `${baseSku}-VAR-${idx + 1}`
+      };
+    });
+  }
 
   if (req.body.subCategory !== undefined || req.body.subcategory !== undefined) {
     const rawSubCat = req.body.subCategory !== undefined ? req.body.subCategory : req.body.subcategory;
@@ -339,6 +405,53 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const updatedProduct = await product.save();
 
+  // Sync changes (stock, price, title) to linked inventory item
+  try {
+    const newStock = req.body.stock !== undefined ? Number(req.body.stock) : product.variants?.[0]?.currentStock;
+    const newPrice = req.body.price !== undefined ? Number(req.body.price) : product.variants?.[0]?.sellingPrice;
+    const newTitle = req.body.title || product.title;
+
+    const invOrConditions = [
+      ...(product.inventory ? [{ _id: product.inventory }] : []),
+      { product: product._id },
+      ...((product.variants || []).map((v) => v.sku).filter(Boolean).map((sku) => ({ sku }))),
+      ...(product.title ? [{ title: product.title }] : []),
+    ];
+
+    if (invOrConditions.length > 0) {
+      const invItems = await Inventory.find({ $or: invOrConditions });
+      for (const inv of invItems) {
+        let changed = false;
+        if (newStock !== undefined && !isNaN(newStock) && inv.currentStock !== newStock) {
+          const diff = newStock - inv.currentStock;
+          inv.currentStock = newStock;
+          inv.status = calculateStatus(newStock, inv.reorderPoint);
+          inv.movements.unshift({
+            type: diff >= 0 ? "in" : "out",
+            units: Math.abs(diff),
+            reason: "Product page stock update sync",
+            by: req.user?.name || "Admin User",
+            date: new Date(),
+          });
+          changed = true;
+        }
+        if (newPrice !== undefined && !isNaN(newPrice) && inv.price !== newPrice) {
+          inv.price = newPrice;
+          changed = true;
+        }
+        if (newTitle && inv.title !== newTitle) {
+          inv.title = newTitle;
+          changed = true;
+        }
+        if (changed) {
+          await inv.save();
+        }
+      }
+    }
+  } catch (syncErr) {
+    console.error("Error syncing product update to inventory:", syncErr);
+  }
+
   res.json(updatedProduct);
 
 });
@@ -350,9 +463,33 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
   if (!product) {
+    // If not found, still ensure any inventory linked to this ID is freed
+    await Inventory.updateMany(
+      { $or: [{ product: req.params.id }, { _id: req.params.id }] },
+      { $set: { isAddedToProducts: false, product: null } }
+    );
     res.status(404);
     throw new Error("Product not found");
   }
+
+  const skus = (product.variants || []).map((v) => v.sku).filter(Boolean);
+
+  // Unlink and reset all inventory items linked to this product:
+  // 1. By product.inventory (if specified)
+  // 2. By Inventory.product === product._id
+  // 3. By Inventory.sku matching any of product's variant SKUs
+  // 4. By product title matching inventory title
+  const orConditions = [
+    { product: product._id },
+    ...(product.inventory ? [{ _id: product.inventory }] : []),
+    ...(skus.length > 0 ? [{ sku: { $in: skus } }] : []),
+    ...(product.title ? [{ title: product.title }] : []),
+  ];
+
+  await Inventory.updateMany(
+    { $or: orConditions },
+    { $set: { isAddedToProducts: false, product: null } }
+  );
 
   await Product.findByIdAndDelete(req.params.id);
 

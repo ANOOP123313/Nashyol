@@ -1,24 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { cmsAPI, uploadAPI } from "../services/api";
+import { cmsAPI, uploadAPI, blogCategoriesAPI } from "../services/api";
 import HomePageSectionManager from "../components/HomePageSectionManager";
 import TopOffers from "./TopOffers";
 
-const TABS = ["Pages", "Banners", "Home Page", "Top Offers", "Blog", "FAQ"];
+const TABS = ["Home Page", "Banners", "Top Offers", "Blog", "FAQ"];
 
 export default function ContentManagement() {
-  const [activeTab, setActiveTab] = useState("Pages");
-  const [pageSearch, setPageSearch] = useState("");
-  const [viewPage, setViewPage] = useState(null);
-  const [editPage, setEditPage] = useState(null);
-  const [createPage, setCreatePage] = useState(false);
-  const [newPageData, setNewPageData] = useState({ title: "", slug: "", content: "", status: "Published" });
-  
-  const [pagesList, setPagesList] = useState([]);
+  const [activeTab, setActiveTab] = useState("Home Page");
   const [blogPosts, setBlogPosts] = useState([]);
   const [faqData, setFaqData] = useState([]);
 
-  const [newPostData, setNewPostData] = useState({ title: "", excerpt: "", content: "", category: "Technology", status: "Published" });
+  // Blog Categories & Post states
+  const [blogCategories, setBlogCategories] = useState(["Technology", "Fashion", "Lifestyle", "Health", "E-commerce", "Guides"]);
+  const [selectedBlogCategoryFilter, setSelectedBlogCategoryFilter] = useState("All");
+  const [inlineNewCategory, setInlineNewCategory] = useState("");
+  const [showInlineCatInput, setShowInlineCatInput] = useState(false);
+  const [uploadingBlogImg, setUploadingBlogImg] = useState(false);
+  const [editPost, setEditPost] = useState(null);
+
+  const [newPostData, setNewPostData] = useState({ title: "", excerpt: "", content: "", image: "", category: "Technology", status: "Published" });
   const [newFaqData, setNewFaqData] = useState({ question: "", answer: "", category: "Orders", status: "Active" });
 
   const [editBanner, setEditBanner] = useState(null);
@@ -28,28 +29,30 @@ export default function ContentManagement() {
 
   const fetchCMSData = async () => {
     try {
-      const [pRes, bRes, fRes] = await Promise.allSettled([
-        cmsAPI.getPages(),
+      const [bRes, fRes, catRes] = await Promise.allSettled([
         cmsAPI.getBlogs(),
         cmsAPI.getFaqs(),
+        blogCategoriesAPI.getAll(),
       ]);
-      if (pRes.status === "fulfilled" && Array.isArray(pRes.value)) {
-        setPagesList(pRes.value.map(p => ({
-          ...p,
-          author: "Admin",
-          modified: new Date(p.updatedAt || Date.now()).toLocaleDateString(),
-        })));
-      }
       if (bRes.status === "fulfilled" && Array.isArray(bRes.value)) {
         setBlogPosts(bRes.value.map(b => ({
           ...b,
-          excerpt: b.content ? b.content.slice(0, 100) + "..." : "",
+          excerpt: b.excerpt || b.summary || (b.content ? b.content.slice(0, 120) + "..." : ""),
           date: new Date(b.createdAt || Date.now()).toLocaleDateString(),
           views: 0,
         })));
       }
       if (fRes.status === "fulfilled" && Array.isArray(fRes.value)) {
         setFaqData(fRes.value);
+      }
+      if (catRes.status === "fulfilled" && Array.isArray(catRes.value)) {
+        const catNames = catRes.value.map(c => typeof c === "string" ? c : c.name).filter(Boolean);
+        if (catNames.length > 0) {
+          setBlogCategories(catNames);
+          if (!newPostData.category) {
+            setNewPostData(prev => ({ ...prev, category: catNames[0] }));
+          }
+        }
       }
     } catch (err) {
       console.error("CMS data fetch error:", err);
@@ -74,45 +77,6 @@ export default function ContentManagement() {
     fetchCMSData();
   }, []);
 
-  const handleCreatePageSubmit = async () => {
-    if (!newPageData.title) {
-      toast.error("Title is required");
-      return;
-    }
-    try {
-      await cmsAPI.createPage(newPageData);
-      toast.success("Page created successfully");
-      setCreatePage(false);
-      setNewPageData({ title: "", slug: "", content: "", status: "Published" });
-      fetchCMSData();
-    } catch (err) {
-      toast.error("Failed to create page: " + err.message);
-    }
-  };
-
-  const handleUpdatePageSubmit = async () => {
-    if (!editPage) return;
-    try {
-      await cmsAPI.updatePage(editPage._id, editPage);
-      toast.success("Page updated successfully");
-      setEditPage(null);
-      fetchCMSData();
-    } catch (err) {
-      toast.error("Failed to update page: " + err.message);
-    }
-  };
-
-  const handleDeletePage = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this page?")) return;
-    try {
-      await cmsAPI.deletePage(id);
-      toast.success("Page deleted");
-      fetchCMSData();
-    } catch (err) {
-      toast.error("Failed to delete page: " + err.message);
-    }
-  };
-
   const handleCreateBlogSubmit = async () => {
     if (!newPostData.title || !newPostData.content) {
       toast.error("Title and content are required");
@@ -122,10 +86,26 @@ export default function ContentManagement() {
       await cmsAPI.createBlog(newPostData);
       toast.success("Blog post created successfully");
       setCreatePost(false);
-      setNewPostData({ title: "", excerpt: "", content: "", category: "Technology", status: "Published" });
+      setNewPostData({ title: "", excerpt: "", content: "", image: "", category: blogCategories[0] || "General", status: "Published" });
       fetchCMSData();
     } catch (err) {
       toast.error("Failed to create blog post: " + err.message);
+    }
+  };
+
+  const handleUpdateBlogSubmit = async () => {
+    if (!editPost) return;
+    if (!editPost.title || !editPost.content) {
+      toast.error("Title and content are required");
+      return;
+    }
+    try {
+      await cmsAPI.updateBlog(editPost._id, editPost);
+      toast.success("Blog post updated successfully");
+      setEditPost(null);
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to update blog post: " + err.message);
     }
   };
 
@@ -137,6 +117,63 @@ export default function ContentManagement() {
       fetchCMSData();
     } catch (err) {
       toast.error("Failed to delete blog post: " + err.message);
+    }
+  };
+
+  const handleAddBlogCategory = async (catName) => {
+    const name = (catName || inlineNewCategory).trim();
+    if (!name) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    if (blogCategories.some(c => c.toLowerCase() === name.toLowerCase())) {
+      toast.info("Category already exists");
+      return;
+    }
+    try {
+      await blogCategoriesAPI.create(name);
+      setBlogCategories(prev => [...prev, name]);
+      setNewPostData(prev => ({ ...prev, category: name }));
+      if (editPost) setEditPost(prev => ({ ...prev, category: name }));
+      setInlineNewCategory("");
+      setShowInlineCatInput(false);
+      toast.success(`Category "${name}" added`);
+    } catch (err) {
+      toast.error(err.message || "Failed to add category");
+    }
+  };
+
+  const handleImageFileChange = async (e, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, WebP)");
+      return;
+    }
+    setUploadingBlogImg(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result;
+          const res = await uploadAPI.upload(base64);
+          const uploadedUrl = res.url || base64;
+          if (isEdit) {
+            setEditPost(prev => ({ ...prev, image: uploadedUrl }));
+          } else {
+            setNewPostData(prev => ({ ...prev, image: uploadedUrl }));
+          }
+          toast.success("Image uploaded!");
+        } catch (err) {
+          toast.error("Upload failed: " + err.message);
+        } finally {
+          setUploadingBlogImg(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setUploadingBlogImg(false);
+      toast.error("Error reading image file");
     }
   };
 
@@ -167,6 +204,18 @@ export default function ContentManagement() {
     }
   };
 
+  const handleToggleFaqStatus = async (faq) => {
+    try {
+      const currentActive = faq.status === "Active" || faq.isActive !== false;
+      const newStatus = currentActive ? "Inactive" : "Active";
+      await cmsAPI.updateFaq(faq._id, { status: newStatus, isActive: !currentActive });
+      toast.success(`FAQ status updated to ${newStatus}`);
+      fetchCMSData();
+    } catch (err) {
+      toast.error("Failed to update FAQ status: " + err.message);
+    }
+  };
+
   const toggleBannerStatus = async (banner) => {
     try {
       await cmsAPI.updateBanner(banner._id, { isActive: !banner.isActive });
@@ -192,139 +241,14 @@ export default function ContentManagement() {
   const [addFaq, setAddFaq] = useState(false);
   const [viewFaq, setViewFaq] = useState(null);
 
-  const filteredPages = pagesList.filter(p =>
-    p.title.toLowerCase().includes(pageSearch.toLowerCase()) ||
-    (p.slug && p.slug.toLowerCase().includes(pageSearch.toLowerCase()))
-  );
-
   return (
     <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-6 sm:py-6 font-sans">
-
-      {/* Create Page Modal */}
-      {createPage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-8 relative" style={{ maxHeight: "95vh", overflowY: "auto" }}>
-            <button onClick={() => setCreatePage(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-            <h2 className="text-3xl font-bold text-gray-900 mb-1">Create New Page</h2>
-            <p className="text-sm text-gray-400 mb-5">Add a new static page to your website</p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Title <span className="text-red-400">*</span></label>
-              <input value={newPageData.title} onChange={e => setNewPageData({ ...newPageData, title: e.target.value })} placeholder="Enter page title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Slug <span className="text-red-400">*</span></label>
-              <input value={newPageData.slug} onChange={e => setNewPageData({ ...newPageData, slug: e.target.value })} placeholder="page-slug" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-gray-300" />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content <span className="text-red-400">*</span></label>
-              <textarea value={newPageData.content} onChange={e => setNewPageData({ ...newPageData, content: e.target.value })} placeholder="Page content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
-              <div className="relative">
-                <select value={newPageData.status} onChange={e => setNewPageData({ ...newPageData, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                  <option value="Draft">Draft</option>
-                  <option value="Published">Published</option>
-                </select>
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setCreatePage(false)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={handleCreatePageSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Create Page</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Modal */}
-      {viewPage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-8 relative" style={{ maxHeight: "95vh", overflowY: "auto" }}>
-            <button onClick={() => setViewPage(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-            <h2 className="text-3xl font-bold text-gray-900 mb-1">View Page</h2>
-            <p className="text-sm text-gray-400 mb-5">View the details of the selected page</p>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Title</label>
-              <input readOnly value={viewPage.title} className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none" />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Slug</label>
-              <input readOnly value={viewPage.slug} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none" />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content</label>
-              <textarea readOnly value={viewPage.content} rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none resize-none" />
-            </div>
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
-              <StatusDropdown status={viewPage.status} />
-            </div>
-            <div className="flex justify-end">
-              <button onClick={() => setViewPage(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editPage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-8 relative" style={{ maxHeight: "95vh", overflowY: "auto" }}>
-            <button onClick={() => setEditPage(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-            <h2 className="text-3xl font-bold text-gray-900 mb-1">Edit Page</h2>
-            <p className="text-sm text-gray-400 mb-5">Edit the details of the selected page</p>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Title</label>
-              <input value={editPage.title} onChange={e => setEditPage({ ...editPage, title: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300" />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Slug</label>
-              <input value={editPage.slug} onChange={e => setEditPage({ ...editPage, slug: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300" />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content</label>
-              <textarea value={editPage.content} onChange={e => setEditPage({ ...editPage, content: e.target.value })} rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none" />
-            </div>
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
-              <div className="relative">
-                <select value={editPage.status} onChange={e => setEditPage({ ...editPage, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                  <option value="Draft">Draft</option>
-                  <option value="Published">Published</option>
-                </select>
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setEditPage(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
-              <button onClick={handleUpdatePageSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Update Page</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900">Content Management</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">Manage website content</p>
         </div>
-        {activeTab === "Pages" && (
-          <button onClick={() => setCreatePage(true)} className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors self-start sm:self-auto">
-            <span className="text-base font-bold">+</span>
-            <span>Add Page</span>
-          </button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -342,114 +266,144 @@ export default function ContentManagement() {
         </div>
       </div>
 
-      {/* Pages Tab */}
-      {activeTab === "Pages" && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-5">
-            <h2 className="text-xl font-semibold text-gray-800">Static Pages</h2>
-            <div className="relative w-full sm:w-56">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search pages..."
-                value={pageSearch}
-                onChange={e => setPageSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300"
-              />
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full" style={{ minWidth: "750px" }}>
-              <thead>
-                <tr className="border-t border-b border-gray-100">
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Page Title</th>
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Slug</th>
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Status</th>
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Author</th>
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Last Modified</th>
-                  <th className="text-left px-4 py-4 text-sm font-medium text-gray-400">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPages.map((page, i) => (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-orange-50 transition-colors">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                        <PageIcon />
-                        {page.title}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-base text-gray-500 whitespace-nowrap">{page.slug}</td>
-                    <td className="px-4 py-4 whitespace-nowrap"><StatusBadge status={page.status} /></td>
-                    <td className="px-4 py-4 text-base text-gray-700 whitespace-nowrap">{page.author}</td>
-                    <td className="px-4 py-4 text-base text-gray-500 whitespace-nowrap">{page.modified}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <ActionBtn icon={<EyeIcon />} label="View" onClick={() => setViewPage(page)} />
-                        <ActionBtn icon={<EditIcon />} label="Edit" onClick={() => setEditPage(page)} />
-                        <button onClick={() => handleDeletePage(page._id)} className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg">
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredPages.length === 0 && (
-            <div className="py-16 text-center text-gray-400">
-              <p className="text-4xl mb-3">📭</p>
-              <p className="text-base">No pages found</p>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Create Post Modal */}
       {createPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-8 relative" style={{ maxHeight: "95vh", overflowY: "auto" }}>
             <button onClick={() => setCreatePost(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-            <h2 className="text-3xl font-bold text-gray-900 mb-1">Create New Blog Post</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Create New Blog Post</h2>
             <p className="text-sm text-gray-400 mb-5">Write and publish a new blog post</p>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Post Title <span className="text-red-400">*</span></label>
-              <input value={newPostData.title} onChange={e => setNewPostData({ ...newPostData, title: e.target.value })} placeholder="Enter post title" className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300" />
+              <input
+                value={newPostData.title}
+                onChange={e => setNewPostData({ ...newPostData, title: e.target.value })}
+                placeholder="Enter post title"
+                className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none placeholder-gray-300"
+              />
+            </div>
+
+            {/* Cover Image Upload */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cover Image (Upload)</label>
+              {newPostData.image ? (
+                <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50 p-2 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={newPostData.image} alt="Preview" className="w-14 h-14 object-cover rounded-lg shrink-0 border" />
+                    <span className="text-xs text-gray-500 truncate">Image uploaded</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="cursor-pointer text-xs font-semibold px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition">
+                      Change
+                      <input type="file" accept="image/*" onChange={(e) => handleImageFileChange(e, false)} className="hidden" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setNewPostData({ ...newPostData, image: "" })}
+                      className="text-xs font-semibold px-2.5 py-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-orange-400 rounded-xl p-4 cursor-pointer bg-gray-50/50 hover:bg-orange-50/20 transition-all">
+                  <input type="file" accept="image/*" onChange={(e) => handleImageFileChange(e, false)} className="hidden" />
+                  {uploadingBlogImg ? (
+                    <div className="flex items-center gap-2 text-sm text-orange-600 font-semibold py-2">
+                      <span className="animate-spin text-lg">⏳</span> Uploading image...
+                    </div>
+                  ) : (
+                    <div className="text-center py-1">
+                      <div className="text-2xl mb-1">📷</div>
+                      <span className="text-sm font-semibold text-gray-700">Click to upload cover image</span>
+                      <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, WebP supported</p>
+                    </div>
+                  )}
+                </label>
+              )}
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Excerpt <span className="text-red-400">*</span></label>
-              <textarea value={newPostData.excerpt} onChange={e => setNewPostData({ ...newPostData, excerpt: e.target.value })} placeholder="Short description..." rows={3} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea
+                value={newPostData.excerpt}
+                onChange={e => setNewPostData({ ...newPostData, excerpt: e.target.value })}
+                placeholder="Short description..."
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300"
+              />
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content <span className="text-red-400">*</span></label>
-              <textarea value={newPostData.content} onChange={e => setNewPostData({ ...newPostData, content: e.target.value })} placeholder="Post content..." rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300" />
+              <textarea
+                value={newPostData.content}
+                onChange={e => setNewPostData({ ...newPostData, content: e.target.value })}
+                placeholder="Post content..."
+                rows={4}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none placeholder-gray-300"
+              />
             </div>
 
-            <div className="flex gap-4 mb-6">
+            {/* Category & Status */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
-                <div className="relative">
-                  <select value={newPostData.category} onChange={e => setNewPostData({ ...newPostData, category: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                    <option value="Technology">Technology</option>
-                    <option value="Fashion">Fashion</option>
-                    <option value="Lifestyle">Lifestyle</option>
-                    <option value="Health">Health</option>
-                  </select>
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Category</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineCatInput(v => !v)}
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    {showInlineCatInput ? "Cancel" : "+ New Category"}
+                  </button>
                 </div>
+
+                {showInlineCatInput ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Category name..."
+                      value={inlineNewCategory}
+                      onChange={e => setInlineNewCategory(e.target.value)}
+                      className="flex-1 border border-orange-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlogCategory(inlineNewCategory)}
+                      className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg"
+                    >
+                      Add
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={newPostData.category}
+                      onChange={e => setNewPostData({ ...newPostData, category: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-700 bg-white focus:outline-none appearance-none cursor-pointer"
+                    >
+                      {blogCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                )}
               </div>
+
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
                 <div className="relative">
-                  <select value={newPostData.status} onChange={e => setNewPostData({ ...newPostData, status: e.target.value })} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
+                  <select
+                    value={newPostData.status}
+                    onChange={e => setNewPostData({ ...newPostData, status: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-700 bg-white focus:outline-none appearance-none cursor-pointer"
+                  >
                     <option value="Draft">Draft</option>
                     <option value="Published">Published</option>
                   </select>
@@ -468,50 +422,142 @@ export default function ContentManagement() {
         </div>
       )}
 
-      {/* View Post Modal */}
-      {viewPost && (
+      {/* Edit Blog Post Modal */}
+      {editPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-8 relative" style={{ maxHeight: "95vh", overflowY: "auto" }}>
-            <button onClick={() => setViewPost(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-            <h2 className="text-3xl font-bold text-gray-900 mb-1">View Blog Post</h2>
-            <p className="text-sm text-gray-400 mb-5">View the details of the selected blog post</p>
+            <button onClick={() => setEditPost(null)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Edit Blog Post</h2>
+            <p className="text-sm text-gray-400 mb-5">Update post content, image, and category</p>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Post Title</label>
-              <input readOnly value={viewPost.title} className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none" />
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Post Title <span className="text-red-400">*</span></label>
+              <input
+                value={editPost.title || ""}
+                onChange={e => setEditPost({ ...editPost, title: e.target.value })}
+                className="w-full border-2 border-orange-400 rounded-lg px-4 py-2.5 text-base text-gray-800 bg-white focus:outline-none"
+              />
+            </div>
+
+            {/* Cover Image Upload / Change */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cover Image</label>
+              {editPost.image ? (
+                <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50 p-2 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={editPost.image} alt="Cover" className="w-14 h-14 object-cover rounded-lg shrink-0 border" />
+                    <span className="text-xs text-gray-500 truncate">Current cover image</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="cursor-pointer text-xs font-semibold px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition">
+                      Change
+                      <input type="file" accept="image/*" onChange={(e) => handleImageFileChange(e, true)} className="hidden" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditPost({ ...editPost, image: "" })}
+                      className="text-xs font-semibold px-2.5 py-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-orange-400 rounded-xl p-4 cursor-pointer bg-gray-50/50 hover:bg-orange-50/20 transition-all">
+                  <input type="file" accept="image/*" onChange={(e) => handleImageFileChange(e, true)} className="hidden" />
+                  {uploadingBlogImg ? (
+                    <div className="flex items-center gap-2 text-sm text-orange-600 font-semibold py-2">
+                      <span className="animate-spin text-lg">⏳</span> Uploading image...
+                    </div>
+                  ) : (
+                    <div className="text-center py-1">
+                      <div className="text-2xl mb-1">📷</div>
+                      <span className="text-sm font-semibold text-gray-700">Click to upload cover image</span>
+                      <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, WebP supported</p>
+                    </div>
+                  )}
+                </label>
+              )}
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Excerpt</label>
-              <textarea readOnly value={viewPost.excerpt} rows={3} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none resize-none" />
+              <textarea
+                value={editPost.excerpt || ""}
+                onChange={e => setEditPost({ ...editPost, excerpt: e.target.value })}
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none resize-none"
+              />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content</label>
-              <textarea readOnly value={viewPost.content} rows={4} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none resize-none" />
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Content <span className="text-red-400">*</span></label>
+              <textarea
+                value={editPost.content || ""}
+                onChange={e => setEditPost({ ...editPost, content: e.target.value })}
+                rows={4}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none resize-none"
+              />
             </div>
 
-            <div className="flex gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
-                <div className="relative">
-                  <select defaultValue={viewPost.category} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                    <option>Technology</option>
-                    <option>Fashion</option>
-                    <option>Lifestyle</option>
-                    <option>Health</option>
-                  </select>
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Category</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineCatInput(v => !v)}
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    {showInlineCatInput ? "Cancel" : "+ New"}
+                  </button>
                 </div>
+
+                {showInlineCatInput ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Category name..."
+                      value={inlineNewCategory}
+                      onChange={e => setInlineNewCategory(e.target.value)}
+                      className="flex-1 border border-orange-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlogCategory(inlineNewCategory)}
+                      className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg"
+                    >
+                      Add
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={editPost.category || blogCategories[0] || "General"}
+                      onChange={e => setEditPost({ ...editPost, category: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-700 bg-white focus:outline-none appearance-none cursor-pointer"
+                    >
+                      {blogCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                )}
               </div>
+
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
                 <div className="relative">
-                  <select defaultValue={viewPost.status === "published" ? "Published" : "Draft"} className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-600 bg-white focus:outline-none appearance-none">
-                    <option>Draft</option>
-                    <option>Published</option>
+                  <select
+                    value={editPost.status === "Published" || editPost.status === "published" ? "Published" : "Draft"}
+                    onChange={e => setEditPost({ ...editPost, status: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-base text-gray-700 bg-white focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Published">Published</option>
                   </select>
                   <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -520,8 +566,9 @@ export default function ContentManagement() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button onClick={() => setViewPost(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Close</button>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setEditPost(null)} className="px-6 py-2.5 text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</button>
+              <button onClick={handleUpdateBlogSubmit} className="px-6 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors">Save Changes</button>
             </div>
           </div>
         </div>
@@ -583,53 +630,141 @@ export default function ContentManagement() {
       {activeTab === "Blog" && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">Blog Posts</h2>
-            <button onClick={() => setCreatePost(true)} className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors self-start sm:self-auto">
-              <span className="text-base font-bold">+</span>
-              <span>New Post</span>
-            </button>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">Blog Posts</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Manage articles, cover images, and categories</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowInlineCatInput(v => !v)}
+                className="flex items-center gap-1.5 border border-orange-200 hover:border-orange-400 text-orange-600 text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
+              >
+                <span>+</span>
+                <span>Category</span>
+              </button>
+              <button
+                onClick={() => setCreatePost(true)}
+                className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+              >
+                <span className="text-base font-bold">+</span>
+                <span>New Post</span>
+              </button>
+            </div>
           </div>
-          <div className="divide-y divide-gray-100">
-            {blogPosts.map((post, i) => (
-              <div key={i} className="py-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-base font-bold text-gray-900">{post.title}</h3>
-                    <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full ${post.status === "published" ? "bg-green-500 text-white" : "bg-orange-400 text-white"}`}>
-                      {post.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mb-2">{post.excerpt}</p>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-                    <span>By {post.author}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      {post.date}
-                    </span>
-                    <span>•</span>
-                    <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-full">{post.category}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      {post.views} views
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <ActionBtn icon={<EditIcon />} label="Edit" onClick={() => setViewPost(post)} />
-                  <button className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg">
-                    <TrashIcon />
-                  </button>
-                </div>
-              </div>
+
+          {/* Inline Add Category Bar if toggled */}
+          {showInlineCatInput && (
+            <div className="mb-4 p-3 bg-orange-50/70 border border-orange-200 rounded-xl flex items-center gap-2">
+              <span className="text-xs font-bold text-orange-700 uppercase tracking-wider">New Category:</span>
+              <input
+                type="text"
+                placeholder="e.g. Health & Wellness"
+                value={inlineNewCategory}
+                onChange={e => setInlineNewCategory(e.target.value)}
+                className="flex-1 bg-white border border-orange-300 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddBlogCategory(inlineNewCategory)}
+                className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+              >
+                Save Category
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowInlineCatInput(false); setInlineNewCategory(""); }}
+                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 border-b border-gray-100">
+            {["All", ...blogCategories].map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedBlogCategoryFilter(cat)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all shrink-0 ${
+                  selectedBlogCategoryFilter === cat
+                    ? "bg-orange-500 text-white shadow-sm"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                }`}
+              >
+                {cat}
+              </button>
             ))}
           </div>
+
+          {/* Posts List */}
+          {(() => {
+            const filtered = blogPosts.filter(p =>
+              selectedBlogCategoryFilter === "All" || p.category === selectedBlogCategoryFilter
+            );
+
+            if (filtered.length === 0) {
+              return (
+                <div className="py-12 text-center text-gray-400">
+                  <div className="text-3xl mb-2">📝</div>
+                  <p className="font-medium text-gray-600">No blog posts found</p>
+                  <p className="text-xs text-gray-400 mt-1">Create your first blog post to get started</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="divide-y divide-gray-100">
+                {filtered.map((post, i) => (
+                  <div key={post._id || i} className="py-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      {post.image ? (
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl border border-gray-200 shrink-0 bg-gray-50 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-400 text-2xl shrink-0">
+                          📰
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-base font-bold text-gray-900 truncate">{post.title}</h3>
+                          <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                            post.status === "Published" || post.status === "published" ? "bg-green-500 text-white" : "bg-orange-400 text-white"
+                          }`}>
+                            {post.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-2">{post.excerpt || post.content}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
+                          <span>By {post.author || "Admin"}</span>
+                          <span>•</span>
+                          <span>{post.date}</span>
+                          <span>•</span>
+                          <span className="bg-orange-50 text-orange-600 border border-orange-200 font-semibold px-2.5 py-0.5 rounded-full">
+                            {post.category || "General"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <ActionBtn icon={<EditIcon />} label="Edit" onClick={() => setEditPost(post)} />
+                      <button
+                        onClick={() => handleDeleteBlog(post._id)}
+                        className="flex items-center border border-gray-200 hover:border-red-300 hover:bg-red-50 bg-white text-red-400 hover:text-red-600 transition-colors p-2 rounded-lg"
+                        title="Delete post"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -754,15 +889,25 @@ export default function ContentManagement() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-sm sm:text-base font-bold text-gray-900">{faq.question}</h3>
                         <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-md">{faq.category}</span>
-                        <span className="bg-green-500 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">Active</span>
+                        <button
+                          onClick={() => handleToggleFaqStatus(faq)}
+                          title="Click to toggle status"
+                          className={`text-xs font-semibold px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${
+                            (faq.status === "Active" || faq.isActive !== false)
+                              ? "bg-green-500 hover:bg-green-600 text-white"
+                              : "bg-gray-300 hover:bg-gray-400 text-gray-700"
+                          }`}
+                        >
+                          {faq.status === "Active" || faq.isActive !== false ? "Active" : "Inactive"}
+                        </button>
                       </div>
                       <p className="text-sm text-gray-500 leading-relaxed">{faq.answer}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => setViewFaq(faq)} className="flex items-center border border-gray-200 hover:border-orange-300 bg-white text-gray-500 hover:text-orange-600 transition-colors p-1.5 rounded-lg">
+                      <button onClick={() => setViewFaq(faq)} className="flex items-center border border-gray-200 hover:border-orange-300 bg-white text-gray-500 hover:text-orange-600 transition-colors p-1.5 rounded-lg" title="Edit FAQ">
                         <EditIcon />
                       </button>
-                      <button className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg">
+                      <button onClick={() => handleDeleteFaq(faq._id || faq.id)} className="flex items-center border border-gray-200 hover:border-red-300 bg-white text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg" title="Delete FAQ">
                         <TrashIcon />
                       </button>
                     </div>
@@ -773,9 +918,6 @@ export default function ContentManagement() {
           </div>
         </div>
       )}
-
-      {/* Home Page Section Manager Tab */}
-      {activeTab === "Home Page" && <HomePageSectionManager />}
 
       {/* Top Offers Tab */}
       {activeTab === "Top Offers" && <TopOffers />}
@@ -1083,22 +1225,7 @@ function BannerCard({ banner, onEdit, onToggle, onDelete }) {
   );
 }
 
-function PageIcon() {
-  return (
-    <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  );
-}
 
-function EyeIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-}
 
 function EditIcon() {
   return (

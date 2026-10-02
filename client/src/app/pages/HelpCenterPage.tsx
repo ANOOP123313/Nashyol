@@ -81,12 +81,12 @@ export function HelpCenterPage() {
     },
   ];
 
-  const [faqs, setFaqs] = useState(defaultFaqs);
+  const [faqs, setFaqs] = useState<Array<{ question: string; answer: string; category?: string }>>(defaultFaqs);
 
   useEffect(() => {
     cmsApi.getFaqs().then((data) => {
       if (Array.isArray(data) && data.length > 0) {
-        setFaqs(data.map((f: any) => ({ question: f.question, answer: f.answer })));
+        setFaqs(data.map((f: any) => ({ question: f.question, answer: f.answer, category: f.category || "" })));
       }
     }).catch((err) => console.error("CMS FAQs load error:", err));
   }, []);
@@ -136,17 +136,23 @@ export function HelpCenterPage() {
 
     if (selectedCategory) {
       const catLower = selectedCategory.toLowerCase();
+      if (faq.category && faq.category.toLowerCase().includes(catLower)) {
+        return true;
+      }
       if (catLower.includes("order") || catLower.includes("shipping")) {
-        return faq.question.toLowerCase().includes("order") || faq.question.toLowerCase().includes("shipping") || faq.question.toLowerCase().includes("track");
+        return faq.question.toLowerCase().includes("order") || faq.question.toLowerCase().includes("shipping") || faq.question.toLowerCase().includes("track") || (faq.category || "").toLowerCase().includes("order");
       }
       if (catLower.includes("return") || catLower.includes("refund")) {
-        return faq.question.toLowerCase().includes("return") || faq.question.toLowerCase().includes("refund");
+        return faq.question.toLowerCase().includes("return") || faq.question.toLowerCase().includes("refund") || (faq.category || "").toLowerCase().includes("return");
       }
       if (catLower.includes("payment") || catLower.includes("pricing")) {
-        return faq.question.toLowerCase().includes("payment") || faq.question.toLowerCase().includes("coupon") || faq.question.toLowerCase().includes("pricing");
+        return faq.question.toLowerCase().includes("payment") || faq.question.toLowerCase().includes("coupon") || faq.question.toLowerCase().includes("pricing") || (faq.category || "").toLowerCase().includes("payment");
       }
       if (catLower.includes("account")) {
-        return faq.question.toLowerCase().includes("password") || faq.question.toLowerCase().includes("account");
+        return faq.question.toLowerCase().includes("password") || faq.question.toLowerCase().includes("account") || (faq.category || "").toLowerCase().includes("account");
+      }
+      if (faq.category) {
+        return faq.category.toLowerCase() === catLower;
       }
     }
     return true;

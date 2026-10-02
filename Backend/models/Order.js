@@ -20,6 +20,12 @@ const orderSchema = new mongoose.Schema(
         quantity: Number,
         deliveryCharge: { type: Number, default: 0 },
         vendorId: mongoose.Schema.Types.ObjectId,
+        attributes: [
+          {
+            name: String,
+            value: String,
+          }
+        ],
       },
     ],
 
@@ -45,9 +51,34 @@ const orderSchema = new mongoose.Schema(
 
     orderStatus: {
       type: String,
-      enum: ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+      enum: ["pending", "confirmed", "shipped", "delivered", "cancelled", "return_requested", "returned", "refunded"],
       default: "pending",
       index: true,
+    },
+
+    returnStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected", "refunded"],
+      default: "none",
+      index: true,
+    },
+
+    returnId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Return",
+      default: null,
+    },
+
+    cancellationReason: {
+      type: String,
+      default: "",
+    },
+
+    cancelledAt: Date,
+
+    cancelledBy: {
+      type: String,
+      default: "",
     },
 
     address: {

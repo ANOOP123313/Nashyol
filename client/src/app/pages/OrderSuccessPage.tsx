@@ -34,13 +34,18 @@ function formatOrder(raw: any, currentUser?: any) {
     variant: it.variant,
   }));
 
-  const paymentMethod = raw.paymentMethod || (raw.paymentStatus === "pending" ? "Cash on Delivery" : "Credit Card / Online Payment");
+  const paymentMethod = raw.paymentMethod || (raw.paymentStatus === "pending" ? "cod" : "card");
+  const isCod = paymentMethod.toLowerCase() === "cod" || paymentMethod.toLowerCase().includes("cash");
+  const paymentStatus = raw.paymentStatus || (isCod ? "pending" : "paid");
+
   const productAmount = Number(raw.productAmount) || items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
-  const codCharge = paymentMethod.toLowerCase().includes("cod") || paymentMethod.toLowerCase().includes("cash")
-    ? Number(raw.codCharge ?? raw.deliveryCharge) || items.reduce((sum: number, item: any) => sum + (Number(item.deliveryCharge) || 0), 0)
+  const couponCode = raw.couponCode || raw.coupon || "";
+  const discountAmount = Number(raw.discountAmount ?? raw.discount ?? 0);
+  const codCharge = isCod
+    ? Number(raw.codCharge ?? raw.deliveryCharge ?? 0)
     : 0;
-  const shippingCharge = Number(raw.shippingCharge) || 0;
-  const amount = Number(raw.amount) || productAmount + shippingCharge + codCharge;
+  const shippingCharge = Number(raw.shippingCharge || 0);
+  const amount = Number(raw.totalAmount ?? raw.amount) || Math.max(0, productAmount - discountAmount + shippingCharge + codCharge);
 
   const createdDate = raw.createdAt ? new Date(raw.createdAt) : new Date();
   const deliveryDate = new Date(createdDate);
@@ -54,10 +59,14 @@ function formatOrder(raw: any, currentUser?: any) {
   return {
     orderNumber,
     amount,
+    totalAmount: amount,
     productAmount,
+    couponCode,
+    discountAmount,
     codCharge,
     shippingCharge,
     paymentMethod,
+    paymentStatus,
     estimatedDelivery,
     shippingAddress: {
       name,

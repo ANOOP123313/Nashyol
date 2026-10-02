@@ -18,10 +18,32 @@ const enrichVendorsWithSalesAndProducts = async (vendors) => {
     }
   }
 
-  const products = await Product.find().select("variants").lean();
+  // Create lookup maps for vendor ID, storeName, ownerName
+  const vendorNameMap = {};
+  for (const v of vendors) {
+    const vObj = v.toObject ? v.toObject() : { ...v };
+    const idStr = vObj._id ? vObj._id.toString() : "";
+    if (idStr) {
+      if (vObj.storeName) vendorNameMap[vObj.storeName.toLowerCase()] = idStr;
+      if (vObj.name) vendorNameMap[vObj.name.toLowerCase()] = idStr;
+      if (vObj.owner?.name) vendorNameMap[vObj.owner.name.toLowerCase()] = idStr;
+      if (vObj.ownerName) vendorNameMap[vObj.ownerName.toLowerCase()] = idStr;
+    }
+  }
+
+  const products = await Product.find().select("variants vendor brand").lean();
   const productCountMap = {};
   for (const p of products) {
     const vIds = new Set();
+    if (p.vendor) {
+      const pVendStr = p.vendor.toString().toLowerCase();
+      if (vendorNameMap[pVendStr]) vIds.add(vendorNameMap[pVendStr]);
+      else vIds.add(p.vendor.toString());
+    }
+    if (p.brand) {
+      const pBrandStr = p.brand.toString().toLowerCase();
+      if (vendorNameMap[pBrandStr]) vIds.add(vendorNameMap[pBrandStr]);
+    }
     for (const v of (p.variants || [])) {
       if (v.currentVendor) vIds.add(v.currentVendor.toString());
     }
@@ -33,8 +55,8 @@ const enrichVendorsWithSalesAndProducts = async (vendors) => {
   return vendors.map((v) => {
     const vObj = v.toObject ? v.toObject() : { ...v };
     const vId = vObj._id.toString();
-    const computedSales = salesMap[vId]?.sales || vObj.totalRevenue || 0;
-    const computedProducts = productCountMap[vId] || 0;
+    const computedSales = salesMap[vId]?.sales || vObj.totalSales || vObj.totalRevenue || 0;
+    const computedProducts = productCountMap[vId] || vObj.productsCount || vObj.productCount || 0;
     return {
       ...vObj,
       totalSales: computedSales,

@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { PaymentGateway } from "../components/PaymentGateway";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
-import { ordersApi, addressesApi, settingsApi, couponsApi } from "@/services/api";
+import { paymentsApi, ordersApi, addressesApi, settingsApi, couponsApi } from "@/services/api";
+import { StripePaymentModal } from "../components/StripePaymentModal";
 
 export function CheckoutPage() {
   const router = useRouter();
@@ -36,6 +37,11 @@ export function CheckoutPage() {
   const [codEnabled, setCodEnabled] = useState(true);
   const [codCharge, setCodCharge] = useState(0);
   const [hasGlobalCodCharge, setHasGlobalCodCharge] = useState(false);
+
+  // Stripe Modal state
+  const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [stripeOrderId, setStripeOrderId] = useState<string | null>(null);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -193,6 +199,22 @@ export function CheckoutPage() {
 
     setIsProcessing(true);
     try {
+      const finalMethod = paymentData.method || paymentMethod || "card";
+
+      if (finalMethod === "card") {
+        try {
+          const intentData = await paymentsApi.createIntentFromCart(appliedCoupon?.code);
+          setStripeClientSecret(intentData.clientSecret);
+          setStripeOrderId(null);
+          setStripeModalOpen(true);
+        } catch (err: any) {
+          toast.error(err.message || "Failed to initialize secure checkout");
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      // COD Flow
       const orderData = {
         couponCode: appliedCoupon?.code,
         address: {
@@ -203,8 +225,8 @@ export function CheckoutPage() {
           state,
           pincode: zip,
         },
-        paymentId: paymentData.id || "manual-payment",
-        paymentMethod: paymentData.method || paymentMethod,
+        paymentId: "manual-payment",
+        paymentMethod: "cod",
       };
 
       const result: any = await ordersApi.create(orderData);
@@ -225,13 +247,16 @@ export function CheckoutPage() {
         productAmount: subtotal,
         codCharge: codDeliveryCharge,
         shippingCharge: shipping,
+        couponCode: appliedCoupon?.code || result?.couponCode || "",
+        discountAmount: couponDiscount || result?.discountAmount || 0,
         amount: total,
-        paymentMethod: paymentData.method || "Credit Card / Cash on Delivery",
+        totalAmount: total,
+        paymentMethod: "cod",
+        paymentStatus: "pending",
       };
 
       localStorage.setItem("lastOrder", JSON.stringify(placedOrder));
       clearCart();
-
       router.push("/order-success");
     } catch (err: any) {
       if (err.message?.includes("token") || err.message?.includes("authorized") || err.message?.includes("401")) {
@@ -357,9 +382,9 @@ export function CheckoutPage() {
                       <h4 className="text-sm font-bold text-foreground truncate">{item.name}</h4>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
                       {item.variant?.attributes && (
-                        <div className="flex gap-1 mt-1">
+                        <div className="flex flex-wrap gap-1 mt-1">
                           {item.variant.attributes.map((a: any) => (
-                            <span key={a.name} className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{a.value}</span>
+                            <span key={a.name} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">{a.name}: {a.value}</span>
                           ))}
                         </div>
                       )}
@@ -451,6 +476,62 @@ export function CheckoutPage() {
           </div>
         </div>
       </div>
+      
+      <StripePaymentModal
+        isOpen={stripeModalOpen}
+        clientSecret={stripeClientSecret}
+        orderId={stripeOrderId}
+        onClose={() => setStripeModalOpen(false)}
+        onSuccess={async (paymentIntentId) => {
+          setStripeModalOpen(false);
+          try {
+            const orderData = {
+              couponCode: appliedCoupon?.code,
+              address: {
+                fullName: `${firstName} ${lastName}`,
+                phone,
+                street: address,
+                city,
+                state,
+                pincode: zip,
+              },
+              paymentId: paymentIntentId || "stripe-payment",
+              paymentMethod: "card",
+              paymentStatus: "paid"
+            };
+            const result: any = await ordersApi.create(orderData);
+            
+            const placedOrder = {
+              ...result,
+              items: items.map(i => ({
+                id: i.id,
+                sku: i.sku,
+                name: i.name,
+                price: i.price,
+                quantity: i.quantity,
+                image: i.image,
+                variant: i.variant,
+              })),
+              shippingAddress: orderData.address,
+              productAmount: subtotal,
+              codCharge: 0,
+              shippingCharge: shipping,
+              couponCode: appliedCoupon?.code || result?.couponCode || "",
+              discountAmount: couponDiscount || result?.discountAmount || 0,
+              amount: total,
+              totalAmount: total,
+              paymentMethod: "card",
+              paymentStatus: "paid",
+            };
+
+            localStorage.setItem("lastOrder", JSON.stringify(placedOrder));
+            clearCart();
+            router.push("/order-success");
+          } catch (err: any) {
+            toast.error(err.message || "Failed to finalize order after payment. Please contact support.");
+          }
+        }}
+      />
     </div>
   );
 }

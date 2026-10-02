@@ -26,6 +26,7 @@ import { returnsApi } from "../../services/api";
 interface ReturnRefundModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   orderData: {
     orderNumber: string;
     orderDate: string;
@@ -44,6 +45,7 @@ interface ReturnRefundModalProps {
 export function ReturnRefundModal({
   isOpen,
   onClose,
+  onSuccess,
   orderData,
 }: ReturnRefundModalProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -123,6 +125,7 @@ export function ReturnRefundModal({
         description: "We'll process your return and schedule pickup within 2-3 business days",
         duration: 5000,
       });
+      onSuccess?.();
       onClose();
       // Reset form
       setSelectedItems([]);

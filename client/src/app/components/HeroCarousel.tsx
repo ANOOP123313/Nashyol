@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "./ui/button";
+import { bannersApi } from "@/services/api";
 
 export interface HeroSlide {
   id: string;
+  bannerId?: string;
   image: string;
   title?: string;
   description?: string;
@@ -105,7 +107,17 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
                       }}
                       asChild
                     >
-                      <Link href={slide.buttonLink}>{slide.buttonText}</Link>
+                      <Link
+                        href={slide.buttonLink}
+                        onClick={() => {
+                          const targetId = slide.bannerId || (slide.id && slide.id.length > 10 ? slide.id : undefined);
+                          if (targetId) {
+                            bannersApi.click(targetId).catch(() => {});
+                          }
+                        }}
+                      >
+                        {slide.buttonText}
+                      </Link>
                     </Button>
                   )}
                 </div>

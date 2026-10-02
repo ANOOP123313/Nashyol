@@ -49,6 +49,7 @@ interface OrderPlacedModalProps {
       name: string;
       quantity: number;
       price: number;
+      attributes?: Array<{ name: string; value: string }>;
     }>;
   } | null;
 }
@@ -323,6 +324,15 @@ export function OrderPlacedModal({
                     <p className="text-xs text-muted-foreground">
                       Qty: {item.quantity}
                     </p>
+                    {item.attributes && item.attributes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.attributes.map((a: any) => (
+                          <span key={a.name} className="text-[10px] text-muted-foreground bg-background px-1.5 py-0.5 rounded border border-border">
+                            {a.name}: {a.value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <span className="font-semibold text-foreground">
                     ₹{(item.price * item.quantity).toFixed(2)}

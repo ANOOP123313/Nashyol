@@ -7,6 +7,8 @@ const bannerSchema = new mongoose.Schema(
     subtitle: String,
     link: String,
     linkText: String,
+    type: { type: String, enum: ["card", "popup"], default: "card" },
+    position: { type: String, default: "Homepage Hero" },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     impressions: { type: Number, default: 0 },

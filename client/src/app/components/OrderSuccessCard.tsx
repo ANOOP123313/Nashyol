@@ -9,6 +9,10 @@ import {
   Calendar,
   CreditCard,
   X,
+  Tag,
+  Banknote,
+  Clock,
+  Check,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useSuccessSound } from "../hooks/useSuccessSound";
@@ -17,10 +21,14 @@ interface OrderSuccessCardProps {
   orderData: {
     orderNumber: string;
     amount: number;
+    totalAmount?: number;
     productAmount?: number;
+    couponCode?: string;
+    discountAmount?: number;
     codCharge?: number;
     shippingCharge?: number;
     paymentMethod: string;
+    paymentStatus?: string;
     estimatedDelivery: string;
     shippingAddress: {
       name: string;
@@ -173,39 +181,114 @@ export function OrderSuccessCard({
             </motion.div>
           </div>
 
-          {/* Payment Method */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="p-6 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 rounded-[20px] border-2 border-orange-200/50 dark:border-orange-800/50 mb-8 backdrop-blur-sm"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-card shadow-md flex items-center justify-center">
-                  <CreditCard className="size-5 text-[var(--primary-color)]" />
+          {/* Payment & Bill Summary */}
+          {(() => {
+            const isCod = (orderData?.paymentMethod || "").toLowerCase().includes("cod") ||
+                          (orderData?.paymentMethod || "").toLowerCase().includes("cash");
+
+            const getPaymentMethodDisplay = (method: string) => {
+              const m = (method || "").toLowerCase();
+              if (m.includes("cod") || m.includes("cash")) return "Cash on Delivery (COD)";
+              if (m === "card") return "Credit / Debit Card";
+              if (m === "razorpay") return "Razorpay / UPI";
+              if (m === "paypal") return "PayPal";
+              if (m === "applepay") return "Apple Pay";
+              if (m === "googlepay") return "Google Pay";
+              return method || (isCod ? "Cash on Delivery (COD)" : "Online Payment");
+            };
+
+            const paymentLabel = getPaymentMethodDisplay(orderData?.paymentMethod);
+            const hasCoupon = Boolean(orderData?.couponCode || (orderData?.discountAmount && orderData.discountAmount > 0));
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="p-6 sm:p-7 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 rounded-[20px] border-2 border-orange-200/50 dark:border-orange-800/50 mb-8 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-full bg-card shadow-sm flex items-center justify-center">
+                      {isCod ? (
+                        <Banknote className="size-5 text-[var(--primary-color)]" />
+                      ) : (
+                        <CreditCard className="size-5 text-[var(--primary-color)]" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block">
+                        Payment Method
+                      </span>
+                      <span className="text-base font-bold text-foreground">
+                        {paymentLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCod ? (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-sm">
+                      <Clock className="size-3.5" /> Pay on Delivery
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-sm">
+                      <Check className="size-3.5" /> Paid
+                    </span>
+                  )}
                 </div>
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Payment Method
-                </span>
-              </div>
-              <Badge className="bg-green-500 hover:bg-green-500 text-inverse font-semibold px-4 py-1 text-sm">
-                Paid
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Products</span>
-                <span>₹{(orderData.productAmount ?? orderData.amount).toFixed(2)}</span>
-              </div>
-              {orderData.shippingCharge ? <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Shipping</span><span>₹{orderData.shippingCharge.toFixed(2)}</span></div> : null}
-              {orderData.codCharge ? <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Cash on Delivery charge</span><span>₹{orderData.codCharge.toFixed(2)}</span></div> : null}
-              <div className="flex items-center justify-between border-t border-orange-200/60 pt-3">
-                <span className="text-lg font-medium text-muted-foreground">{orderData.paymentMethod}</span>
-                <span className="text-4xl font-bold text-[var(--primary-color)]">₹{(orderData?.amount || 0).toFixed(2)}</span>
-              </div>
-            </div>
-          </motion.div>
+
+                {/* Bill Breakdown */}
+                <div className="space-y-2.5 pt-3 border-t border-orange-200/60 dark:border-orange-800/60">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Products Subtotal ({orderData?.itemCount || orderData?.items?.length || 1} items)</span>
+                    <span>₹{(orderData?.productAmount ?? orderData?.amount ?? 0).toFixed(2)}</span>
+                  </div>
+
+                  {/* Coupon & Discount Row */}
+                  {hasCoupon && (
+                    <div className="flex items-center justify-between text-sm py-1 px-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200/80 dark:border-emerald-800/80">
+                      <span className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm">
+                        <Tag className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        Coupon Discount
+                        {orderData.couponCode && (
+                          <span className="px-2 py-0.5 text-xs font-extrabold rounded-md bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 uppercase tracking-wider">
+                            {orderData.couponCode}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                        -₹{(orderData.discountAmount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Shipping</span>
+                    <span>{orderData?.shippingCharge ? `₹${orderData.shippingCharge.toFixed(2)}` : "FREE"}</span>
+                  </div>
+
+                  {orderData?.codCharge ? (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Cash on Delivery fee</span>
+                      <span>₹{orderData.codCharge.toFixed(2)}</span>
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-between border-t border-orange-200/80 dark:border-orange-800/80 pt-4 mt-2">
+                    <div>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block">
+                        {isCod ? "Total Payable on Delivery" : "Total Amount Paid"}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-medium">All taxes & charges included</span>
+                    </div>
+                    <span className="text-3xl sm:text-4xl font-extrabold text-[var(--primary-color)]">
+                      ₹{(orderData?.amount || orderData?.totalAmount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Shipping Address */}
           <motion.div
@@ -267,9 +350,9 @@ export function OrderSuccessCard({
                       <Badge variant="secondary" className="text-[10px] bg-muted py-0 px-2">
                         Qty: {item.quantity || 1}
                       </Badge>
-                      {item.variant?.attributes?.map((attr: any) => (
+                      {((item.attributes && item.attributes.length > 0) ? item.attributes : item.variant?.attributes)?.map((attr: any) => (
                         <Badge key={attr.name} variant="outline" className="text-[10px] py-0 px-2">
-                          {attr.value}
+                          {attr.name ? `${attr.name}: ${attr.value}` : attr.value}
                         </Badge>
                       ))}
                     </div>

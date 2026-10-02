@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -10,7 +11,7 @@ import {
   Tag, Store, BarChart2, Box, AlertCircle, Loader2, List,
 } from "lucide-react";
 import { useProducts, useProduct, useProductMutations } from "../hooks/useProducts";
-import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI, vendorsAPI } from "../services/api";
+import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI, vendorsAPI, inventoryAPI } from "../services/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 
@@ -540,6 +541,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, o
 // ─────────────────────────────────────────────────
 function ProductFormModal({ product, onClose, onSuccess }) {
   const isEdit = !!product;
+  const navigate = useNavigate();
   const { createProduct, updateProduct, loading, error } = useProductMutations({ onSuccess });
 
   const getInitialCategory = () => {
@@ -557,6 +559,7 @@ function ProductFormModal({ product, onClose, onSuccess }) {
     brand       : product?.vendor    ?? product?.brand ?? "",
     category    : getInitialCategory(),
     subCategory : getInitialSubCategory(),
+    warehouse   : product?.warehouse ?? "",
     description : product?.description ?? "",
     price       : product?.price?.toString() ?? "",
     stock       : product?.stock?.toString() ?? "",
@@ -575,6 +578,98 @@ function ProductFormModal({ product, onClose, onSuccess }) {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [vendorOptions, setVendorOptions] = useState([]);
   const [vendorLoading, setVendorLoading] = useState(true);
+
+  const [productProperties, setProductProperties] = useState(
+    Array.isArray(product?.variants) && product.variants.length > 0 && product.variants.some(v => v.attributes && v.attributes.length > 0)
+      ? product.variants.flatMap(v => v.attributes.map(a => ({ property: a.name, value: a.value, stock: v.currentStock })))
+      : []
+  );
+
+  const addProperty = () => setProductProperties(prev => [...prev, { property: "", value: "", stock: "" }]);
+  const removeProperty = (idx) => setProductProperties(prev => prev.filter((_, i) => i !== idx));
+  const handlePropertyChange = (idx, field, val) => {
+    const updated = [...productProperties];
+    updated[idx][field] = val;
+    setProductProperties(updated);
+  };
+
+
+  // Inventory Integration
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(!isEdit);
+  const [selectedInventoryId, setSelectedInventoryId] = useState(
+    product?.inventory?._id || product?.inventory || ""
+  );
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
+
+  useEffect(() => {
+    if (!isEdit) {
+      setInventoryLoading(true);
+      inventoryAPI.getAll({ availableOnly: "true" })
+        .then((res) => {
+          const items = Array.isArray(res) ? res : (res.inventory || res.items || res.data || res.available || []);
+          setInventoryItems(items);
+        })
+        .catch((err) => {
+          console.error("Failed to load inventory items:", err);
+        })
+        .finally(() => setInventoryLoading(false));
+    }
+  }, [isEdit]);
+
+  // Only show ready-to-add items (not already in product catalog)
+  const readyInventoryItems = useMemo(() => {
+    return (inventoryItems || []).filter((item) => !item.isAddedToProducts);
+  }, [inventoryItems]);
+
+  const handleSelectInventoryItem = (invId) => {
+    setSelectedInventoryId(invId);
+    if (!invId) {
+      setSelectedInventoryItem(null);
+      return;
+    }
+    const item = inventoryItems.find((i) => (i._id || i.id) === invId);
+    if (!item) return;
+    setSelectedInventoryItem(item);
+
+    // Resolve category name matching categoriesData
+    let resolvedCatName = "";
+    if (item.categoryName) {
+      resolvedCatName = item.categoryName;
+    } else if (item.category && typeof item.category === "object") {
+      resolvedCatName = item.category.name || "";
+    } else if (item.category) {
+      const match = categoriesData.find(
+        (c) => c._id === item.category || c.name?.toLowerCase() === String(item.category).toLowerCase()
+      );
+      resolvedCatName = match ? match.name : String(item.category);
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      title: item.title || item.name || prev.title,
+      brand: item.brand || item.vendor || prev.brand,
+      category: resolvedCatName || prev.category,
+      subCategory: item.subCategory || prev.subCategory,
+      warehouse: item.warehouse || prev.warehouse || "",
+      price: item.price != null ? String(item.price) : prev.price,
+      stock: item.currentStock != null ? String(item.currentStock) : (item.stock != null ? String(item.stock) : prev.stock),
+      paidAmount: item.paidAmount != null ? String(item.paidAmount) : prev.paidAmount,
+      deliveryCharge: item.deliveryCharge != null ? String(item.deliveryCharge) : prev.deliveryCharge,
+      description: item.description || prev.description,
+      status: (item.currentStock ?? item.stock ?? 0) > 0 ? "Approved" : "Out of Stock",
+    }));
+
+    if (Array.isArray(item.specifications) && item.specifications.length > 0) {
+      setSpecifications(item.specifications.map((s) => ({ key: s.key || "", value: s.value || "" })));
+    }
+
+    if (Array.isArray(item.images) && item.images.length > 0) {
+      setImages(item.images);
+    }
+
+    toast.success(`Loaded "${item.title || item.name}" from inventory! Details populated.`);
+  };
 
   useEffect(() => {
     setCategoriesLoading(true);
@@ -679,6 +774,10 @@ function ProductFormModal({ product, onClose, onSuccess }) {
   };
 
   const handleSubmit = async () => {
+    if (!isEdit && !selectedInventoryId) {
+      toast.error("Please select a product from Inventory first. Products must exist in inventory before adding to catalog.");
+      return;
+    }
     if (!form.title.trim()) {
       toast.error("Product name is required");
       return;
@@ -692,20 +791,58 @@ function ProductFormModal({ product, onClose, onSuccess }) {
       .map(s => ({ key: (s.key || "").trim(), value: (s.value || "").trim() }))
       .filter(s => s.key || s.value);
 
+    const cleanProps = productProperties.filter(p => p.property.trim() && p.value.trim());
+    const propSet = new Set();
+    let totalPropStock = 0;
+
+    for (const p of cleanProps) {
+      const key = `${p.property.trim().toLowerCase()}-${p.value.trim().toLowerCase()}`;
+      if (propSet.has(key)) {
+        toast.error(`Duplicate property/value: ${p.property} ${p.value}`);
+        return;
+      }
+      if (p.stock === "" || isNaN(Number(p.stock)) || Number(p.stock) < 0) {
+        toast.error(`Invalid stock quantity for ${p.property} ${p.value}`);
+        return;
+      }
+      propSet.add(key);
+      totalPropStock += Number(p.stock);
+    }
+
     const payload = {
       title         : form.title,
       brand         : form.brand,
       category      : selectedCatObj?._id || form.category,
       subCategory   : form.subCategory || "",
+      warehouse     : form.warehouse || selectedInventoryItem?.warehouse || "",
       price         : Number(form.price) || 0,
-      stock         : Number(form.stock) || 0,
+      stock         : cleanProps.length > 0 ? totalPropStock : (Number(form.stock) || 0),
       description   : form.description,
       paidAmount    : Number(form.paidAmount) || 0,
       deliveryCharge: Number(form.deliveryCharge) || 0,
       isActive      : form.status === "Approved",
       images        : images.length > 0 ? images : ["https://placehold.co/300x300?text=No+Image"],
       specifications: cleanSpecs,
+      inventoryId   : selectedInventoryId || undefined,
+      sku           : selectedInventoryItem?.sku || undefined,
     };
+
+    if (cleanProps.length > 0) {
+      payload.variants = cleanProps.map(p => ({
+        attributes: [{ name: p.property.trim(), value: p.value.trim() }],
+        currentStock: Number(p.stock) || 0,
+        sellingPrice: Number(form.price) || 0,
+        isActive: true,
+      }));
+    } else {
+      payload.variants = [{
+        attributes: [],
+        currentStock: Number(form.stock) || 0,
+        sellingPrice: Number(form.price) || 0,
+        isActive: true,
+      }];
+    }
+
 
     try {
       const targetId = product?.id || product?._id;
@@ -714,6 +851,7 @@ function ProductFormModal({ product, onClose, onSuccess }) {
         onSuccess?.(updated);
       } else {
         const created = await createProduct(payload);
+        toast.success("Product added to catalog and linked to inventory successfully!");
         onSuccess?.(created);
       }
     } catch (_) { /* error shown inline */ }
@@ -727,12 +865,125 @@ function ProductFormModal({ product, onClose, onSuccess }) {
       <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,0.4)" }} onClick={onClose}/>
       <div style={{ position:"relative",zIndex:10,width:"100%",maxWidth:640,margin:"0 16px",background:"#fff",borderRadius:18,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",overflow:"hidden" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid #e5e7eb" }}>
-          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:"#111827" }}>{isEdit ? "Edit Product" : "Add New Product"}</h2>
+          <div>
+            <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:"#111827" }}>{isEdit ? "Edit Product" : "Add New Product"}</h2>
+            {!isEdit && (
+              <p style={{ margin:"2px 0 0",fontSize:12,color:"#6b7280" }}>
+                Step 2: Select from Inventory & publish to Product Catalog
+              </p>
+            )}
+          </div>
           <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:"#9ca3af",display:"flex" }}><X size={20}/></button>
         </div>
 
         <div style={{ padding:"20px 24px",maxHeight:"72vh",overflowY:"auto" }}>
           {error && <ErrorBanner message={error}/>}
+
+          {/* STEP 1: SELECT PRODUCT FROM INVENTORY (ONLY FOR NEW PRODUCTS) */}
+          {!isEdit && (
+            <div style={{
+              background: "#f0fdf4",
+              border: "1.5px solid #86efac",
+              borderRadius: 12,
+              padding: "16px 18px",
+              marginBottom: 20
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ background: "#22c55e", color: "#fff", width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
+                    1
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#166534" }}>
+                    Select Product from Inventory <span style={{ color: "#ef4444" }}>*</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); navigate("/inventory"); }}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#15803d",
+                    background: "#dcfce7",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: 6,
+                    padding: "4px 10px",
+                    cursor: "pointer"
+                  }}
+                >
+                  + Add to Inventory First
+                </button>
+              </div>
+
+              <p style={{ margin: "0 0 10px", fontSize: 12, color: "#166534", lineHeight: 1.4 }}>
+                Products must first exist in your inventory before being published. Select an item below to automatically fill its details.
+              </p>
+
+              {inventoryLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#166534", padding: "8px 0" }}>
+                  <Spinner size={14} color="#166534" /> Loading ready-to-add inventory items...
+                </div>
+              ) : readyInventoryItems.length === 0 ? (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 14px", marginTop: 8 }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+                    ⚠️ No ready-to-add products found in inventory!
+                  </p>
+                  <p style={{ margin: "0 0 10px", fontSize: 12, color: "#b91c1c" }}>
+                    {inventoryItems.length > 0
+                      ? "All current inventory items are already in your product catalog. Please add new products into the inventory first."
+                      : "Please add your product into the inventory first before publishing it here."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); navigate("/inventory"); }}
+                    style={{
+                      background: "#dc2626",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "6px 14px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Go to Inventory
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={selectedInventoryId}
+                  onChange={(e) => handleSelectInventoryItem(e.target.value)}
+                  className="add-modal-select"
+                  style={{
+                    ...iS,
+                    borderColor: selectedInventoryId ? "#22c55e" : "#86efac",
+                    background: "#fff",
+                    fontWeight: selectedInventoryId ? 600 : 400,
+                    fontSize: 13,
+                    appearance: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">-- Choose a product from inventory ({readyInventoryItems.length} available) --</option>
+                  {readyInventoryItems.map((item) => (
+                    <option key={item._id || item.id} value={item._id || item.id}>
+                      [{item.sku}] {item.title || item.name} — {item.warehouse || "Warehouse"} (Stock: {item.currentStock ?? item.stock ?? 0})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {selectedInventoryItem && (
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, background: "#dcfce7", borderRadius: 8, padding: "8px 12px", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534" }}>
+                  <CheckCircle size={15} color="#16a34a" />
+                  <span>
+                    Linked to <strong>{selectedInventoryItem.title || selectedInventoryItem.name}</strong> (SKU: {selectedInventoryItem.sku}) • Stock: <strong>{selectedInventoryItem.currentStock ?? selectedInventoryItem.stock ?? 0} units</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
             <div><label style={lS}>Product Name <span style={{ color:"#ef4444" }}>*</span></label><input name="title" value={form.title} onChange={handleChange} placeholder="Enter product name" className="add-modal-input" style={iS}/></div>
@@ -825,7 +1076,11 @@ function ProductFormModal({ product, onClose, onSuccess }) {
             <div><label style={lS}>Paid Amount (₹)</label><input name="paidAmount" value={form.paidAmount} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
           </div>
 
-          <div style={{ marginBottom:16 }}><label style={lS}>Cash on Delivery Charge (₹)</label><input name="deliveryCharge" value={form.deliveryCharge} onChange={handleChange} type="number" min="0" step="0.01" placeholder="0.00" className="add-modal-input" style={iS}/><p style={{ margin:"5px 0 0",fontSize:11,color:"#6b7280" }}>Applied per unit only when the customer selects Cash on Delivery.</p></div>
+          <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
+            <div><label style={lS}>Warehouse</label><input name="warehouse" value={form.warehouse} onChange={handleChange} placeholder="Warehouse location" className="add-modal-input" style={iS}/></div>
+            <div><label style={lS}>Cash on Delivery Charge (₹)</label><input name="deliveryCharge" value={form.deliveryCharge} onChange={handleChange} type="number" min="0" step="0.01" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+          </div>
+
           <div style={{ marginBottom:16 }}><label style={lS}>Description</label><textarea name="description" value={form.description} onChange={handleChange} rows={3} className="add-modal-textarea" style={{ ...iS,resize:"none" }}/></div>
 
           {/* Product Specifications */}
@@ -892,6 +1147,95 @@ function ProductFormModal({ product, onClose, onSuccess }) {
                     }}
                   >
                     <Trash2 size={14}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Properties */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ ...lS, fontWeight: 600, margin: 0 }}>Product Properties</label>
+              <button
+                type="button"
+                onClick={addProperty}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#10b981",
+                  background: "#ecfdf5",
+                  border: "1px solid #a7f3d0",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                <Plus size={13} /> Add Property
+              </button>
+            </div>
+            <p style={{ margin: "0 0 10px", fontSize: 11, color: "#6b7280" }}>
+              Define generic properties like Size or Color with individual stock quantities. Example: Property: "Size", Value: "34", Stock: 20.
+            </p>
+            
+            {productProperties.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#4b5563" }}>Property</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#4b5563" }}>Value</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#4b5563" }}>Stock</label>
+                <div style={{ width: 32 }}></div>
+              </div>
+            )}
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {productProperties.map((prop, idx) => (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. Size"
+                    value={prop.property}
+                    onChange={(e) => handlePropertyChange(idx, "property", e.target.value)}
+                    className="add-modal-input"
+                    style={iS}
+                  />
+                  <input
+                    type="text"
+                    placeholder="e.g. 34"
+                    value={prop.value}
+                    onChange={(e) => handlePropertyChange(idx, "value", e.target.value)}
+                    className="add-modal-input"
+                    style={iS}
+                  />
+                  <input
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    value={prop.stock}
+                    onChange={(e) => handlePropertyChange(idx, "stock", e.target.value)}
+                    className="add-modal-input"
+                    style={iS}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeProperty(idx)}
+                    title="Remove property"
+                    style={{
+                      padding: 8,
+                      borderRadius: 6,
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ))}

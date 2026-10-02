@@ -23,6 +23,12 @@ const cartSchema = new mongoose.Schema(
           type: Number,
           default: 1,
         },
+        attributes: [
+          {
+            name: String,
+            value: String,
+          }
+        ],
       },
     ],
   },

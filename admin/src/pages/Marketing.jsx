@@ -292,11 +292,11 @@ const AdCard = ({ ad, onPreview, mutedIds, onToggleMute, ctxAnchor, setCtxAnchor
           <EyeIcon size={15} /> Preview
         </button>
         <button
-          className={`mc-btn-icon${mutedIds.includes(ad.id) ? ' muted' : ''}`}
+          className={`mc-btn-icon${ad.status !== 'active' ? ' muted' : ''}`}
           onClick={() => onToggleMute(ad.id)}
-          title="Toggle Active"
+          title={ad.status === 'active' ? 'Pause Campaign' : 'Activate Campaign'}
         >
-          {mutedIds.includes(ad.id) ? <PowerOff size={16} /> : <Power size={16} />}
+          {ad.status !== 'active' ? <PowerOff size={16} /> : <Power size={16} />}
         </button>
         <DotsBtn adId={ad.id} ctxAnchor={ctxAnchor} setCtxAnchor={setCtxAnchor} onDelete={onDelete} />
       </div>
@@ -326,11 +326,11 @@ const TableRow = ({ ad, onPreview, mutedIds, onToggleMute, ctxAnchor, setCtxAnch
       <div className="mc-td-actions">
         <button className="mc-tbl-icon" onClick={() => onPreview(ad.id)} title="Preview"><EyeIcon size={15} /></button>
         <button
-          className={`mc-tbl-icon${mutedIds.includes(ad.id) ? ' muted' : ''}`}
+          className={`mc-tbl-icon${ad.status !== 'active' ? ' muted' : ''}`}
           onClick={() => onToggleMute(ad.id)}
-          title="Toggle"
+          title={ad.status === 'active' ? 'Pause Campaign' : 'Activate Campaign'}
         >
-          {mutedIds.includes(ad.id) ? <PowerOff size={15} /> : <Power size={15} />}
+          {ad.status !== 'active' ? <PowerOff size={15} /> : <Power size={15} />}
         </button>
         <DotsBtn adId={ad.id} ctxAnchor={ctxAnchor} setCtxAnchor={setCtxAnchor} onDelete={onDelete} isTbl={true} />
       </div>
@@ -410,6 +410,7 @@ const CreateModal = ({ onClose, onSuccess }) => {
         ctaText: cta,
         link: link || "/",
         position: placement,
+        type: adType,
         isActive: true,
       });
       toast.success("Campaign created successfully");
@@ -506,15 +507,15 @@ export default function MarketingCampaigns() {
           title: b.title || "Ad Campaign",
           desc: b.subtitle || "Promotional Banner",
           img: b.image || "/placeholder.jpg",
-          type: "card",
+          type: b.type || "card",
           status: b.isActive ? "active" : "paused",
           placement: b.position || "Homepage Hero",
-          product: b.ctaText || "Shop Now",
+          product: b.linkText || b.ctaText || "Shop Now",
           impressions: b.impressions || 0,
           clicks: b.clicks || 0,
           conv: Math.round((b.clicks || 0) * 0.08),
           durationLine1: "Ongoing",
-          cta: b.ctaText || "Shop Now",
+          cta: b.linkText || b.ctaText || "Shop Now",
         }));
         setAdsData(mapped);
       })
@@ -551,9 +552,10 @@ export default function MarketingCampaigns() {
     if (!target) return;
     try {
       await cmsAPI.updateBanner(id, { isActive: target.status !== "active" });
+      toast.success(`Campaign ${target.status === "active" ? "paused" : "activated"} successfully`);
       loadAds();
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to update campaign status: " + err.message);
     }
   };
 

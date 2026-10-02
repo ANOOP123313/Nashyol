@@ -11,6 +11,14 @@ import mongoose from "mongoose";
 import Category from "./models/Category.js";
 import app from "./app.js";
 
+process.on("unhandledRejection", (err) => {
+  console.error("⚠️ Unhandled Promise Rejection:", err);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("⚠️ Uncaught Exception:", err);
+});
+
 const PORT = process.env.PORT || 5000;
 const mongoUri = process.env.MONGODB_URI.includes("/nashyol")
   ? process.env.MONGODB_URI

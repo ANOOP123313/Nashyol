@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
@@ -31,9 +31,14 @@ import {
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import { useAuth } from "../contexts/AuthContext";
-import { ordersApi } from "../../services/api";
+import { ordersApi, paymentsApi } from "../../services/api";
+import { StripePaymentModal } from "../components/StripePaymentModal";
 
-export function OrdersPage() {
+interface OrdersPageProps {
+  hideHero?: boolean;
+}
+
+export function OrdersPage({ hideHero = false }: OrdersPageProps) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
@@ -48,20 +53,43 @@ export function OrdersPage() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("Changed my mind");
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace("/login?redirect=/orders");
-      setOrdersLoading(false);
-      return;
-    }
+  // Stripe Modal state for Pay Later
+  const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [stripeOrderId, setStripeOrderId] = useState<string | null>(null);
 
+  const handlePayNow = async (orderId: string) => {
+    try {
+      const intentData = await paymentsApi.createIntent(orderId);
+      setStripeClientSecret(intentData.clientSecret);
+      setStripeOrderId(orderId);
+      setStripeModalOpen(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initialize payment");
+    }
+  };
+
+  const formatStatus = (status: string) => {
+    if (!status) return "Processing";
+    return status.replace(/(^|_)(\w)/g, (_, separator, character) => `${separator ? " " : ""}${character.toUpperCase()}`);
+  };
+
+  const fetchOrders = useCallback(() => {
+    if (!user) return;
     setOrdersLoading(true);
     ordersApi.myOrders()
       .then((data) => setOrders(data.map((order: any) => {
         const shortSuffix = (order._id || "").toString().slice(-6).toUpperCase();
         const ordNumber = order.orderNumber || `ORD-${shortSuffix}`;
         const invNumber = order.invoiceNumber || `INV-${shortSuffix}`;
+
+        const retStatus = (order.returnStatus && order.returnStatus !== "none") ? order.returnStatus : null;
+        let displayStatus = formatStatus(order.orderStatus);
+        if (retStatus === "pending") displayStatus = "Return Requested";
+        else if (retStatus === "approved") displayStatus = "Return Approved";
+        else if (retStatus === "refunded") displayStatus = "Refunded";
+        else if (retStatus === "rejected") displayStatus = "Return Rejected";
+
         return {
           id: `#${shortSuffix}`,
           orderNumber: ordNumber,
@@ -69,7 +97,15 @@ export function OrdersPage() {
           rawId: order._id,
           date: new Date(order.createdAt).toLocaleDateString(),
           dateTime: order.createdAt,
-          status: formatStatus(order.orderStatus),
+          status: displayStatus,
+          orderStatus: order.orderStatus,
+          returnStatus: retStatus,
+          returnId: order.returnId,
+          refundAmount: order.refundAmount,
+          refundMethod: order.refundMethod,
+          returnDeliveryStatus: order.returnDeliveryStatus,
+          returnTracking: order.returnTracking,
+          paymentStatus: order.paymentStatus,
           deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
           total: order.totalAmount || 0,
           productAmount: (order.items || []).reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0),
@@ -80,6 +116,7 @@ export function OrdersPage() {
             quantity: item.quantity,
             price: item.price,
             image: item.image || null,
+            attributes: item.attributes || [],
           })),
           shippingAddress: {
             name: order.address?.fullName || "",
@@ -94,12 +131,26 @@ export function OrdersPage() {
       })))
       .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load your orders"))
       .finally(() => setOrdersLoading(false));
-  }, [authLoading, user, router]);
+  }, [user]);
 
-  const formatStatus = (status: string) => {
-    if (!status) return "Processing";
-    return status.replace(/(^|_)(\w)/g, (_, separator, character) => `${separator ? " " : ""}${character.toUpperCase()}`);
-  };
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/login?redirect=/orders");
+      setOrdersLoading(false);
+      return;
+    }
+    fetchOrders();
+  }, [authLoading, user, router, fetchOrders]);
+
+  useEffect(() => {
+    if (selectedOrder) {
+      const updatedOrder = orders.find((o) => o.id === selectedOrder.id);
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+      }
+    }
+  }, [orders]);
 
   if (authLoading || (!user && ordersLoading)) {
     return <div className="min-h-screen flex items-center justify-center">Loading orders...</div>;
@@ -115,8 +166,31 @@ export function OrdersPage() {
         return "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800";
       case "Cancelled":
         return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800";
+      case "Return Requested":
+        return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+      case "Return Approved":
+        return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+      case "Refunded":
+        return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+      case "Return Rejected":
+        return "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800";
       default:
         return "bg-muted text-muted-foreground dark:text-muted-foreground border-gray-200 dark:border-gray-700";
+    }
+  };
+
+  const getReturnBadge = (status: string) => {
+    switch ((status || "").toLowerCase()) {
+      case "pending":
+        return { label: "Return Requested", class: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800" };
+      case "approved":
+        return { label: "Return Approved", class: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800" };
+      case "refunded":
+        return { label: "Refunded", class: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" };
+      case "rejected":
+        return { label: "Return Rejected", class: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800" };
+      default:
+        return { label: status, class: "bg-muted text-muted-foreground border-gray-200 dark:border-gray-700" };
     }
   };
 
@@ -222,6 +296,7 @@ export function OrdersPage() {
         name: item.name,
         quantity: item.quantity,
         price: item.price,
+        attributes: item.attributes || [],
       })),
     };
     setDemoOrderData(demoData);
@@ -239,7 +314,7 @@ export function OrdersPage() {
     const targetId = orderToCancel.rawId || orderToCancel._id || orderToCancel.orderNumber || orderToCancel.id;
     setCancelling(true);
     try {
-      await ordersApi.cancel(targetId);
+      await ordersApi.cancel(targetId, cancelReason);
       toast.success("Order cancelled successfully");
       setOrders((prev) =>
         prev.map((o) =>
@@ -258,30 +333,32 @@ export function OrdersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent pb-24 md:pb-0">
+    <div className={hideHero ? "w-full space-y-6" : "min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:bg-transparent dark:from-transparent dark:via-transparent dark:to-transparent pb-24 md:pb-0"}>
       {/* Hero Header */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-800"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnptLTEyIDEyYzMuMzE0IDAgNiAyLjY4NiA2IDZzLTIuNjg2IDYtNiA2LTYtMi42ODYtNi02IDIuNjg2LTYgNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
+      {!hideHero && (
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-800"></div>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnptLTEyIDEyYzMuMzE0IDAgNiAyLjY4NiA2IDZzLTIuNjg2IDYtNiA2LTYtMi42ODYtNi02IDIuNjg2LTYgNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-background/20 backdrop-blur-sm rounded-2xl">
-              <Package className="size-8 md:size-10 text-inverse" />
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-inverse drop-shadow-lg">
-                My Orders
-              </h1>
-              <p className="text-inverse/90 text-sm md:text-base mt-1">
-                Track and manage your orders
-              </p>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-background/20 backdrop-blur-sm rounded-2xl">
+                <Package className="size-8 md:size-10 text-inverse" />
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-inverse drop-shadow-lg">
+                  My Orders
+                </h1>
+                <p className="text-inverse/90 text-sm md:text-base mt-1">
+                  Track and manage your orders
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={hideHero ? "w-full" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"}>
         <div className="space-y-4">
           {ordersLoading ? <div className="glass-card p-8 text-center text-muted-foreground">Loading your orders...</div> : orders.length === 0 ? (
             <div className="glass-card p-8 text-center text-muted-foreground">You have no orders yet.</div>
@@ -343,6 +420,15 @@ export function OrdersPage() {
                         <p className="font-medium text-sm sm:text-base text-foreground line-clamp-2">
                           {item.name} <span className="text-xs text-muted-foreground font-normal">x{item.quantity}</span>
                         </p>
+                        {item.attributes && item.attributes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.attributes.map((a: any) => (
+                              <span key={a.name} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
+                                {a.name}: {a.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <span className="text-sm sm:text-base font-medium text-muted-foreground shrink-0">
@@ -394,7 +480,7 @@ export function OrdersPage() {
                   </Button>
                 )}
 
-                {order.status === "Delivered" && (
+                {order.status === "Delivered" && !order.returnStatus && (
                   <Button
                     variant="outline"
                     onClick={() => handleReturnRequest(order)}
@@ -402,6 +488,27 @@ export function OrdersPage() {
                   >
                     <RotateCcw className="size-4 mr-2" />
                     Return
+                  </Button>
+                )}
+
+                {order.returnStatus && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/returns-refunds?track=${encodeURIComponent(order.orderNumber)}`)}
+                    className="flex-1 min-w-[120px] h-10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-medium text-xs sm:text-sm"
+                  >
+                    <RotateCcw className="size-4 mr-2" />
+                    Track Return
+                  </Button>
+                )}
+
+                {order.paymentStatus !== "paid" && order.status !== "Cancelled" && (
+                  <Button
+                    onClick={() => handlePayNow(order.rawId)}
+                    className="flex-1 min-w-[120px] h-10 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium text-xs sm:text-sm shadow-md"
+                  >
+                    <CreditCard className="size-4 mr-2" />
+                    Pay Now
                   </Button>
                 )}
 
@@ -503,6 +610,15 @@ export function OrdersPage() {
                         <p className="text-sm text-muted-foreground">
                           Qty: {item.quantity}
                         </p>
+                        {item.attributes && item.attributes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.attributes.map((a: any) => (
+                              <span key={a.name} className="text-[10px] text-muted-foreground bg-background px-1.5 py-0.5 rounded border border-border">
+                                {a.name}: {a.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <p className="font-bold text-foreground">
                         ₹{(item.price * item.quantity).toFixed(2)}
@@ -539,13 +655,29 @@ export function OrdersPage() {
                     <CreditCard className="size-5 text-[var(--primary-color)]" />
                     Payment Method
                   </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedOrder.paymentMethod}
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {selectedOrder.paymentMethod === "cod" ? "Cash on Delivery" : selectedOrder.paymentMethod}
+                    {selectedOrder.paymentStatus === "paid" && (
+                      <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">Paid</Badge>
+                    )}
+                    {selectedOrder.paymentStatus !== "paid" && (
+                      <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-700">Pending</Badge>
+                    )}
                   </p>
+                  
+                  {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus !== "paid" && selectedOrder.status !== "Cancelled" && (
+                    <Button 
+                      onClick={() => handlePayNow(selectedOrder.rawId)}
+                      className="mt-3 w-full bg-[var(--primary-color)] text-white hover:bg-orange-600"
+                    >
+                      Pay Now Online
+                    </Button>
+                  )}
+
                   <Separator className="my-3" />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Total Paid
+                      Total {selectedOrder.paymentStatus === "paid" ? "Paid" : "Amount"}
                     </span>
                     <span className="text-xl font-bold text-[var(--primary-color)]">
                       ₹{selectedOrder.total.toFixed(2)}
@@ -581,6 +713,40 @@ export function OrdersPage() {
                   </div>
                 </>
               )}
+
+              {/* Return & Refund Info if return exists */}
+              {selectedOrder.returnStatus && (
+                <>
+                  <Separator />
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <RotateCcw className="size-5 text-amber-600 dark:text-amber-400" />
+                        <h4 className="font-semibold text-foreground">Return & Refund Status</h4>
+                      </div>
+                      <Badge variant="outline" className={getReturnBadge(selectedOrder.returnStatus).class}>
+                        {getReturnBadge(selectedOrder.returnStatus).label}
+                      </Badge>
+                    </div>
+                    {Number(selectedOrder.refundAmount) > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Refund Amount: <span className="font-semibold text-foreground">₹{Number(selectedOrder.refundAmount).toFixed(2)}</span>
+                        {selectedOrder.refundMethod ? ` via ${selectedOrder.refundMethod.toUpperCase()}` : ""}
+                      </p>
+                    )}
+                    {selectedOrder.returnDeliveryStatus && (
+                      <p className="text-xs text-muted-foreground">
+                        Pickup / Delivery: <span className="font-medium text-foreground">{selectedOrder.returnDeliveryStatus}</span>
+                      </p>
+                    )}
+                    {selectedOrder.returnTracking && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Tracking Number: {selectedOrder.returnTracking}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -591,6 +757,7 @@ export function OrdersPage() {
         <ReturnRefundModal
           isOpen={returnModalOpen}
           onClose={() => setReturnModalOpen(false)}
+          onSuccess={fetchOrders}
           orderData={{
             orderNumber: selectedOrder.orderNumber,
             rawId: selectedOrder.rawId || selectedOrder._id,
@@ -668,6 +835,18 @@ export function OrdersPage() {
           orderData={demoOrderData}
         />
       )}
+
+      <StripePaymentModal
+        isOpen={stripeModalOpen}
+        clientSecret={stripeClientSecret}
+        orderId={stripeOrderId}
+        onClose={() => setStripeModalOpen(false)}
+        onSuccess={() => {
+          setStripeModalOpen(false);
+          setDetailsModalOpen(false);
+          fetchOrders();
+        }}
+      />
     </div>
   );
 }

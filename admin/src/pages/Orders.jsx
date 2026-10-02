@@ -352,6 +352,7 @@ export default function Orders() {
             amount: o.totalAmount || 0,
             items: o.items?.length || 1,
             payment: o.paymentStatus || "paid",
+            paymentMethod: o.paymentMethod || "card",
             delivery: o.orderStatus || "delivered",
             date: new Date(o.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
             email: o.user?.email || "",
@@ -490,7 +491,7 @@ export default function Orders() {
             <table className="op-tbl">
               <thead>
                 <tr>
-                  {["Order ID","Customer","Vendor","Amount","Payment","Delivery","Date","Actions"].map(h => (
+                  {["Order ID","Customer","Amount","Payment","Delivery","Date","Actions"].map(h => (
                     <th key={h} className="op-th">{h}</th>
                   ))}
                 </tr>
@@ -505,12 +506,14 @@ export default function Orders() {
                       </div>
                     </td>
                     <td className="op-td" style={{ fontWeight: 700, color: "#111" }}>{o.customer}</td>
-                    <td className="op-td" style={{ color: "#6b7280" }}>{o.vendor}</td>
                     <td className="op-td">
                       <div style={{ fontWeight: 700, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
                       <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
                     </td>
-                    <td className="op-td"><Badge status={o.payment} /></td>
+                    <td className="op-td">
+                      <div style={{ marginBottom: 4 }}><Badge status={o.payment} /></div>
+                      <div style={{ fontSize: 12, color: "#6b7280", textTransform: "capitalize" }}>{o.paymentMethod === "cod" ? "COD" : o.paymentMethod}</div>
+                    </td>
                     <td className="op-td"><Badge status={o.delivery} /></td>
                     <td className="op-td" style={{ color: "#6b7280" }}>{o.date}</td>
                     <td className="op-td" onClick={e => e.stopPropagation()}>
@@ -519,7 +522,7 @@ export default function Orders() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 48, color: "#9ca3af" }}>No orders found</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: "center", padding: 48, color: "#9ca3af" }}>No orders found</td></tr>
                 )}
               </tbody>
             </table>
@@ -537,7 +540,6 @@ export default function Orders() {
                     {o.referral && <span className="op-ref">🎁 Referral</span>}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{o.customer}</div>
-                  <div style={{ fontSize: 13, color: "#6b7280" }}>{o.vendor}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
@@ -546,7 +548,7 @@ export default function Orders() {
                 </div>
               </div>
               <div className="op-mob-badges">
-                <div><span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>Payment</span><Badge status={o.payment} /></div>
+                <div><span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>Payment ({o.paymentMethod === "cod" ? "COD" : "Card"})</span><Badge status={o.payment} /></div>
                 <div><span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>Delivery</span><Badge status={o.delivery} /></div>
               </div>
               <div className="op-mob-acts" onClick={e => e.stopPropagation()}>

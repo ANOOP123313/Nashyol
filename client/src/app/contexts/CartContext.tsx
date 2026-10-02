@@ -33,6 +33,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 function mapApiItemToCartItem(apiItem: any): CartItem {
   const p = apiItem.product || {};
   const v = apiItem.variant || {};
+  if (apiItem.attributes && apiItem.attributes.length > 0) {
+    v.attributes = apiItem.attributes;
+  }
   const images = p.images || [];
   return {
     id: apiItem.productId || p._id,
@@ -101,9 +104,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     async (productId: string, sku: string, quantity: number = 1, fallbackItem?: Omit<CartItem, "quantity">) => {
+      const attributes = fallbackItem?.variant?.attributes;
       if (token) {
         try {
-          await cartApi.add(productId, sku, quantity);
+          await cartApi.add(productId, sku, quantity, attributes);
           await refreshCart();
         } catch (e: any) {
           throw new Error(e instanceof Error ? e.message : "Failed to add item to cart");

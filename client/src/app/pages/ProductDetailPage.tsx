@@ -70,7 +70,7 @@ export function ProductDetailPage() {
   const selectedVariant = useMemo(() => {
     if (!product || !product.variants) return null;
     return product.variants.find((v: any) => 
-      v.attributes.every((a: any) => selectedAttributes[a.name] === a.value)
+      !v.attributes || v.attributes.length === 0 || v.attributes.every((a: any) => selectedAttributes[a.name] === a.value)
     );
   }, [product, selectedAttributes]);
 
@@ -79,16 +79,33 @@ export function ProductDetailPage() {
     if (!product || !product.variants) return {};
     const map: Record<string, Set<string>> = {};
     product.variants.forEach((v: any) => {
-      v.attributes.forEach((a: any) => {
-        if (!map[a.name]) map[a.name] = new Set();
-        map[a.name].add(a.value);
-      });
+      if (v.attributes) {
+        v.attributes.forEach((a: any) => {
+          if (!map[a.name]) map[a.name] = new Set();
+          map[a.name].add(a.value);
+        });
+      }
     });
     return map;
   }, [product]);
 
   const handleAttributeSelect = (name: string, value: string) => {
     setSelectedAttributes(prev => ({ ...prev, [name]: value }));
+    setQuantity(1); // Reset quantity when changing variant
+  };
+
+  const isOptionOutOfStock = (attrName: string, value: string) => {
+    if (!product || !product.variants) return false;
+    
+    // Find all variants that have this attribute value
+    const matchingVariants = product.variants.filter((v: any) => 
+      v.attributes?.some((a: any) => a.name === attrName && a.value === value)
+    );
+    
+    if (matchingVariants.length === 0) return false;
+    
+    // If ALL matching variants have 0 stock, it is out of stock
+    return matchingVariants.every((v: any) => v.currentStock <= 0);
   };
 
   // Average rating calculated from real reviews
@@ -182,7 +199,10 @@ export function ProductDetailPage() {
         name: product.title,
         price: selectedVariant.sellingPrice,
         image: selectedVariant.image || product.images[0],
-        variant: selectedVariant,
+        variant: {
+          ...selectedVariant,
+          attributes: Object.entries(selectedAttributes).map(([name, value]) => ({ name, value }))
+        },
       });
       toast.success("Added to cart");
     } catch (err: any) {
@@ -275,19 +295,25 @@ export function ProductDetailPage() {
               <div key={attrName}>
                 <h3 className="text-sm font-bold text-foreground uppercase tracking-widest mb-4">{attrName}</h3>
                 <div className="flex flex-wrap gap-3">
-                  {Array.from(attributesMap[attrName]).map(value => (
-                    <button
-                      key={value}
-                      onClick={() => handleAttributeSelect(attrName, value)}
-                      className={`px-6 py-2 text-sm font-bold transition-all border-2 [border-radius:0!important] ${
-                        selectedAttributes[attrName] === value
-                          ? "bg-primary border-primary text-inverse shadow-lg shadow-primary/20"
-                          : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {value}
-                    </button>
-                  ))}
+                  {Array.from(attributesMap[attrName]).map(value => {
+                    const isOOS = isOptionOutOfStock(attrName, value as string);
+                    return (
+                      <button
+                        key={value as string}
+                        onClick={() => !isOOS && handleAttributeSelect(attrName, value as string)}
+                        disabled={isOOS}
+                        className={`px-6 py-2 text-sm font-bold transition-all border-2 [border-radius:0!important] ${
+                          selectedAttributes[attrName] === value
+                            ? "bg-primary border-primary text-inverse shadow-lg shadow-primary/20"
+                            : isOOS
+                            ? "border-border text-muted-foreground opacity-50 cursor-not-allowed bg-muted"
+                            : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                        }`}
+                      >
+                        {value as string} {isOOS ? "— Out of Stock" : ""}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -297,9 +323,15 @@ export function ProductDetailPage() {
                 <div>
                   <h3 className="text-sm font-bold text-foreground uppercase tracking-widest mb-4">Quantity</h3>
                   <div className="flex items-center border-2 border-border [border-radius:0!important]">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-3 hover:text-primary transition-colors border-r border-border"><Minus className="size-4" /></button>
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-3 hover:text-primary transition-colors border-r border-border disabled:opacity-50"><Minus className="size-4" /></button>
                     <span className="w-16 text-center font-bold text-foreground">{quantity}</span>
-                    <button onClick={() => setQuantity(q => q + 1)} className="p-3 hover:text-primary transition-colors border-l border-border"><Plus className="size-4" /></button>
+                    <button 
+                      onClick={() => setQuantity(q => Math.min(selectedVariant?.currentStock || 1, q + 1))} 
+                      disabled={!selectedVariant || quantity >= selectedVariant.currentStock}
+                      className="p-3 hover:text-primary transition-colors border-l border-border disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="size-4" />
+                    </button>
                   </div>
                 </div>
                 <div className="pt-8">

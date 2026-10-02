@@ -6,11 +6,66 @@ import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import Coupon from "../models/Coupon.js";
 import User from "../models/User.js";
+import Inventory from "../models/Inventory.js";
+import Return from "../models/Return.js";
+import { calculateStatus } from "./inventoryController.js";
 import { rewardReferrer } from "./referralController.js";
 import { sendNotification } from "./notificationController.js";
 import { logTransaction } from "./transactionController.js";
 import Setting from "../models/Setting.js";
 import { sendOrderConfirmation } from "../utils/whatsappService.js";
+
+const deductInventoryStock = async (product, sku, qty, reason = "Product sale (Order placed)") => {
+  try {
+    const orConditions = [
+      ...(product.inventory ? [{ _id: product.inventory }] : []),
+      { product: product._id },
+      ...(sku ? [{ sku }] : []),
+      { title: product.title },
+    ];
+    const inv = await Inventory.findOne({ $or: orConditions });
+    if (inv) {
+      inv.currentStock = Math.max(0, (inv.currentStock || 0) - qty);
+      inv.status = calculateStatus(inv.currentStock, inv.reorderPoint);
+      inv.movements.unshift({
+        type: "out",
+        units: qty,
+        reason,
+        by: "System",
+        date: new Date(),
+      });
+      await inv.save();
+    }
+  } catch (err) {
+    console.error("Error deducting inventory stock:", err);
+  }
+};
+
+const restoreInventoryStock = async (product, sku, qty, reason = "Stock restored") => {
+  try {
+    const orConditions = [
+      ...(product.inventory ? [{ _id: product.inventory }] : []),
+      { product: product._id },
+      ...(sku ? [{ sku }] : []),
+      { title: product.title },
+    ];
+    const inv = await Inventory.findOne({ $or: orConditions });
+    if (inv) {
+      inv.currentStock = (inv.currentStock || 0) + qty;
+      inv.status = calculateStatus(inv.currentStock, inv.reorderPoint);
+      inv.movements.unshift({
+        type: "in",
+        units: qty,
+        reason,
+        by: "System",
+        date: new Date(),
+      });
+      await inv.save();
+    }
+  } catch (err) {
+    console.error("Error restoring inventory stock:", err);
+  }
+};
 
 export const createOrder = asyncHandler(async (req, res) => {
   const { addressId, address, couponCode, paymentMethod = "card" } = req.body;
@@ -78,13 +133,17 @@ export const createOrder = asyncHandler(async (req, res) => {
       quantity: qty,
       deliveryCharge: itemDeliveryCharge,
       vendorId: variant.currentVendor,
+      attributes: line.attributes || [],
     });
     totalAmount += price * qty + itemDeliveryCharge;
     deliveryCharge += itemDeliveryCharge;
 
-    // Deduct stock
+    // Deduct stock on product variant
     variant.currentStock -= qty;
     await product.save();
+
+    // Deduct stock on inventory item
+    await deductInventoryStock(product, line.sku, qty, "Product sale (Customer purchase)");
   }
 
   if (items.length === 0) {
@@ -195,14 +254,39 @@ export const getMyOrders = asyncHandler(async (req, res) => {
   const products = await Product.find({ _id: { $in: productIds } }).select("title images variants").lean();
   const productsById = new Map(products.map((product) => [product._id.toString(), product]));
 
+  // Also query any returns for this user to attach up-to-date return & refund status
+  const userReturns = await Return.find({ userId: req.user._id }).lean();
+  const returnsByOrderId = new Map();
+  for (const ret of userReturns) {
+    const ordKey = (ret.orderId?._id || ret.orderId || "").toString();
+    if (ordKey) {
+      returnsByOrderId.set(ordKey, ret);
+    }
+  }
+
   const ordersWithImages = orders.map((order) => {
     const shortCode = (order._id || "").toString().slice(-6).toUpperCase();
     const orderNumber = order.orderNumber || `ORD-${shortCode}`;
     const invoiceNumber = order.invoiceNumber || `INV-${shortCode}`;
+
+    const linkedReturn = returnsByOrderId.get(order._id.toString());
+    const effectiveReturnStatus = linkedReturn?.status || order.returnStatus || "none";
+    const effectiveReturnId = linkedReturn?._id || order.returnId || null;
+    const effectiveRefundAmount = linkedReturn?.refundAmount ?? order.refundAmount ?? 0;
+    const effectiveRefundMethod = linkedReturn?.refundMethod || order.refundMethod || "Original Payment Method";
+    const effectiveReturnDeliveryStatus = linkedReturn?.deliveryStatus || "Pickup Pending";
+    const effectiveReturnTracking = linkedReturn?.tracking || "";
+
     return {
       ...order,
       orderNumber,
       invoiceNumber,
+      returnStatus: effectiveReturnStatus,
+      returnId: effectiveReturnId,
+      refundAmount: effectiveRefundAmount,
+      refundMethod: effectiveRefundMethod,
+      returnDeliveryStatus: effectiveReturnDeliveryStatus,
+      returnTracking: effectiveReturnTracking,
       items: order.items.map((item) => {
         if (item.image) return item;
         const product = productsById.get(item.productId?.toString());
@@ -284,7 +368,11 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error(`Cannot cancel order in ${order.orderStatus} status. Only pending or processing orders can be cancelled.`);
   }
 
+  const reason = req.body?.reason || req.body?.cancellationReason || "Customer cancelled order";
   order.orderStatus = "cancelled";
+  order.cancellationReason = reason;
+  order.cancelledAt = new Date();
+  order.cancelledBy = req.user?.role === "admin" ? "admin" : "user";
   await order.save();
 
   // Restore stock
@@ -292,15 +380,43 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     for (const item of order.items) {
       if (!item.productId) continue;
       const product = await Product.findById(item.productId);
+      const qty = item.quantity || 1;
       if (product && Array.isArray(product.variants)) {
-        const variant = product.variants.find((v) => v.sku === item.sku);
+        const variant = product.variants.find((v) => v.sku === item.sku) || product.variants[0];
         if (variant) {
-          variant.currentStock = (variant.currentStock || 0) + (item.quantity || 1);
+          variant.currentStock = (variant.currentStock || 0) + qty;
           product.markModified("variants");
           await product.save();
         }
       }
+      if (product) {
+        await restoreInventoryStock(
+          product,
+          item.sku,
+          qty,
+          `Order #${order.orderNumber || order._id} cancelled - stock restored`
+        );
+      }
     }
+  }
+
+  // Notify admins that user cancelled an order
+  try {
+    const adminUsers = await User.find({ role: { $in: ["admin", "superadmin"] } });
+    const orderNum = order.orderNumber || order._id.toString().slice(-8).toUpperCase();
+    const customerName = req.user?.name || order.address?.fullName || "Customer";
+    const amount = order.totalAmount != null ? ` (₹${order.totalAmount})` : "";
+    for (const admin of adminUsers) {
+      await sendNotification(
+        admin._id,
+        "Order Cancelled by User",
+        `${customerName} cancelled Order #${orderNum}${amount}. Reason: ${reason}`,
+        "order_cancelled",
+        "/orders"
+      );
+    }
+  } catch (adminNotifErr) {
+    console.error("Failed to notify admins of cancelled order:", adminNotifErr);
   }
 
   res.json({ message: "Order cancelled successfully", order });

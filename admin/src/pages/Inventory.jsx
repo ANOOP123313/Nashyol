@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { productsAPI } from "../services/api";
+import { inventoryAPI, categoriesAPI, vendorsAPI, warehousesAPI, uploadAPI } from "../services/api";
 import { downloadCSV } from "../utils/exportCSV";
 
 import {
-  Search, Download, Upload, Plus, Eye, SlidersHorizontal,
+  Search, Download, Upload, Plus, Eye, SlidersHorizontal, Pencil,
   Package, AlertTriangle, TrendingDown, BarChart3, X,
-  ChevronDown, Check, ArrowDownCircle, ArrowUpCircle, Calendar, RefreshCw
+  ChevronDown, Check, ArrowDownCircle, ArrowUpCircle, Calendar, RefreshCw, Trash2
 } from "lucide-react";
 
 const initialData = [];
@@ -96,45 +96,1131 @@ function CustomDropdown({ options, value, onChange }) {
 
 /* ─── ADD PRODUCT MODAL ─── */
 function AddProductModal({ onClose, onAdd }) {
-  const [focused, setFocused] = useState(null);
-  const [form, setForm] = useState({ name: "", sku: "", category: "", vendor: "", warehouse: "", price: "", currentStock: "", reorderPoint: "", maxStock: "" });
-  const fields = [
-    { key: "name", label: "Product Name", placeholder: "Enter product name" },
-    { key: "sku", label: "SKU", placeholder: "Enter SKU" },
-    { key: "category", label: "Category", placeholder: "Enter category" },
-    { key: "vendor", label: "Vendor", placeholder: "Enter vendor" },
-    { key: "warehouse", label: "Warehouse", placeholder: "Enter warehouse" },
-    { key: "price", label: "Price", placeholder: "Enter price" },
-    { key: "currentStock", label: "Current Stock", placeholder: "Enter current stock" },
-    { key: "reorderPoint", label: "Reorder Point", placeholder: "Enter reorder point" },
-    { key: "maxStock", label: "Max Stock", placeholder: "Enter max stock" },
-  ];
+  const [form, setForm] = useState({
+    title: "",
+    brand: "",
+    category: "",
+    subCategory: "",
+    warehouse: "",
+    price: "",
+    stock: "0",
+    status: "Out of Stock",
+    paidAmount: "0.00",
+    deliveryCharge: "0.00",
+    description: "",
+  });
+
+  const [images, setImages] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [specifications, setSpecifications] = useState([{ key: "", value: "" }]);
+
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [vendorLoading, setVendorLoading] = useState(true);
+  const [warehouseOptionsList, setWarehouseOptionsList] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    // 1. Fetch Categories
+    setCategoriesLoading(true);
+    categoriesAPI.getAll()
+      .then((res) => {
+        const cats = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        setCategoriesData(cats);
+      })
+      .catch((err) => console.error("Categories fetch error:", err))
+      .finally(() => setCategoriesLoading(false));
+
+    // 2. Fetch Vendors
+    setVendorLoading(true);
+    vendorsAPI.getAll()
+      .then((res) => {
+        const vendors = Array.isArray(res) ? res : (Array.isArray(res?.vendors) ? res.vendors : []);
+        const mapped = vendors
+          .map((v) => ({
+            id: v._id || v.id,
+            name: v.storeName || v.name || "Vendor",
+          }))
+          .filter((v) => v.name && v.name.trim());
+        setVendorOptions(mapped);
+      })
+      .catch((err) => console.error("Vendors fetch error:", err))
+      .finally(() => setVendorLoading(false));
+
+    // 3. Fetch Warehouses
+    setWarehouseLoading(true);
+    warehousesAPI.getAll()
+      .then((res) => {
+        const whs = Array.isArray(res) ? res : (Array.isArray(res?.warehouses) ? res.warehouses : []);
+        setWarehouseOptionsList(whs);
+        if (whs.length > 0) {
+          setForm(p => ({ ...p, warehouse: p.warehouse || whs[0].name }));
+        }
+      })
+      .catch((err) => console.error("Warehouses fetch error:", err))
+      .finally(() => setWarehouseLoading(false));
+  }, []);
+
+  // Find category object matching current form.category
+  const selectedCatObj = categoriesData.find(
+    c => c.name?.toLowerCase() === form.category?.toLowerCase() || c._id === form.category
+  );
+  const availableSubcategories = selectedCatObj?.subCategories || [];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => {
+      const updated = { ...p, [name]: value };
+      if (name === "stock") {
+        const num = Number(value);
+        if (num > 0 && p.status === "Out of Stock") {
+          updated.status = "In Stock";
+        } else if (num === 0 && p.status === "In Stock") {
+          updated.status = "Out of Stock";
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleCategoryChange = (e) => {
+    const newCat = e.target.value;
+    const catObj = categoriesData.find(
+      c => c.name?.toLowerCase() === newCat?.toLowerCase() || c._id === newCat
+    );
+    const hasCurrentSub = catObj?.subCategories?.some(
+      sc => sc.name?.toLowerCase() === form.subCategory?.toLowerCase()
+    );
+    setForm(p => ({
+      ...p,
+      category: newCat,
+      subCategory: hasCurrentSub ? p.subCategory : "",
+    }));
+  };
+
+  const handleSpecChange = (index, field, val) => {
+    setSpecifications(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: val };
+      return updated;
+    });
+  };
+
+  const addSpecification = () => {
+    setSpecifications(prev => [...prev, { key: "", value: "" }]);
+  };
+
+  const removeSpecification = (index) => {
+    setSpecifications(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length > 0 ? updated : [{ key: "", value: "" }];
+    });
+  };
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const uploadedUrls = [];
+      for (const f of files) {
+        const res = await uploadAPI.uploadImage(f);
+        if (res?.url) uploadedUrls.push(res.url);
+      }
+      setImages(prev => [...prev, ...uploadedUrls]);
+      toast.success("Images uploaded successfully");
+    } catch (err) {
+      toast.error("Image upload failed: " + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+    if (!form.category.trim()) {
+      toast.error("Please select a parent category");
+      return;
+    }
+
+    const cleanSpecs = specifications
+      .map(s => ({ key: (s.key || "").trim(), value: (s.value || "").trim() }))
+      .filter(s => s.key || s.value);
+
+    const payload = {
+      title: form.title,
+      name: form.title,
+      brand: form.brand || "Generic",
+      vendor: form.brand || "Generic",
+      category: selectedCatObj?._id || form.category,
+      categoryName: selectedCatObj?.name || form.category,
+      subCategory: form.subCategory || "",
+      warehouse: form.warehouse || (warehouseOptionsList[0]?.name || "Central Hub - Mumbai"),
+      price: Number(form.price) || 0,
+      stock: Number(form.stock) || 0,
+      currentStock: Number(form.stock) || 0,
+      paidAmount: Number(form.paidAmount) || 0,
+      deliveryCharge: Number(form.deliveryCharge) || 0,
+      description: form.description,
+      status: form.status,
+      isActive: form.status !== "Out of Stock",
+      images: images.length > 0 ? images : ["https://placehold.co/300x300?text=No+Image"],
+      specifications: cleanSpecs,
+    };
+
+    setSubmitting(true);
+    try {
+      await onAdd(payload);
+      onClose();
+    } catch (err) {
+      // error handled by caller
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const iS = {
+    width: "100%",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    padding: "8px 12px",
+    fontSize: 13,
+    outline: "none",
+    fontFamily: "inherit",
+    background: "#fff",
+    color: "#374151",
+    boxSizing: "border-box"
+  };
+  const lS = {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#374151",
+    marginBottom: 6
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "32px", width: 600, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "92vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: 680, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid #e5e7eb" }}>
           <div>
-            <h2 style={{ fontSize: 26, fontWeight: 700, color: "#111827", margin: 0 }}>Add New Product</h2>
-            <p style={{ fontSize: 15, color: "#6b7280", margin: "4px 0 0" }}>Enter product details to add to inventory</p>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>Add New Product</h2>
           </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", padding: 4 }}><X size={22} color="#6b7280" /></button>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, color: "#9ca3af" }}>
+            <X size={20} />
+          </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {fields.map(({ key, label, placeholder }) => (
-            <div key={key}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 6, display: "block" }}>{label} <span style={{ color: "#ef4444" }}>*</span></label>
+
+        {/* Scrollable Form Body */}
+        <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
+          
+          {/* Row 1: Product Name & Brand/Vendor */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Product Name <span style={{ color: "#ef4444" }}>*</span></label>
               <input
-                style={{ width: "100%", border: focused === key ? "2px solid #f97316" : "1.5px solid #e5e7eb", borderRadius: 8, padding: "10px 12px", fontSize: 14, color: "#111827", outline: "none", background: "#fff", boxSizing: "border-box", transition: "border-color 0.15s" }}
-                placeholder={placeholder} value={form[key]}
-                onFocus={() => setFocused(key)} onBlur={() => setFocused(null)}
-                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                placeholder="Enter product name"
+                style={iS}
               />
             </div>
-          ))}
+            <div>
+              <label style={lS}>Brand / Vendor <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                list="inventory-vendor-list"
+                name="brand"
+                value={form.brand}
+                onChange={handleChange}
+                placeholder={vendorLoading ? "Loading vendors..." : "Type vendor name"}
+                style={iS}
+              />
+              <datalist id="inventory-vendor-list">
+                {vendorOptions.map((v) => (
+                  <option key={v.id || v.name} value={v.name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Row 2: Parent Category & Subcategory */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Parent Category <span style={{ color: "#ef4444" }}>*</span></label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleCategoryChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="">{categoriesLoading ? "Loading categories..." : "-- Select Category --"}</option>
+                {categoriesData.map(cat => (
+                  <option key={cat._id || cat.name} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>Subcategory</label>
+              <select
+                name="subCategory"
+                value={form.subCategory}
+                onChange={handleChange}
+                disabled={!form.category || availableSubcategories.length === 0}
+                style={{
+                  ...iS,
+                  cursor: (!form.category || availableSubcategories.length === 0) ? "not-allowed" : "pointer",
+                  background: (!form.category || availableSubcategories.length === 0) ? "#f9fafb" : "#fff",
+                  color: (!form.category || availableSubcategories.length === 0) ? "#9ca3af" : "#374151",
+                }}
+              >
+                {!form.category ? (
+                  <option value="">Select parent category first</option>
+                ) : availableSubcategories.length === 0 ? (
+                  <option value="">No subcategories available</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Subcategory --</option>
+                    {availableSubcategories.map(sc => (
+                      <option key={sc._id || sc.name} value={sc.name}>
+                        {sc.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Warehouse & Price */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Warehouse <span style={{ color: "#ef4444" }}>*</span></label>
+              <select
+                name="warehouse"
+                value={form.warehouse}
+                onChange={handleChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="">{warehouseLoading ? "Loading warehouses..." : "-- Select Warehouse --"}</option>
+                {warehouseOptionsList.map(w => (
+                  <option key={w._id || w.code} value={w.name}>
+                    {w.name} ({w.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>Price (₹) <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                name="price"
+                value={form.price}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Stock Quantity & Status */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Stock Quantity</label>
+              <input
+                name="stock"
+                value={form.stock}
+                onChange={handleChange}
+                type="number"
+                placeholder="0"
+                style={iS}
+              />
+            </div>
+            <div>
+              <label style={lS}>Status</label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="Out of Stock">Out of Stock</option>
+                <option value="In Stock">In Stock</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 5: Paid Amount & Cash on Delivery Charge */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Paid Amount (₹)</label>
+              <input
+                name="paidAmount"
+                value={form.paidAmount}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+            <div>
+              <label style={lS}>Cash on Delivery Charge (₹)</label>
+              <input
+                name="deliveryCharge"
+                value={form.deliveryCharge}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+          </div>
+          <p style={{ margin: "-10px 0 16px", fontSize: 11, color: "#6b7280" }}>
+            Applied per unit only when the customer selects Cash on Delivery.
+          </p>
+
+          {/* Row 6: Description */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={lS}>Description</label>
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              rows={3}
+              style={{ ...iS, resize: "none" }}
+            />
+          </div>
+
+          {/* Row 7: Product Specifications */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ ...lS, margin: 0, fontWeight: 600 }}>Product Specifications</label>
+              <button
+                type="button"
+                onClick={addSpecification}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#f97316",
+                  background: "#fff7ed",
+                  border: "1px solid #fed7aa",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                <Plus size={13} /> Add Specification
+              </button>
+            </div>
+            <p style={{ margin: "0 0 10px", fontSize: 11, color: "#6b7280" }}>
+              Add technical specs or features displayed on the product page (e.g. "Color": "Black", "Material": "Leather").
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {specifications.map((spec, idx) => (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="Name / Key (e.g. Storage)"
+                    value={spec.key}
+                    onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
+                    style={iS}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g. 256GB SSD)"
+                    value={spec.value}
+                    onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                    style={iS}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSpecification(idx)}
+                    title="Remove specification"
+                    style={{
+                      padding: 8,
+                      borderRadius: 6,
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 8: Product Images */}
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ ...lS, fontWeight: 600, marginBottom: 8 }}>Product Images</p>
+            <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: uploadingImage ? "not-allowed" : "pointer", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 13, color: "#374151" }}>
+                <Upload size={14} /> {uploadingImage ? "Uploading..." : "Upload Images"}
+              </div>
+              <span style={{ fontSize: 13, color: "#9ca3af" }}>
+                {images.length > 0 ? `${images.length} image(s) uploaded` : "No images uploaded"}
+              </span>
+              <input type="file" multiple accept="image/*" style={{ display: "none" }} onChange={handleFiles} disabled={uploadingImage} />
+            </label>
+            {images.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {images.map((url, idx) => (
+                  <div key={idx} style={{ position: "relative", width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                    <img src={url} alt={`img-${idx}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-          <button onClick={onClose} style={{ padding: "10px 26px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#374151", background: "#fff", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => { onAdd(form); onClose(); }} style={{ padding: "10px 26px", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#fff", background: "#f97316", cursor: "pointer" }}>Add Product</button>
+
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: "16px 28px", borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ padding: "10px 24px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#374151", background: "#fff", cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || uploadingImage}
+            style={{
+              padding: "10px 24px",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#fff",
+              background: (submitting || uploadingImage) ? "#fdba74" : "#f97316",
+              cursor: (submitting || uploadingImage) ? "not-allowed" : "pointer"
+            }}
+          >
+            {submitting ? "Adding..." : "Add Product"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── EDIT PRODUCT MODAL ─── */
+function EditProductModal({ item, onClose, onUpdate }) {
+  const [form, setForm] = useState({
+    title: item.name || item.title || "",
+    brand: item.vendor || item.brand || "",
+    category: item.category || "",
+    subCategory: item.subCategory || "",
+    warehouse: item.warehouse || "",
+    price: item.price ?? "",
+    stock: item.currentStock ?? item.stock ?? "0",
+    status: item.status === "in_stock" ? "In Stock" : item.status === "low_stock" ? "Low Stock" : item.status === "out_of_stock" ? "Out of Stock" : (item.status || "In Stock"),
+    paidAmount: item.paidAmount ?? "0.00",
+    deliveryCharge: item.deliveryCharge ?? "0.00",
+    description: item.description || "",
+    reorderPoint: item.reorderPoint ?? 10,
+    maxCapacity: item.maxCapacity ?? 100,
+  });
+
+  const [images, setImages] = useState(item.images || []);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [specifications, setSpecifications] = useState(
+    Array.isArray(item.specifications) && item.specifications.length > 0
+      ? item.specifications
+      : [{ key: "", value: "" }]
+  );
+
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [vendorLoading, setVendorLoading] = useState(true);
+  const [warehouseOptionsList, setWarehouseOptionsList] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setCategoriesLoading(true);
+    categoriesAPI.getAll()
+      .then((res) => {
+        const cats = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        setCategoriesData(cats);
+      })
+      .catch((err) => console.error("Categories fetch error:", err))
+      .finally(() => setCategoriesLoading(false));
+
+    setVendorLoading(true);
+    vendorsAPI.getAll()
+      .then((res) => {
+        const vendors = Array.isArray(res) ? res : (Array.isArray(res?.vendors) ? res.vendors : []);
+        const mapped = vendors
+          .map((v) => ({
+            id: v._id || v.id,
+            name: v.storeName || v.name || "Vendor",
+          }))
+          .filter((v) => v.name && v.name.trim());
+        setVendorOptions(mapped);
+      })
+      .catch((err) => console.error("Vendors fetch error:", err))
+      .finally(() => setVendorLoading(false));
+
+    setWarehouseLoading(true);
+    warehousesAPI.getAll()
+      .then((res) => {
+        const whs = Array.isArray(res) ? res : (Array.isArray(res?.warehouses) ? res.warehouses : []);
+        setWarehouseOptionsList(whs);
+      })
+      .catch((err) => console.error("Warehouses fetch error:", err))
+      .finally(() => setWarehouseLoading(false));
+  }, []);
+
+  const selectedCatObj = categoriesData.find(
+    c => c.name?.toLowerCase() === form.category?.toLowerCase() || c._id === form.category
+  );
+  const availableSubcategories = selectedCatObj?.subCategories || [];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => {
+      const updated = { ...p, [name]: value };
+      if (name === "stock") {
+        const num = Number(value);
+        if (num > 0 && p.status === "Out of Stock") {
+          updated.status = "In Stock";
+        } else if (num === 0 && p.status === "In Stock") {
+          updated.status = "Out of Stock";
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleCategoryChange = (e) => {
+    const newCat = e.target.value;
+    const catObj = categoriesData.find(
+      c => c.name?.toLowerCase() === newCat?.toLowerCase() || c._id === newCat
+    );
+    const hasCurrentSub = catObj?.subCategories?.some(
+      sc => sc.name?.toLowerCase() === form.subCategory?.toLowerCase()
+    );
+    setForm(p => ({
+      ...p,
+      category: newCat,
+      subCategory: hasCurrentSub ? p.subCategory : "",
+    }));
+  };
+
+  const handleSpecChange = (index, field, val) => {
+    setSpecifications(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: val };
+      return updated;
+    });
+  };
+
+  const addSpecification = () => {
+    setSpecifications(prev => [...prev, { key: "", value: "" }]);
+  };
+
+  const removeSpecification = (index) => {
+    setSpecifications(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length > 0 ? updated : [{ key: "", value: "" }];
+    });
+  };
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const uploadedUrls = [];
+      for (const f of files) {
+        const res = await uploadAPI.uploadImage(f);
+        if (res?.url) uploadedUrls.push(res.url);
+      }
+      setImages(prev => [...prev, ...uploadedUrls]);
+      toast.success("Images uploaded successfully");
+    } catch (err) {
+      toast.error("Image upload failed: " + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+
+    const cleanSpecs = specifications
+      .map(s => ({ key: (s.key || "").trim(), value: (s.value || "").trim() }))
+      .filter(s => s.key || s.value);
+
+    const payload = {
+      title: form.title,
+      name: form.title,
+      brand: form.brand || "Generic",
+      vendor: form.brand || "Generic",
+      category: selectedCatObj?._id || form.category,
+      categoryName: selectedCatObj?.name || form.category,
+      subCategory: form.subCategory || "",
+      warehouse: form.warehouse || (warehouseOptionsList[0]?.name || "Central Hub - Mumbai"),
+      price: Number(form.price) || 0,
+      stock: Number(form.stock) || 0,
+      currentStock: Number(form.stock) || 0,
+      reorderPoint: Number(form.reorderPoint) || 10,
+      maxCapacity: Number(form.maxCapacity) || 100,
+      paidAmount: Number(form.paidAmount) || 0,
+      deliveryCharge: Number(form.deliveryCharge) || 0,
+      description: form.description,
+      status: form.status,
+      specifications: cleanSpecs,
+      images,
+    };
+
+    setSubmitting(true);
+    try {
+      await onUpdate(item.id, payload);
+      onClose();
+    } catch (err) {
+      // error handled by caller
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const iS = {
+    width: "100%",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    padding: "8px 12px",
+    fontSize: 13,
+    outline: "none",
+    fontFamily: "inherit",
+    background: "#fff",
+    color: "#374151",
+    boxSizing: "border-box"
+  };
+  const lS = {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#374151",
+    marginBottom: 6
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: 680, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid #e5e7eb" }}>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>Edit Inventory Product</h2>
+            <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0" }}>SKU: {item.sku}</p>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, color: "#9ca3af" }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable Form Body */}
+        <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
+          
+          {/* Row 1: Product Name & Brand/Vendor */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Product Name <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                placeholder="Enter product name"
+                style={iS}
+              />
+            </div>
+            <div>
+              <label style={lS}>Brand / Vendor <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                list="edit-inventory-vendor-list"
+                name="brand"
+                value={form.brand}
+                onChange={handleChange}
+                placeholder={vendorLoading ? "Loading vendors..." : "Type vendor name"}
+                style={iS}
+              />
+              <datalist id="edit-inventory-vendor-list">
+                {vendorOptions.map((v) => (
+                  <option key={v.id || v.name} value={v.name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Row 2: Parent Category & Subcategory */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Parent Category <span style={{ color: "#ef4444" }}>*</span></label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleCategoryChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="">{categoriesLoading ? "Loading categories..." : "-- Select Category --"}</option>
+                {categoriesData.map(cat => (
+                  <option key={cat._id || cat.name} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>Subcategory</label>
+              <select
+                name="subCategory"
+                value={form.subCategory}
+                onChange={handleChange}
+                disabled={!form.category || availableSubcategories.length === 0}
+                style={{
+                  ...iS,
+                  cursor: (!form.category || availableSubcategories.length === 0) ? "not-allowed" : "pointer",
+                  background: (!form.category || availableSubcategories.length === 0) ? "#f9fafb" : "#fff",
+                  color: (!form.category || availableSubcategories.length === 0) ? "#9ca3af" : "#374151",
+                }}
+              >
+                {!form.category ? (
+                  <option value="">Select parent category first</option>
+                ) : availableSubcategories.length === 0 ? (
+                  <option value="">No subcategories available</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Subcategory --</option>
+                    {availableSubcategories.map(sc => (
+                      <option key={sc._id || sc.name} value={sc.name}>
+                        {sc.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Warehouse & Price */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Warehouse <span style={{ color: "#ef4444" }}>*</span></label>
+              <select
+                name="warehouse"
+                value={form.warehouse}
+                onChange={handleChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="">{warehouseLoading ? "Loading warehouses..." : "-- Select Warehouse --"}</option>
+                {warehouseOptionsList.map(w => (
+                  <option key={w._id || w.code} value={w.name}>
+                    {w.name} ({w.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>Price (₹) <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                name="price"
+                value={form.price}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Stock Quantity & Status */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Stock Quantity</label>
+              <input
+                name="stock"
+                value={form.stock}
+                onChange={handleChange}
+                type="number"
+                placeholder="0"
+                style={iS}
+              />
+            </div>
+            <div>
+              <label style={lS}>Status</label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                style={{ ...iS, cursor: "pointer" }}
+              >
+                <option value="Out of Stock">Out of Stock</option>
+                <option value="In Stock">In Stock</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 5: Paid Amount & Cash on Delivery Charge */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={lS}>Paid Amount (₹)</label>
+              <input
+                name="paidAmount"
+                value={form.paidAmount}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+            <div>
+              <label style={lS}>Cash on Delivery Charge (₹)</label>
+              <input
+                name="deliveryCharge"
+                value={form.deliveryCharge}
+                onChange={handleChange}
+                type="number"
+                placeholder="0.00"
+                style={iS}
+              />
+            </div>
+          </div>
+
+          {/* Row 6: Description */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={lS}>Description</label>
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              rows={3}
+              style={{ ...iS, resize: "none" }}
+            />
+          </div>
+
+          {/* Row 7: Product Specifications */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ ...lS, margin: 0, fontWeight: 600 }}>Product Specifications</label>
+              <button
+                type="button"
+                onClick={addSpecification}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#f97316",
+                  background: "#fff7ed",
+                  border: "1px solid #fed7aa",
+                  borderRadius: 6,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                <Plus size={13} /> Add Specification
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {specifications.map((spec, idx) => (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="Name / Key (e.g. Storage)"
+                    value={spec.key}
+                    onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
+                    style={iS}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g. 256GB SSD)"
+                    value={spec.value}
+                    onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                    style={iS}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSpecification(idx)}
+                    title="Remove specification"
+                    style={{
+                      padding: 8,
+                      borderRadius: 6,
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 8: Product Images */}
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ ...lS, fontWeight: 600, marginBottom: 8 }}>Product Images</p>
+            <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: uploadingImage ? "not-allowed" : "pointer", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 13, color: "#374151" }}>
+                <Upload size={14} /> {uploadingImage ? "Uploading..." : "Upload Images"}
+              </div>
+              <span style={{ fontSize: 13, color: "#9ca3af" }}>
+                {images.length > 0 ? `${images.length} image(s) uploaded` : "No images uploaded"}
+              </span>
+              <input type="file" multiple accept="image/*" style={{ display: "none" }} onChange={handleFiles} disabled={uploadingImage} />
+            </label>
+            {images.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {images.map((url, idx) => (
+                  <div key={idx} style={{ position: "relative", width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                    <img src={url} alt={`img-${idx}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: "16px 28px", borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ padding: "10px 24px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#374151", background: "#fff", cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || uploadingImage}
+            style={{
+              padding: "10px 24px",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#fff",
+              background: (submitting || uploadingImage) ? "#fdba74" : "#f97316",
+              cursor: (submitting || uploadingImage) ? "not-allowed" : "pointer"
+            }}
+          >
+            {submitting ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DELETE CONFIRM MODAL ─── */
+function DeleteConfirmModal({ item, onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await onConfirm(item.id);
+      onClose();
+    } catch (err) {
+      // error handled by parent
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 440, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ padding: 10, borderRadius: "50%", background: "#fef2f2", color: "#ef4444" }}>
+            <Trash2 size={24} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>Delete Inventory Product</h3>
+            <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0" }}>SKU: {item.sku}</p>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.5, marginBottom: 24 }}>
+          Are you sure you want to delete <strong>"{item.name}"</strong> from inventory? This action will remove it permanently.
+        </p>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+            style={{ padding: "9px 20px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#374151", background: "#fff", cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{ padding: "9px 20px", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#fff", background: "#ef4444", cursor: deleting ? "not-allowed" : "pointer" }}
+          >
+            {deleting ? "Deleting..." : "Delete Product"}
+          </button>
         </div>
       </div>
     </div>
@@ -385,51 +1471,122 @@ export default function InventoryManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [warehouseFilter, setWarehouseFilter] = useState("All Warehouses");
+  const [warehouseListOptions, setWarehouseListOptions] = useState(warehouseOptions);
   const importInputRef = useRef(null);
 
-  useEffect(() => {
-    productsAPI.getAll()
+  const fetchInventory = () => {
+    inventoryAPI.getAll()
       .then((res) => {
-        const prods = Array.isArray(res) ? res : res.products || [];
-        if (Array.isArray(prods)) {
-          const mapped = prods.map((p, i) => {
-            const variant = p.variants?.[0] || {};
-            const stock = variant.currentStock ?? 0;
-            const status = stock === 0 ? "out_of_stock" : stock <= 10 ? "low_stock" : "in_stock";
+        const items = Array.isArray(res) ? res : (res.inventory || res.items || res.data || res.available || []);
+        if (Array.isArray(items)) {
+          const mapped = items.map((item, i) => {
+            const stock = item.currentStock ?? item.stock ?? 0;
+            const reorder = item.reorderPoint ?? 10;
+            const status = stock === 0 ? "out_of_stock" : stock <= reorder ? "low_stock" : "in_stock";
             return {
-              id: p._id || i,
-              name: p.title || "Product Item",
+              id: item._id || i,
+              name: item.title || item.name || "Product Item",
               status,
-              sku: variant.sku || `SKU-${i}`,
-              category: p.category?.name || "Electronics",
-              vendor: variant.currentVendor?.storeName || "",
-              location: "NY",
-              warehouse: "Main Warehouse - NY",
-              price: variant.sellingPrice || 0,
+              sku: item.sku || `SKU-${i}`,
+              category: typeof item.category === "object" ? (item.category?.name || "General") : (item.categoryName || item.category || "General"),
+              vendor: item.brand || item.vendor || "",
+              location: item.warehouse ? item.warehouse.slice(0, 15) : "Hub 1",
+              warehouse: item.warehouse || "Central Hub - Mumbai",
+              price: Number(item.price) || 0,
               currentStock: stock,
-              reorderPoint: 0,
-              maxCapacity: 0,
-              lastRestocked: "",
-              movements: [],
+              reorderPoint: reorder,
+              maxCapacity: item.maxCapacity || 100,
+              lastRestocked: item.updatedAt ? new Date(item.updatedAt).toISOString().split("T")[0] : "",
+              movements: (item.movements || []).map(m => ({
+                type: m.type || "in",
+                units: m.units || 0,
+                reason: m.reason || "",
+                date: m.date ? new Date(m.date).toISOString().split("T")[0] : "",
+                by: m.by || "Admin User",
+              })),
+              isAddedToProducts: !!item.isAddedToProducts,
+              product: item.product,
             };
           });
           setData(mapped);
+
+          // Dynamically ensure warehouse filter options contain all warehouses present in inventory items
+          const itemWHs = mapped.map(it => it.warehouse).filter(Boolean);
+          if (itemWHs.length > 0) {
+            setWarehouseListOptions(prev => Array.from(new Set(["All Warehouses", ...prev.filter(w => w !== "All Warehouses"), ...itemWHs])));
+          }
         }
       })
       .catch((err) => console.error("Inventory fetch error:", err));
+  };
+
+  const handleResetStatus = async (item) => {
+    try {
+      await inventoryAPI.resetStatus(item.id);
+      toast.success(`Reset status for "${item.name}". It is now ready for product catalog.`);
+      fetchInventory();
+    } catch (err) {
+      toast.error("Failed to reset status: " + (err.message || "Error"));
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+    warehousesAPI.getAll()
+      .then((res) => {
+        const whs = Array.isArray(res) ? res : res.warehouses || [];
+        if (Array.isArray(whs) && whs.length > 0) {
+          setWarehouseListOptions(prev => Array.from(new Set(["All Warehouses", ...whs.map(w => w.name), ...prev.filter(w => w !== "All Warehouses")])));
+        }
+      })
+      .catch(() => {});
   }, []);
+
   const [showAdd, setShowAdd] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
   const [adjustItem, setAdjustItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null);
+
+  const handleUpdate = async (id, payload) => {
+    try {
+      await inventoryAPI.update(id, payload);
+      toast.success("Inventory product updated successfully");
+      fetchInventory();
+    } catch (err) {
+      toast.error("Failed to update inventory product: " + (err.message || "Unknown error"));
+      throw err;
+    }
+  };
+
+  const handleDeleteInventory = async (id) => {
+    try {
+      await inventoryAPI.delete(id);
+      toast.success("Inventory product deleted successfully");
+      fetchInventory();
+    } catch (err) {
+      toast.error("Failed to delete inventory product: " + (err.message || "Unknown error"));
+      throw err;
+    }
+  };
 
   const filtered = data.filter(item => {
-    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
+    const q = search.trim().toLowerCase();
+    const matchSearch =
+      !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.sku.toLowerCase().includes(q) ||
+      item.vendor.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      item.warehouse.toLowerCase().includes(q);
+
     const matchStatus =
       statusFilter === "All Status" ||
       (statusFilter === "In Stock" && item.status === "in_stock") ||
       (statusFilter === "Low Stock" && item.status === "low_stock") ||
       (statusFilter === "Out of Stock" && item.status === "out_of_stock") ||
       (statusFilter === "Overstocked" && item.currentStock > item.maxCapacity * 0.9);
+
     const matchWH = warehouseFilter === "All Warehouses" || item.warehouse === warehouseFilter;
     return matchSearch && matchStatus && matchWH;
   });
@@ -458,48 +1615,39 @@ export default function InventoryManagement() {
 
       const updates = lines.slice(1).map(parseRow).map((row) => ({ sku: row[skuIndex], stock: Number(row[stockIndex]) })).filter((row) => row.sku && Number.isFinite(row.stock) && row.stock >= 0);
       const matched = updates.map((update) => ({ update, item: data.find((item) => item.sku === update.sku) })).filter(({ item }) => item);
-      await Promise.all(matched.map(({ update, item }) => productsAPI.update(item.id, { stock: update.stock })));
-      setData((current) => current.map((item) => {
-        const update = updates.find((entry) => entry.sku === item.sku);
-        if (!update) return item;
-        const status = update.stock === 0 ? "out_of_stock" : update.stock <= item.reorderPoint ? "low_stock" : "in_stock";
-        return { ...item, currentStock: update.stock, status };
-      }));
+      await Promise.all(matched.map(({ update, item }) => inventoryAPI.update(item.id, { currentStock: update.stock })));
+      fetchInventory();
       toast.success(`Imported ${matched.length} inventory row${matched.length === 1 ? "" : "s"}`);
     } catch (err) {
       toast.error(err.message || "Failed to import inventory");
     }
   };
 
-  const handleAdd = (form) => {
-    const stock = parseInt(form.currentStock) || 0;
-    const reorder = parseInt(form.reorderPoint) || 0;
-    const max = parseInt(form.maxStock) || 100;
-    const status = stock === 0 ? "out_of_stock" : stock <= reorder ? "low_stock" : "in_stock";
-    const newItem = {
-      id: data.length + 1, name: form.name, sku: form.sku, category: form.category,
-      vendor: form.vendor, warehouse: form.warehouse,
-      location: form.warehouse.includes("NY") ? "NY" : form.warehouse.includes("LA") ? "LA" : "Miami",
-      price: parseFloat(form.price) || 0, currentStock: stock,
-      reorderPoint: reorder, maxCapacity: max,
-      status, lastRestocked: new Date().toISOString().split("T")[0], movements: []
-    };
-    setData(p => [...p, newItem]);
+  const handleAdd = async (payload) => {
+    try {
+      await inventoryAPI.create(payload);
+      toast.success("Product added to inventory successfully! You can now select it in the Products section.");
+      fetchInventory();
+    } catch (err) {
+      toast.error("Failed to add product to inventory: " + (err.message || "Unknown error"));
+      throw err;
+    }
   };
 
   const handleConfirmAdjust = async (id, type, qty, reason) => {
     const item = data.find(i => i.id === id);
     if (!item) return;
-    const newStock = type === "in" ? item.currentStock + qty : Math.max(0, item.currentStock - qty);
     try {
-      await productsAPI.update(id, { stock: newStock });
-      setData(prev => prev.map(item => {
-        if (item.id !== id) return item;
-        const status = newStock === 0 ? "out_of_stock" : newStock <= item.reorderPoint ? "low_stock" : "in_stock";
-        const movement = { type, units: qty, reason, date: new Date().toISOString().split("T")[0], by: "Admin User" };
-        return { ...item, currentStock: newStock, status, movements: [movement, ...item.movements] };
+      await inventoryAPI.adjustStock(id, { type, units: qty, reason, by: "Admin User" });
+      const newStock = type === "in" ? item.currentStock + qty : Math.max(0, item.currentStock - qty);
+      const status = newStock === 0 ? "out_of_stock" : newStock <= item.reorderPoint ? "low_stock" : "in_stock";
+      const movement = { type, units: qty, reason, date: new Date().toISOString().split("T")[0], by: "Admin User" };
+      setData(prev => prev.map(it => {
+        if (it.id !== id) return it;
+        return { ...it, currentStock: newStock, status, movements: [movement, ...it.movements] };
       }));
       toast.success("Stock adjusted successfully");
+      fetchInventory();
     } catch (err) {
       toast.error("Failed to adjust stock: " + err.message);
     }
@@ -524,10 +1672,22 @@ export default function InventoryManagement() {
     fontSize: 13, color: "#111827", background: "#fff", cursor: "pointer",
     fontWeight: 600, whiteSpace: "nowrap"
   };
+  const btnRowEdit = {
+    display: "flex", alignItems: "center", gap: 6,
+    border: "1px solid #e5e7eb", borderRadius: 8, padding: "7px 16px",
+    fontSize: 13, color: "#111827", background: "#fff", cursor: "pointer",
+    fontWeight: 600, whiteSpace: "nowrap"
+  };
   const btnRowAdjust = {
     display: "flex", alignItems: "center", gap: 6,
     border: "none", borderRadius: 8, padding: "7px 16px",
     fontSize: 13, color: "#fff", background: "#f97316", cursor: "pointer",
+    fontWeight: 600, whiteSpace: "nowrap"
+  };
+  const btnRowDelete = {
+    display: "flex", alignItems: "center", gap: 6,
+    border: "1px solid #fecaca", borderRadius: 8, padding: "7px 16px",
+    fontSize: 13, color: "#ef4444", background: "#fef2f2", cursor: "pointer",
     fontWeight: 600, whiteSpace: "nowrap"
   };
 
@@ -588,7 +1748,7 @@ export default function InventoryManagement() {
                 <input style={{ border: "none", outline: "none", fontSize: 14, color: "#374151", background: "transparent", width: "100%" }} placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
               </div>
               <CustomDropdown options={statusOptions} value={statusFilter} onChange={setStatusFilter} />
-              <CustomDropdown options={warehouseOptions} value={warehouseFilter} onChange={setWarehouseFilter} />
+              <CustomDropdown options={warehouseListOptions} value={warehouseFilter} onChange={setWarehouseFilter} />
               <button style={btnOutline} onClick={exportInventory}><Download size={15} />Export</button>
               <input ref={importInputRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} style={{ display: "none" }} />
               <button style={btnOrange} onClick={() => importInputRef.current?.click()}><Upload size={15} />Import</button>
@@ -607,13 +1767,38 @@ export default function InventoryManagement() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>{item.name}</span>
                       <StatusBadge status={item.status} />
+                      {item.isAddedToProducts ? (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }}>
+                            ✓ In Product Catalog
+                          </span>
+                          <button
+                            type="button"
+                            style={{ background: "#f9fafb", border: "1px solid #d1d5db", borderRadius: 999, padding: "2px 8px", fontSize: 11, color: "#4b5563", cursor: "pointer", fontWeight: 500 }}
+                            title="Reset link so this product can be re-added to catalog"
+                            onClick={() => handleResetStatus(item)}
+                          >
+                            Reset Link
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }}>
+                          Ready for Product Catalog
+                        </span>
+                      )}
                     </div>
                     <div className="inv-row-buttons" style={{ display: "flex", gap: 8 }}>
                       <button style={btnRowDetails} onClick={() => setDetailItem(item)}>
                         <Eye size={14} color="#111827" />Details
                       </button>
+                      <button style={btnRowEdit} onClick={() => setEditItem(item)}>
+                        <Pencil size={14} color="#111827" />Edit
+                      </button>
                       <button style={btnRowAdjust} onClick={() => setAdjustItem(item)}>
                         <SlidersHorizontal size={14} />Adjust
+                      </button>
+                      <button style={btnRowDelete} onClick={() => setDeleteItem(item)}>
+                        <Trash2 size={14} color="#ef4444" />Delete
                       </button>
                     </div>
                   </div>
@@ -684,6 +1869,8 @@ export default function InventoryManagement() {
         </div>
 
         {showAdd && <AddProductModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
+        {editItem && <EditProductModal item={editItem} onClose={() => setEditItem(null)} onUpdate={handleUpdate} />}
+        {deleteItem && <DeleteConfirmModal item={deleteItem} onClose={() => setDeleteItem(null)} onConfirm={handleDeleteInventory} />}
         {detailItem && <DetailsModal item={detailItem} onClose={() => setDetailItem(null)} onAdjust={(i) => { setDetailItem(null); setAdjustItem(i); }} />}
         {adjustItem && <AdjustModal item={adjustItem} onClose={() => setAdjustItem(null)} onConfirm={handleConfirmAdjust} />}
       </div>

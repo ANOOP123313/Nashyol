@@ -260,7 +260,7 @@ function UpdateModal({ order, onClose }) {
     notes: "",
   });
 
-  const statusOptions = ["Pending", "In Transit", "Out for Delivery", "Picked Up", "Delivered", "Failed", "Cancelled"];
+  const statusOptions = ["Pending", "Out for Delivery", "Delivered"];
   const carrierOptions = ["FedEx", "UPS", "DHL", "USPS", "BlueDart", "Other"];
 
   return (

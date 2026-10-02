@@ -1,6 +1,11 @@
 import asyncHandler from "express-async-handler";
+import Stripe from "stripe";
 import Order from "../models/Order.js";
 import Transaction from "../models/Transactions.js";
+import Cart from "../models/Cart.js";
+import Product from "../models/Product.js";
+import Setting from "../models/Setting.js";
+import Coupon from "../models/Coupon.js";
 import { logTransaction } from "./transactionController.js";
 import { rewardReferrer } from "./referralController.js";
 
@@ -123,3 +128,249 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     order,
   });
 });
+
+// @desc    Create Stripe Payment Intent
+// @route   POST /api/payments/create-intent
+// @access  Private
+export const createPaymentIntent = asyncHandler(async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId) {
+    res.status(400);
+    throw new Error("Order ID is required");
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (order.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to pay for this order");
+  }
+
+  if (order.paymentStatus === "paid") {
+    res.status(400);
+    throw new Error("Order is already paid");
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  
+  // Convert totalAmount to smallest currency unit (e.g. paise for INR)
+  const amount = Math.round(order.totalAmount * 100);
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount,
+    currency: "inr",
+    metadata: {
+      orderId: order._id.toString(),
+      userId: req.user._id.toString(),
+    },
+  });
+
+  res.json({
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+    orderId: order._id,
+    totalAmount: order.totalAmount,
+  });
+});
+
+// @desc    Create Stripe Payment Intent directly from Cart
+// @route   POST /api/payments/create-intent-cart
+// @access  Private
+export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
+  const { couponCode } = req.body;
+
+  const cart = await Cart.findOne({ user: req.user._id }).populate("items.product");
+  if (!cart || !cart.items.length) {
+    res.status(400);
+    throw new Error("Cart is empty");
+  }
+
+  let totalAmount = 0;
+  for (const line of cart.items) {
+    if (!line.product) continue;
+    const product = await Product.findById(line.product._id);
+    if (!product || !product.isActive) continue;
+
+    const variant = product.variants.find((v) => v.sku === line.sku);
+    if (!variant || !variant.isActive) continue;
+
+    const qty = Math.min(line.quantity, variant.currentStock);
+    if (qty < 1) continue;
+
+    totalAmount += variant.sellingPrice * qty;
+  }
+
+  if (totalAmount === 0) {
+    res.status(400);
+    throw new Error("Total amount is 0");
+  }
+
+  let discountAmount = 0;
+  if (couponCode && couponCode.trim()) {
+    const coupon = await Coupon.findOne({ code: couponCode.trim().toUpperCase(), isActive: true });
+    if (coupon && (!coupon.expiryDate || new Date(coupon.expiryDate) >= new Date()) && (coupon.usageLimit == null || coupon.usedCount < coupon.usageLimit)) {
+      if (coupon.discountType === "percentage") {
+        discountAmount = (totalAmount * (coupon.discountValue || 0)) / 100;
+      } else {
+        discountAmount = Math.min(coupon.discountValue || 0, totalAmount);
+      }
+    }
+  }
+
+  totalAmount = Math.max(0, totalAmount - discountAmount);
+  // Add base shipping if applicable
+  const shipping = totalAmount > 100 ? 0 : 10;
+  totalAmount += shipping;
+
+  const amount = Math.round(totalAmount * 100);
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount,
+    currency: "inr",
+    metadata: {
+      userId: req.user._id.toString(),
+      isFromCart: "true"
+    },
+  });
+
+  res.json({
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+    totalAmount,
+  });
+});
+
+// @desc    Verify Stripe Payment
+// @route   POST /api/payments/verify
+// @access  Private
+export const verifyPayment = asyncHandler(async (req, res) => {
+  const { orderId, paymentIntentId } = req.body;
+  if (!orderId || !paymentIntentId) {
+    res.status(400);
+    throw new Error("Order ID and Payment Intent ID are required");
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (order.paymentStatus === "paid") {
+    return res.json({ success: true, message: "Order is already paid", order });
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+  if (paymentIntent.status === "succeeded") {
+    order.paymentStatus = "paid";
+    order.paymentId = paymentIntent.id;
+    await order.save();
+
+    await logTransaction(
+      order.user,
+      order.totalAmount,
+      "payment",
+      order.paymentMethod || "card",
+      "completed",
+      `Payment successful via Stripe for order #${order.orderNumber}`,
+      order._id
+    );
+
+    res.json({ success: true, message: "Payment verified successfully", order });
+  } else {
+    res.status(400);
+    throw new Error("Payment not successful");
+  }
+});
+
+// @desc    Stripe Webhook
+// @route   POST /api/payments/webhook
+// @access  Public
+export const stripeWebhook = asyncHandler(async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const sig = req.headers["stripe-signature"];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+  try {
+    // Note: express rawBody middleware needs to be configured in server.js for this to work
+    event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, endpointSecret);
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object;
+    const orderId = paymentIntent.metadata.orderId;
+
+    if (orderId) {
+      const order = await Order.findById(orderId);
+      if (order && order.paymentStatus !== "paid") {
+        order.paymentStatus = "paid";
+        order.paymentId = paymentIntent.id;
+        await order.save();
+
+        await logTransaction(
+          order.user,
+          order.totalAmount,
+          "payment",
+          order.paymentMethod || "card",
+          "completed",
+          `Payment successful via Stripe Webhook for order #${order.orderNumber}`,
+          order._id
+        );
+      }
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// @desc    Pay Now for an existing unpaid order (Client)
+// @route   POST /api/payments/pay-now/:id
+// @access  Private
+export const payNowOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { paymentMethod = "card" } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (order.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to pay for this order");
+  }
+
+  order.paymentStatus = "paid";
+  order.paymentMethod = paymentMethod.toUpperCase();
+  order.paymentId = `PAY-${Date.now()}`;
+  await order.save();
+
+  await logTransaction(
+    req.user._id,
+    order.totalAmount,
+    "payment",
+    order.paymentMethod,
+    "completed",
+    `Online payment completed via Pay Now for order #${order.orderNumber || order._id}`,
+    order._id
+  );
+
+  res.json({
+    success: true,
+    message: "Payment completed successfully",
+    order,
+  });
+});
+

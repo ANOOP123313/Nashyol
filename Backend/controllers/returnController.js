@@ -4,6 +4,8 @@ import Return from "../models/Return.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
+import Inventory from "../models/Inventory.js";
+import { calculateStatus } from "./inventoryController.js";
 
 // Helper to auto-seed returns from real orders if collection is empty
 const seedDefaultReturnsIfEmpty = async () => {
@@ -182,6 +184,15 @@ export const createReturn = asyncHandler(async (req, res) => {
     status: "pending",
   });
 
+  // Update order returnStatus and returnId
+  try {
+    order.returnStatus = "pending";
+    order.returnId = returnReq._id;
+    await order.save();
+  } catch (ordErr) {
+    console.warn("Failed to set order returnStatus on createReturn:", ordErr.message);
+  }
+
   const populated = await Return.findById(returnReq._id)
     .populate("userId", "name email phone")
     .populate("orderId")
@@ -240,12 +251,63 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
 
   await returnReq.save();
 
-  // If status is refunded, also update Order paymentStatus
-  if (status === "refunded" && returnReq.orderId) {
+  // If return status changed, also sync Order returnStatus & paymentStatus
+  const ordId = returnReq.orderId?._id || returnReq.orderId;
+  if (ordId) {
     try {
-      await Order.findByIdAndUpdate(returnReq.orderId, { paymentStatus: "refunded" });
+      const orderUpdates = {};
+      if (status) orderUpdates.returnStatus = status;
+      if (status === "refunded") {
+        orderUpdates.paymentStatus = "refunded";
+      }
+      await Order.findByIdAndUpdate(ordId, orderUpdates);
     } catch (err) {
-      console.warn("Failed to update Order paymentStatus on return refund:", err.message);
+      console.warn("Failed to update Order on return status change:", err.message);
+    }
+  }
+
+  // Restore inventory and product stock when return is approved or refunded
+  if ((status === "approved" || status === "refunded") && !returnReq.isStockRestored) {
+    try {
+      for (const item of returnReq.items || []) {
+        const qty = Number(item.quantity) || 1;
+        const prodId = item.productId?._id || item.productId;
+        if (prodId) {
+          const prod = await Product.findById(prodId);
+          if (prod && Array.isArray(prod.variants) && prod.variants.length > 0) {
+            prod.variants[0].currentStock = (prod.variants[0].currentStock || 0) + qty;
+            prod.markModified("variants");
+            await prod.save();
+          }
+
+          // Restore inventory stock
+          const invOrConditions = [
+            ...(prod?.inventory ? [{ _id: prod.inventory }] : []),
+            { product: prodId },
+            ...((prod?.variants || []).map((v) => v.sku).filter(Boolean).map((sku) => ({ sku }))),
+            ...(prod?.title ? [{ title: prod.title }] : []),
+          ];
+          if (invOrConditions.length > 0) {
+            const inv = await Inventory.findOne({ $or: invOrConditions });
+            if (inv) {
+              inv.currentStock = (inv.currentStock || 0) + qty;
+              inv.status = calculateStatus(inv.currentStock, inv.reorderPoint);
+              inv.movements.unshift({
+                type: "in",
+                units: qty,
+                reason: `Return #${returnReq._id.toString().slice(-6).toUpperCase()} ${status} - stock returned to inventory`,
+                by: req.user?.name || "Admin User",
+                date: new Date(),
+              });
+              await inv.save();
+            }
+          }
+        }
+      }
+      returnReq.isStockRestored = true;
+      await returnReq.save();
+    } catch (stockErr) {
+      console.error("Failed to restore stock on return approval/refund:", stockErr);
     }
   }
 
@@ -263,7 +325,7 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
 export const trackReturn = asyncHandler(async (req, res) => {
   await seedDefaultReturnsIfEmpty();
 
-  const rawQuery = (req.params.query || "").trim();
+  const rawQuery = (req.params.query || req.query.query || req.query.q || req.query.track || "").trim();
   if (!rawQuery) {
     res.status(400);
     throw new Error("Tracking or Order ID query is required");
@@ -284,7 +346,24 @@ export const trackReturn = asyncHandler(async (req, res) => {
       .populate("items.productId", "title images price");
   }
 
-  // 2. Tracking number match
+  // 2. Match by Order Number
+  if (!match) {
+    const matchedOrder = await Order.findOne({
+      $or: [
+        { orderNumber: rawQuery.toUpperCase() },
+        { orderNumber: `ORD-${cleaned.toUpperCase()}` },
+        { orderNumber: new RegExp(cleaned, "i") },
+      ],
+    });
+    if (matchedOrder) {
+      match = await Return.findOne({ orderId: matchedOrder._id })
+        .populate("userId", "name email")
+        .populate("orderId")
+        .populate("items.productId", "title images price");
+    }
+  }
+
+  // 3. Tracking number match
   if (!match) {
     match = await Return.findOne({
       tracking: { $regex: new RegExp(rawQuery, "i") },
@@ -294,7 +373,7 @@ export const trackReturn = asyncHandler(async (req, res) => {
       .populate("items.productId", "title images price");
   }
 
-  // 3. Fallback: Search all returns by ending substring of _id or orderId
+  // 4. Fallback: Search all returns by ending substring of _id, orderId._id, or orderId.orderNumber
   if (!match) {
     const all = await Return.find()
       .populate("userId", "name email")
@@ -304,8 +383,17 @@ export const trackReturn = asyncHandler(async (req, res) => {
     match = all.find((r) => {
       const retIdStr = r._id.toString().toUpperCase();
       const ordIdStr = (r.orderId?._id || r.orderId || "").toString().toUpperCase();
+      const ordNumStr = (r.orderId?.orderNumber || "").toUpperCase();
+      const trkStr = (r.tracking || "").toUpperCase();
       const qUpper = cleaned.toUpperCase();
-      return retIdStr.endsWith(qUpper) || ordIdStr.endsWith(qUpper) || retIdStr.includes(qUpper) || ordIdStr.includes(qUpper);
+      return (
+        retIdStr.endsWith(qUpper) ||
+        ordIdStr.endsWith(qUpper) ||
+        ordNumStr.includes(qUpper) ||
+        retIdStr.includes(qUpper) ||
+        ordIdStr.includes(qUpper) ||
+        trkStr.includes(qUpper)
+      );
     });
   }
 

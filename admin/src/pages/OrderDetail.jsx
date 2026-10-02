@@ -423,7 +423,8 @@ export default function OrderDetail({ order: orderProp, onBack }) {
               name: item.title || "N/A",
               qty: item.quantity || 1,
               price: item.price || 0,
-              img: "📦"
+              img: "📦",
+              attributes: item.attributes || [],
             })),
             tracking: {
               status: res.orderStatus || "Pending",
@@ -492,6 +493,15 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                     <div className="od-item-info">
                       <div className="od-item-name">{p.name}</div>
                       <div className="od-item-qty">Quantity: {p.qty}</div>
+                      {p.attributes && p.attributes.length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                          {p.attributes.map((a, idx) => (
+                            <span key={idx} style={{ fontSize: '10px', background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', color: '#4b5563', border: '1px solid #e5e7eb' }}>
+                              {a.name}: {a.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="od-item-price">₹{(p.price || 0).toFixed(2)}</div>
                   </div>
@@ -557,6 +567,14 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                 </div>
               </div>
               <div className="od-card-body">
+                <div className="od-pay-row">
+                  <span style={{ fontSize: 14, color: "#6b7280" }}>Method:</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111", textTransform: "capitalize" }}>
+                    {order.paymentMethod === "cod" ? "Cash on Delivery" : order.paymentMethod}
+                    {order.payment === "paid" && <span style={{ marginLeft: 6, fontSize: 11, background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: 4 }}>Paid</span>}
+                    {order.payment !== "paid" && <span style={{ marginLeft: 6, fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: 4 }}>Pending</span>}
+                  </span>
+                </div>
                 <div className="od-pay-row">
                   <span style={{ fontSize: 14, color: "#6b7280" }}>Subtotal:</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{subtotal.toFixed(2)}</span>

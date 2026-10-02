@@ -8,8 +8,6 @@ import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import {
   CreditCard,
-  Wallet,
-  Smartphone,
   Banknote,
   Shield,
   Lock,
@@ -40,54 +38,17 @@ export function PaymentGateway({
   disabled = false,
 }: PaymentGatewayProps) {
   const [paymentMethod, setPaymentMethod] = useState("card");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [onlineIdentifier, setOnlineIdentifier] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Payment gateway options
   const paymentMethods = [
     {
       id: "card",
-      name: "Credit/Debit Card",
+      name: "Pay Now",
       icon: CreditCard,
-      description: "Visa, Mastercard, Amex",
+      description: "Pay securely via Stripe (Credit/Debit Card)",
       badge: "Secure",
       logos: ["💳"],
-    },
-    {
-      id: "paypal",
-      name: "PayPal",
-      icon: Wallet,
-      description: "Pay with your PayPal account",
-      badge: "Popular",
-      logos: ["🅿️"],
-    },
-    {
-      id: "applepay",
-      name: "Apple Pay",
-      icon: Smartphone,
-      description: "Quick checkout with Apple",
-      badge: "Fast",
-      logos: ["🍎"],
-    },
-    {
-      id: "googlepay",
-      name: "Google Pay",
-      icon: Smartphone,
-      description: "Pay with Google",
-      badge: "Fast",
-      logos: ["🔵"],
-    },
-    {
-      id: "razorpay",
-      name: "Razorpay",
-      icon: CreditCard,
-      description: "UPI, Cards, Wallets & More",
-      badge: "India",
-      logos: ["💰"],
     },
     ...(codEnabled ? [{
       id: "cod",
@@ -106,97 +67,29 @@ export function PaymentGateway({
     }
   }, [codEnabled, paymentMethod, onPaymentMethodChange]);
 
-  const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, "");
-    const formatted = cleaned.match(/.{1,4}/g)?.join(" ") || cleaned;
-    return formatted.substring(0, 19); // 16 digits + 3 spaces
-  };
 
-  const formatExpiryDate = (value: string) => {
-    const cleaned = value.replace(/\D/g, "");
-    if (cleaned.length >= 2) {
-      return cleaned.substring(0, 2) + "/" + cleaned.substring(2, 4);
-    }
-    return cleaned;
-  };
-
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCardNumber(e.target.value);
-    setCardNumber(formatted);
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatExpiryDate(e.target.value);
-    setExpiryDate(formatted);
-  };
-
-  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "").substring(0, 4);
-    setCvv(value);
-  };
-
-  const validateCard = () => {
-    if (cardNumber.replace(/\s/g, "").length < 13) {
-      toast.error("Invalid card number");
-      return false;
-    }
-    if (!cardName.trim()) {
-      toast.error("Please enter cardholder name");
-      return false;
-    }
-    if (expiryDate.length < 5) {
-      toast.error("Invalid expiry date");
-      return false;
-    }
-    if (cvv.length < 3) {
-      toast.error("Invalid CVV");
-      return false;
-    }
-    return true;
-  };
-
-  const onlinePaymentDetails: Record<string, { label: string; placeholder: string }> = {
-    paypal: { label: "PayPal email", placeholder: "demo@example.com" },
-    applepay: { label: "Apple Pay phone or email", placeholder: "+1 555 000 0000" },
-    googlepay: { label: "Google Pay phone or email", placeholder: "+1 555 000 0000" },
-    razorpay: { label: "UPI ID", placeholder: "demo@upi" },
-  };
 
   const validatePaymentMethod = () => {
-    if (paymentMethod === "card") return validateCard();
-    if (paymentMethod === "cod") return true;
-    if (!onlineIdentifier.trim()) {
-      toast.error(`Please enter your ${onlinePaymentDetails[paymentMethod].label}`);
-      return false;
-    }
-    if (paymentMethod === "razorpay" && !onlineIdentifier.includes("@")) {
-      toast.error("Please enter a valid demo UPI ID");
-      return false;
-    }
-    return true;
+    return true; // Stripe handles its own validation later
   };
 
   const processPayment = async () => {
     setIsProcessing(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
+      if (onBeforePayment && !onBeforePayment()) {
+        setIsProcessing(false);
+        return;
+      }
+      
       const paymentData = {
         method: paymentMethod,
         amount,
-        identifier: onlineIdentifier || undefined,
         timestamp: new Date().toISOString(),
-        transactionId: `TXN${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
       };
-
-      toast.success(paymentMethod === "cod" ? "Order confirmed!" : "Demo payment successful!", {
-        description: `Transaction ID: ${paymentData.transactionId}`,
-        duration: 5000,
-      });
 
       if (onPaymentComplete) await onPaymentComplete(paymentData);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to complete payment");
+      toast.error(error instanceof Error ? error.message : "Unable to process checkout");
     } finally {
       setIsProcessing(false);
     }
@@ -322,156 +215,22 @@ export function PaymentGateway({
       <div className="space-y-6">
         {paymentMethod === "card" && (
           <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-              <Lock className="size-4" />
-              <span>Your card details are encrypted and secure</span>
-            </div>
-
-            <div>
-              <Label htmlFor="cardNumber" className="mb-2">
-                Card Number *
-              </Label>
-              <div className="relative">
-                <Input
-                  id="cardNumber"
-                  placeholder="1234 5678 9012 3456"
-                  value={cardNumber}
-                  onChange={handleCardNumberChange}
-                  maxLength={19}
-                  className="pl-10"
-                />
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="cardName" className="mb-2">
-                Cardholder Name *
-              </Label>
-              <Input
-                id="cardName"
-                placeholder="John Doe"
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="expiryDate" className="mb-2">
-                  Expiry Date *
-                </Label>
-                <Input
-                  id="expiryDate"
-                  placeholder="MM/YY"
-                  value={expiryDate}
-                  onChange={handleExpiryChange}
-                  maxLength={5}
-                />
-              </div>
-              <div>
-                <Label htmlFor="cvv" className="mb-2">
-                  CVV *
-                </Label>
-                <Input
-                  id="cvv"
-                  type="password"
-                  placeholder="123"
-                  value={cvv}
-                  onChange={handleCvvChange}
-                  maxLength={4}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 text-sm text-muted-foreground">
-              <span>We accept:</span>
-              <div className="flex gap-2">
-                <span>💳 Visa</span>
-                <span>💳 Mastercard</span>
-                <span>💳 Amex</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === "paypal" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl text-center">
-              <div className="text-4xl mb-3">🅿️</div>
-              <p className="text-sm text-muted-foreground mb-4">
-                You will be redirected to PayPal to complete your payment
-                securely.
-              </p>
-              <div className="space-y-2 text-left">
-                <Label htmlFor="paypalIdentifier">PayPal email *</Label>
-                <Input id="paypalIdentifier" type="email" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="demo@example.com" />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Shield className="size-4" />
-                <span>Protected by PayPal Buyer Protection</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === "applepay" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="p-6 bg-card border border-border rounded-xl text-center">
-              <div className="text-4xl mb-3">🍎</div>
-              <p className="text-sm mb-4 text-muted-foreground">
-                Use Touch ID or Face ID to complete your purchase
-              </p>
-              <div className="space-y-2 text-left mb-3">
-                <Label htmlFor="applepayIdentifier" className="text-foreground">Apple Pay phone or email *</Label>
-                <Input id="applepayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="+1 555 000 0000" />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Shield className="size-4" />
-                <span>Secured by Apple</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === "googlepay" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl text-center">
-              <div className="text-4xl mb-3">🔵</div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Complete your payment with Google Pay for a faster checkout
-              </p>
-              <div className="space-y-2 text-left mb-3">
-                <Label htmlFor="googlepayIdentifier">Google Pay phone or email *</Label>
-                <Input id="googlepayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="+1 555 000 0000" />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Shield className="size-4" />
-                <span>Secured by Google</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === "razorpay" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl text-center">
-              <div className="text-4xl mb-3">💰</div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Pay using UPI, Cards, Net Banking, Wallets & EMI
-              </p>
-              <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-4">
-                <div className="p-2 bg-muted dark:bg-card border border-border rounded">UPI</div>
-                <div className="p-2 bg-muted dark:bg-card border border-border rounded">Cards</div>
-                <div className="p-2 bg-muted dark:bg-card border border-border rounded">Wallets</div>
-              </div>
-              <div className="space-y-2 text-left mb-3">
-                <Label htmlFor="razorpayIdentifier">UPI ID *</Label>
-                <Input id="razorpayIdentifier" value={onlineIdentifier} onChange={(e) => setOnlineIdentifier(e.target.value)} placeholder="demo@upi" />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Shield className="size-4" />
-                <span>100% Secure Payments</span>
+            <div className="p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl">
+              <div className="flex items-start gap-4">
+                <CreditCard className="size-8 text-blue-600 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    Pay via Stripe
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You will be securely redirected to Stripe or a secure modal will appear to complete your card payment.
+                  </p>
+                  <div className="flex gap-2 text-sm text-muted-foreground">
+                    <span>💳 Visa</span>
+                    <span>💳 Mastercard</span>
+                    <span>💳 Amex</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

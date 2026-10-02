@@ -31,6 +31,8 @@ import returnRoutes from "./routes/returnRoutes.js";
 import settingRoutes from "./routes/settingRoutes.js";
 import cmsRoutes from "./routes/cmsRoutes.js";
 import homePageRoutes from "./routes/homePageRoutes.js";
+import warehouseRoutes from "./routes/warehouseRoutes.js";
+import inventoryRoutes from "./routes/inventoryRoutes.js";
 
 const app = express();
 
@@ -63,12 +65,22 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "50mb" }));
+app.use(
+  express.json({
+    limit: "50mb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(morgan("dev"));
 
-// Static uploads directory
+import { serveFile } from "./controllers/uploadController.js";
+
+// Static uploads directory with Cloudflare R2 fallback stream
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.get("/uploads/:filename", serveFile);
 
 // Test route
 app.get("/", (req, res) => {
@@ -103,9 +115,12 @@ app.use("/api/settings", settingRoutes);
 app.use("/api/cms", cmsRoutes);
 app.use("/api/cms", homePageRoutes);
 app.use("/api/newsletter", homePageRoutes);
+app.use("/api/warehouses", warehouseRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR:", err);
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   res.status(statusCode).json({
     message: err.message,

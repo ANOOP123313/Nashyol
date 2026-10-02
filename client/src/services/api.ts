@@ -55,14 +55,24 @@ export const authApi = {
     request<{ message: string; phone: string }>("/api/auth/phone/forgot-password", { method: "POST", body: JSON.stringify(body) }),
   resetPasswordWhatsapp: (body: { phone: string; otp: string; newPassword: string }) =>
     request<{ message: string }>("/api/auth/phone/reset-password", { method: "POST", body: JSON.stringify(body) }),
-  me: () => request<{ _id: string; name: string; email?: string; phone?: string; role: string }>("/api/auth/me"),
-  updateMe: (body: { name: string; email: string; phone?: string }) =>
-    request<{ _id: string; name: string; email: string; phone?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
+  me: () => request<{ _id: string; name: string; email?: string; phone?: string; avatar?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me"),
+  updateMe: (body: { name?: string; email?: string; phone?: string; avatar?: string }) =>
+    request<{ _id: string; name: string; email: string; phone?: string; avatar?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
+};
+
+// Upload
+export const uploadApi = {
+  uploadBase64: (data: { image: string; folder?: string }) =>
+    request<{ url: string; filename: string }>("/api/upload", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 // Banners
 export const bannersApi = {
-  list: () => request<{ image: string; title?: string; subtitle?: string; link?: string; linkText?: string }[]>("/api/banners"),
+  list: () => request<{ _id?: string; image: string; title?: string; subtitle?: string; link?: string; linkText?: string; type?: string; position?: string; isActive?: boolean; clicks?: number }[]>("/api/banners"),
+  click: (id: string) => request<{ clicks: number }>(`/api/banners/${id}/click`, { method: "POST" }),
 };
 
 // Categories (with subcategories and image)
@@ -109,10 +119,10 @@ export const productsApi = {
 export const cartApi = {
   get: () =>
     request<{ items: Array<{ product: any; sku: string; quantity: number; productId: string; variant: any; price: number }>; subtotal: number; count: number }>("/api/cart"),
-  add: (productId: string, sku: string, quantity?: number) =>
+  add: (productId: string, sku: string, quantity?: number, attributes?: any) =>
     request<{ message: string }>("/api/cart", {
       method: "POST",
-      body: JSON.stringify({ productId, sku, quantity: quantity ?? 1 }),
+      body: JSON.stringify({ productId, sku, quantity: quantity ?? 1, attributes }),
     }),
   update: (productId: string, sku: string, quantity: number) =>
     request<{ message: string }>("/api/cart", {
@@ -178,6 +188,18 @@ export const transactionsApi = {
   allTransactions: () => request<any[]>("/api/transactions/admin"),
 };
 
+// Payments
+export const paymentsApi = {
+  createIntentFromCart: (couponCode?: string) =>
+    request<{ clientSecret: string; paymentIntentId: string; totalAmount: number }>("/api/payments/create-intent-cart", { method: "POST", body: JSON.stringify({ couponCode }) }),
+  createIntent: (orderId: string) =>
+    request<{ clientSecret: string; paymentIntentId: string; totalAmount: number; orderId: string }>("/api/payments/create-intent", { method: "POST", body: JSON.stringify({ orderId }) }),
+  verify: (orderId: string, paymentIntentId: string) =>
+    request<{ success: boolean; message: string; order?: any }>("/api/payments/verify", { method: "POST", body: JSON.stringify({ orderId, paymentIntentId }) }),
+  payNow: (orderId: string, paymentMethod: string = "card") =>
+    request<{ success: boolean; message: string; order?: any }>(`/api/payments/pay-now/${orderId}`, { method: "POST", body: JSON.stringify({ paymentMethod }) }),
+};
+
 // Dashboard
 export const dashboardApi = {
   admin: () => request<any>("/api/dashboard/admin"),
@@ -200,8 +222,11 @@ export const ordersApi = {
   myOrders: () => request<Array<{ _id: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>("/api/orders"),
   byId: (id: string) => request<Record<string, unknown>>(`/api/orders/${id}`),
   getById: (id: string) => request<Record<string, unknown>>(`/api/orders/${id}`),
-  cancel: (id: string) =>
-    request<Record<string, unknown>>(`/api/orders/${id}/cancel`, { method: "PATCH" }),
+  cancel: (id: string, reason?: string) =>
+    request<Record<string, unknown>>(`/api/orders/${id}/cancel`, {
+      method: "PATCH",
+      ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+    }),
 };
 
 // Addresses

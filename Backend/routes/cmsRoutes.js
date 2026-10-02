@@ -14,6 +14,9 @@ import {
   createBlog,
   updateBlog,
   deleteBlog,
+  getBlogCategories,
+  createBlogCategory,
+  deleteBlogCategory,
 } from "../controllers/cmsController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
@@ -31,6 +34,11 @@ router.get("/faqs", getFaqs);
 router.post("/faqs", protect, authorize("admin"), createFaq);
 router.put("/faqs/:id", protect, authorize("admin"), updateFaq);
 router.delete("/faqs/:id", protect, authorize("admin"), deleteFaq);
+
+// --- Blog Categories ---
+router.get("/blog-categories", getBlogCategories);
+router.post("/blog-categories", protect, authorize("admin"), createBlogCategory);
+router.delete("/blog-categories/:id", protect, authorize("admin"), deleteBlogCategory);
 
 // --- Blogs ---
 router.get("/blogs", getBlogs);

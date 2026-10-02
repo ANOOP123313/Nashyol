@@ -58,6 +58,10 @@ const returnSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    isStockRestored: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

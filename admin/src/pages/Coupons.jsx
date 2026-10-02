@@ -168,24 +168,43 @@ export default function ReferralCoupons() {
   const [hoveredOpt, setHoveredOpt]       = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  const handleCopyCode = (code) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(code);
+      toast.success(`Coupon code ${code} copied!`);
+    } else {
+      toast.info(`Coupon: ${code}`);
+    }
+  };
+
   const fetchCoupons = async () => {
     try {
       const res = await couponsAPI.getAll();
       const list = Array.isArray(res) ? res : res.coupons || [];
-      setCouponList(list.map(c => ({
-        ...c,
-        id: c._id,
-        code: c.code,
-        type: c.type || "Promotional",
-        discount: c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`,
-        details: c.details || (c.type || "Promotional coupon"),
-        earnedBy: c.earnedBy || null,
-        usage: `${c.usedCount || 0}/${c.usageLimit || "∞"}`,
-        expiry: c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : "No expiry",
-        status: c.isActive ? "active" : "expired",
-      })));
+      setCouponList(list.map(c => {
+        const isExpired = c.expiryDate && new Date(c.expiryDate) < new Date();
+        const isUsedUp = c.usageLimit != null && (c.usedCount || 0) >= c.usageLimit;
+        let status = "active";
+        if (c.isActive === false) status = "expired";
+        else if (isExpired) status = "expired";
+        else if (isUsedUp) status = "used";
+
+        return {
+          ...c,
+          id: c._id,
+          code: c.code,
+          type: c.type || "Promotional",
+          discount: c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`,
+          details: c.details || (c.type ? `${c.type} Coupon` : "Promotional coupon"),
+          earnedBy: c.earnedBy || null,
+          usage: `${c.usedCount || 0}/${c.usageLimit || "∞"}`,
+          expiry: c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : "No expiry",
+          status,
+        };
+      }));
     } catch (err) {
       console.error("Coupons fetch error:", err);
+      toast.error("Failed to load coupons: " + (err.message || "Network error"));
     }
   };
 
@@ -415,7 +434,14 @@ export default function ReferralCoupons() {
                   <td style={{ padding:"16px 16px" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                       <span style={{ fontWeight:600, fontSize:13.5, letterSpacing:"0.3px", color:"#111827" }}>{c.code}</span>
-                      <CopyIcon/>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(c.code)}
+                        title="Copy code"
+                        style={{ background:"none", border:"none", padding:0, cursor:"pointer", display:"flex", alignItems:"center" }}
+                      >
+                        <CopyIcon/>
+                      </button>
                     </div>
                   </td>
                   <td style={{ padding:"16px 16px" }}><TypeBadge type={c.type}/></td>

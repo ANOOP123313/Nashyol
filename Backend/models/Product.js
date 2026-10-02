@@ -179,6 +179,17 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
+    warehouse: {
+      type: String,
+      default: "",
+    },
+
+    inventory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Inventory",
+      default: null,
+    },
+
     referralCoupons: [referralCouponSchema],
 
     reviews: [reviewSchema],

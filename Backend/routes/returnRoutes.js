@@ -12,6 +12,7 @@ const router = express.Router();
 
 // Public return tracking route
 router.get("/track/:query", trackReturn);
+router.get("/track", trackReturn);
 
 // Protected routes
 router.use(protect);

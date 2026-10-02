@@ -15,13 +15,15 @@ export const getAllBanners = asyncHandler(async (req, res) => {
 
 // Admin: Create banner
 export const createBanner = asyncHandler(async (req, res) => {
-  const { title, subtitle, image, link, linkText, sortOrder, isActive } = req.body;
+  const { title, subtitle, image, link, linkText, ctaText, type, position, sortOrder, isActive } = req.body;
   const banner = await Banner.create({
     title: title || "New Banner",
     subtitle: subtitle || "",
     image: image || "https://placehold.co/1200x400?text=Banner+Image",
     link: link || "/",
-    linkText: linkText || "Shop Now",
+    linkText: linkText || ctaText || "Shop Now",
+    type: type || "card",
+    position: position || "Homepage Hero",
     sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
     isActive: isActive !== undefined ? isActive : true,
   });
@@ -50,3 +52,16 @@ export const deleteBanner = asyncHandler(async (req, res) => {
   await banner.deleteOne();
   res.json({ message: "Banner deleted" });
 });
+
+// Public: Record click on banner
+export const clickBanner = asyncHandler(async (req, res) => {
+  const banner = await Banner.findById(req.params.id);
+  if (!banner) {
+    res.status(404);
+    throw new Error("Banner not found");
+  }
+  banner.clicks = (banner.clicks || 0) + 1;
+  await banner.save();
+  res.json({ message: "Click recorded", clicks: banner.clicks });
+});
+

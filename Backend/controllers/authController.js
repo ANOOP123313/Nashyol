@@ -92,6 +92,7 @@ export const register = asyncHandler(async (req, res) => {
     _id: user._id,
     name: user.name,
     email: user.email,
+    avatar: user.avatar || "",
     role: user.role,
     referralCode: user.referralCode,
     referralPoints: user.referralPoints || 0,
@@ -147,6 +148,7 @@ export const login = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     phone: user.phone || "",
+    avatar: user.avatar || "",
     role: user.role,
     referralCode: user.referralCode,
     referralPoints: user.referralPoints || user.walletBalance || 0,
@@ -162,23 +164,34 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
-  const { name, email, phone } = req.body;
+  const { name, email, phone, avatar } = req.body;
 
-  if (!name?.trim() || !email?.trim()) {
-    return res.status(400).json({ message: "Name and email are required" });
+  if (name !== undefined) {
+    if (!name.trim()) {
+      return res.status(400).json({ message: "Name cannot be empty" });
+    }
+    req.user.name = name.trim();
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user._id } });
-  if (existing) {
-    return res.status(400).json({ message: "Email already registered" });
+  if (email !== undefined && email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail !== req.user.email) {
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user._id } });
+      if (existing) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      req.user.email = normalizedEmail;
+    }
   }
 
-  req.user.name = name.trim();
-  req.user.email = normalizedEmail;
   if (phone !== undefined && phone.trim()) {
     req.user.phone = phone.trim();
   }
+
+  if (avatar !== undefined) {
+    req.user.avatar = avatar;
+  }
+
   await req.user.save();
 
   res.json({
@@ -186,6 +199,7 @@ export const updateMe = asyncHandler(async (req, res) => {
     name: req.user.name,
     email: req.user.email,
     phone: req.user.phone,
+    avatar: req.user.avatar || "",
     role: req.user.role,
     referralCode: req.user.referralCode,
     walletBalance: req.user.walletBalance,

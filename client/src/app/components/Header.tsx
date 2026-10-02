@@ -243,19 +243,29 @@ export function Header() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="hover:bg-muted text-foreground"
+                      className="hover:bg-muted text-foreground rounded-full overflow-hidden p-0"
                     >
-                      <User className="size-5 text-muted-foreground hover:text-foreground transition-colors" />
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="size-8 rounded-full bg-[var(--primary-color)]/15 text-[var(--primary-color)] font-bold text-xs flex items-center justify-center border border-[var(--primary-color)]/30">
+                          {(user.name?.trim()?.charAt(0) || "U").toUpperCase()}
+                        </div>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="flex items-center gap-3 p-2">
-                      <div className="size-10 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full flex items-center justify-center text-inverse font-semibold">
-                        {(user.name || "U").slice(0, 2).toUpperCase()}
+                      <div className="size-10 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full flex items-center justify-center text-inverse font-semibold overflow-hidden shrink-0">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{(user.name?.trim()?.charAt(0) || "U").toUpperCase()}</span>
+                        )}
                       </div>
-                      <div>
-                        <p className="font-medium text-sm text-foreground">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm text-foreground truncate">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.phone || user.email}</p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
@@ -288,8 +298,8 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-                  <Link href="/login">Sign In</Link>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium" asChild>
+                  <Link href="/login">Login</Link>
                 </Button>
               )}
             </div>
@@ -333,12 +343,16 @@ export function Header() {
                   <div className="flex items-center gap-3 p-4 glass-card rounded-xl mb-4">
                     {user ? (
                       <>
-                        <div className="size-12 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full flex items-center justify-center text-inverse font-semibold">
-                          {(user.name || "U").slice(0, 2).toUpperCase()}
+                        <div className="size-12 bg-gradient-to-br from-[var(--primary-color)] to-orange-600 rounded-full flex items-center justify-center text-inverse font-semibold overflow-hidden shrink-0">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-lg">{(user.name?.trim()?.charAt(0) || "U").toUpperCase()}</span>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-medium text-sm dark:text-inverse">{user.name}</p>
-                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm dark:text-inverse truncate">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.phone || user.email}</p>
                         </div>
                       </>
                     ) : (
@@ -350,7 +364,7 @@ export function Header() {
                         <div className="size-12 bg-muted rounded-full flex items-center justify-center">
                           <User className="size-6 text-muted-foreground" />
                         </div>
-                        <span className="font-medium text-sm text-muted-foreground">Sign In</span>
+                        <span className="font-medium text-sm text-muted-foreground">Login</span>
                       </Link>
                     )}
                   </div>

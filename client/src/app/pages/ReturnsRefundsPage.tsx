@@ -5,7 +5,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import Link from "next/link";
-import { returnsApi } from "../../services/api";
+import { returnsApi, cmsApi } from "../../services/api";
 
 export function ReturnsRefundsPage() {
   const [trackQuery, setTrackQuery] = useState("");
@@ -14,6 +14,22 @@ export function ReturnsRefundsPage() {
   const [trackError, setTrackError] = useState("");
   const [myReturns, setMyReturns] = useState<any[]>([]);
   const [myReturnsLoading, setMyReturnsLoading] = useState(false);
+  const [faqs, setFaqs] = useState<Array<{ question: string; answer: string; category?: string }>>([]);
+
+  useEffect(() => {
+    cmsApi.getFaqs()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const returnFaqs = data.filter((f: any) =>
+            (f.category && f.category.toLowerCase().includes("return")) ||
+            f.question.toLowerCase().includes("return") ||
+            f.question.toLowerCase().includes("refund")
+          );
+          setFaqs(returnFaqs.length > 0 ? returnFaqs : data.slice(0, 5));
+        }
+      })
+      .catch((err) => console.error("CMS FAQs load error:", err));
+  }, []);
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -35,28 +51,43 @@ export function ReturnsRefundsPage() {
     }
   }, []);
 
-  const handleTrack = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const query = trackQuery.trim();
-    if (!query) return;
+  const executeTrack = async (query: string) => {
+    const q = (query || "").trim();
+    if (!q) return;
 
     setTrackingLoading(true);
     setTrackError("");
     setTrackedReturn(null);
 
     try {
-      const res = await returnsApi.track(query);
+      const res = await returnsApi.track(q);
       if (res && res._id) {
         setTrackedReturn(res);
       } else {
-        setTrackError(`No return record found for "${query}". Please check your ID and try again.`);
+        setTrackError(`No return record found for "${q}". Please check your ID and try again.`);
       }
     } catch (err: any) {
-      setTrackError(err.message || `No return found for "${query}"`);
+      setTrackError(err.message || `No return found for "${q}"`);
     } finally {
       setTrackingLoading(false);
     }
   };
+
+  const handleTrack = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    await executeTrack(trackQuery);
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const queryParam = params.get("track") || params.get("order") || params.get("returnId");
+      if (queryParam) {
+        setTrackQuery(queryParam);
+        executeTrack(queryParam);
+      }
+    }
+  }, []);
 
   const returnProcess = [
     {
@@ -374,6 +405,7 @@ export function ReturnsRefundsPage() {
                     <button
                       onClick={() => {
                         setTrackQuery(item._id);
+                        executeTrack(item._id);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                       className="text-xs text-[var(--primary-color)] hover:underline font-medium"
@@ -594,49 +626,65 @@ export function ReturnsRefundsPage() {
             Frequently Asked Questions
           </h3>
           <div className="space-y-6">
-            <div>
-              <h4 className="font-bold text-foreground mb-2">
-                When will I receive my refund?
-              </h4>
-              <p className="text-muted-foreground">
-                Refunds are processed within 2-3 business days after we receive your
-                return. It may take an additional 5-7 business days for the refund to
-                appear in your account, depending on your bank.
-              </p>
-            </div>
-            <Separator />
-            <div>
-              <h4 className="font-bold text-foreground mb-2">
-                Can I return sale items?
-              </h4>
-              <p className="text-muted-foreground">
-                Yes, most sale items can be returned within 30 days. However, items marked
-                as "Final Sale" cannot be returned or exchanged. Check the product page
-                for specific details.
-              </p>
-            </div>
-            <Separator />
-            <div>
-              <h4 className="font-bold text-foreground mb-2">
-                What if my return is past 30 days?
-              </h4>
-              <p className="text-muted-foreground">
-                Returns must be initiated within 30 days of delivery. Late returns may be
-                accepted at our discretion for store credit only. Contact customer support
-                for assistance.
-              </p>
-            </div>
-            <Separator />
-            <div>
-              <h4 className="font-bold text-foreground mb-2">
-                How do I return a gift?
-              </h4>
-              <p className="text-muted-foreground">
-                Gift returns are accepted with proof of purchase. The refund will be
-                issued to the original purchaser's payment method or as store credit to
-                the gift recipient.
-              </p>
-            </div>
+            {faqs.length > 0 ? (
+              faqs.map((faq, idx) => (
+                <div key={idx}>
+                  <h4 className="font-bold text-foreground mb-2">
+                    {faq.question}
+                  </h4>
+                  <p className="text-muted-foreground">
+                    {faq.answer}
+                  </p>
+                  {idx < faqs.length - 1 && <Separator className="mt-6" />}
+                </div>
+              ))
+            ) : (
+              <>
+                <div>
+                  <h4 className="font-bold text-foreground mb-2">
+                    When will I receive my refund?
+                  </h4>
+                  <p className="text-muted-foreground">
+                    Refunds are processed within 2-3 business days after we receive your
+                    return. It may take an additional 5-7 business days for the refund to
+                    appear in your account, depending on your bank.
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-bold text-foreground mb-2">
+                    Can I return sale items?
+                  </h4>
+                  <p className="text-muted-foreground">
+                    Yes, most sale items can be returned within 30 days. However, items marked
+                    as "Final Sale" cannot be returned or exchanged. Check the product page
+                    for specific details.
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-bold text-foreground mb-2">
+                    What if my return is past 30 days?
+                  </h4>
+                  <p className="text-muted-foreground">
+                    Returns must be initiated within 30 days of delivery. Late returns may be
+                    accepted at our discretion for store credit only. Contact customer support
+                    for assistance.
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-bold text-foreground mb-2">
+                    How do I return a gift?
+                  </h4>
+                  <p className="text-muted-foreground">
+                    Gift returns are accepted with proof of purchase. The refund will be
+                    issued to the original purchaser's payment method or as store credit to
+                    the gift recipient.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 

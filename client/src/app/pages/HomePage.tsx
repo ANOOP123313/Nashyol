@@ -36,9 +36,10 @@ function mapApiProduct(p: Record<string, unknown>) {
 export function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
-  const [apiBanners, setApiBanners] = useState<Array<{ image: string; title?: string; subtitle?: string; link?: string; linkText?: string }>>([]);
+  const [apiBanners, setApiBanners] = useState<Array<{ _id?: string; image: string; title?: string; subtitle?: string; link?: string; linkText?: string; type?: string; isActive?: boolean }>>([]);
   const [apiFeatured, setApiFeatured] = useState<Array<{ id: string; name: string; category: string; price: number; originalPrice?: number; image: string; badge?: string; rating: number; reviews: number; inStock?: boolean }>>([]);
-  const [loading, setLoading] = useState(true);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupTriggered, setPopupTriggered] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -61,14 +62,32 @@ export function HomePage() {
         }
         setApiBanners(Array.isArray(banners) ? banners : []);
         setApiFeatured((Array.isArray(featured) ? featured : []).map(mapApiProduct));
-      })
-      .finally(() => {
-        setLoading(false);
       });
   }, []);
 
-  const heroSlides: HeroSlide[] = apiBanners.map((b, i) => ({
-    id: String(i),
+  // Trigger popup ad when page is scrolled halfway down
+  useEffect(() => {
+    if (popupTriggered) return;
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + window.innerHeight;
+      const totalHeight = document.documentElement.scrollHeight;
+      if (totalHeight > 0 && scrollPosition >= totalHeight * 0.45) {
+        setShowPopup(true);
+        setPopupTriggered(true);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [popupTriggered]);
+
+  const cardBanners = apiBanners.filter((b) => b.type !== "popup");
+  const activePopupBanner = apiBanners.find((b) => b.type === "popup" && b.isActive !== false);
+
+  const heroSlides: HeroSlide[] = cardBanners.map((b, i) => ({
+    id: b._id || String(i),
+    bannerId: b._id,
     image: b.image,
     title: b.title ?? "",
     description: b.subtitle ?? "",
@@ -76,17 +95,6 @@ export function HomePage() {
     buttonLink: b.link ?? "/category",
     textPosition: "center" as const,
   }));
-
-  // Show mobile view on small screens (below 640px)
-  if (isMobile) {
-    return (
-      <MobileHomeView
-        sections={sections}
-        featuredProducts={apiFeatured}
-        heroSlides={heroSlides}
-      />
-    );
-  }
 
   const featuredProducts = apiFeatured;
 
@@ -99,14 +107,70 @@ export function HomePage() {
         <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-stone-200/75 via-orange-100/60 to-transparent blur-3xl dark:opacity-10" />
       </div>
 
-      {/* Dynamic Content rendered via CMS Section Renderer */}
+      {/* Dynamic Content rendered via CMS Section Renderer or Mobile View */}
       <div className="relative z-10">
-        <HomePageSectionRenderer
-          sections={sections}
-          heroSlides={heroSlides}
-          featuredProducts={featuredProducts}
-        />
+        {isMobile ? (
+          <MobileHomeView
+            sections={sections}
+            featuredProducts={apiFeatured}
+            heroSlides={heroSlides}
+          />
+        ) : (
+          <HomePageSectionRenderer
+            sections={sections}
+            heroSlides={heroSlides}
+            featuredProducts={featuredProducts}
+          />
+        )}
       </div>
+
+      {/* Popup Ad Modal */}
+      {showPopup && activePopupBanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-2xl overflow-hidden max-w-sm w-full border border-orange-100 dark:border-stone-800">
+            <button
+              onClick={() => setShowPopup(false)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-stone-800/90 text-stone-700 dark:text-stone-200 hover:bg-orange-500 hover:text-white flex items-center justify-center font-bold text-lg shadow transition-all"
+            >
+              ×
+            </button>
+            <div className="relative h-48 w-full bg-stone-100 dark:bg-stone-800">
+              <img
+                src={activePopupBanner.image}
+                alt={activePopupBanner.title || "Special Offer"}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                Special Offer
+              </span>
+            </div>
+            <div className="p-6 text-center">
+              {activePopupBanner.title && (
+                <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">
+                  {activePopupBanner.title}
+                </h3>
+              )}
+              {activePopupBanner.subtitle && (
+                <p className="text-sm text-stone-600 dark:text-stone-300 mb-6 line-clamp-3">
+                  {activePopupBanner.subtitle}
+                </p>
+              )}
+              <a
+                href={activePopupBanner.link || "/category"}
+                onClick={() => {
+                  if (activePopupBanner._id) {
+                    bannersApi.click(activePopupBanner._id).catch(() => {});
+                  }
+                  setShowPopup(false);
+                }}
+                className="inline-block w-full py-3 px-6 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all transform hover:-translate-y-0.5"
+              >
+                {activePopupBanner.linkText || "Shop Now"}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

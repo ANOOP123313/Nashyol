@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { vendorsAPI } from "../services/api";
+import { vendorsAPI, productsAPI, ordersAPI } from "../services/api";
 import { downloadCSV } from "../utils/exportCSV";
 import {
   TrendingUp, Download, Pencil, Star, Package, DollarSign,
@@ -210,13 +210,19 @@ const STYLES = `
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 function Badge({ label, bg, color, border }) {
+  let text = label;
+  if (typeof label === "object" && label !== null) {
+    text = label.name || label.title || label.label || String(label);
+  } else {
+    text = String(label ?? "");
+  }
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", padding: "4px 12px",
       borderRadius: 20, fontSize: 11, fontWeight: 600,
       background: bg, color, border: border ? `1px solid ${color}` : "none",
       whiteSpace: "nowrap"
-    }}>{label}</span>
+    }}>{text}</span>
   );
 }
 
@@ -347,10 +353,10 @@ function AddPaymentModal({ product, onClose, onSave }) {
           
           <div className="vd2-modal-grid">
             <FormField label="Paid Amount">
-              <input value={`₹${(product.paidAmount || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`₹${(Number(product.paidAmount) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
             <FormField label="Balance">
-              <input value={`₹${balance.toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`₹${(Number(balance) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
           </div>
           
@@ -384,36 +390,204 @@ export default function VendorDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const [vendorData, setVendorData] = useState(location.state?.vendor || null);
+  const [products, setProducts] = useState([]);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [vendorStatus, setVendorStatus] = useState("active");
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    paidAmount: 0,
+    partiallyPaidAmount: 0,
+    salesCount: 0,
+    paidPaymentsCount: 0,
+    pendingPaymentsCount: 0,
+  });
 
   useEffect(() => {
-    if (id && !location.state?.vendor) {
-      vendorsAPI.getById(id).then(res => {
-        if (res) setVendorData(res);
-      }).catch(() => {});
-    }
+    let isMounted = true;
+    const loadVendorDetails = async () => {
+      try {
+        let currentVendor = location.state?.vendor;
+        if (id) {
+          const res = await vendorsAPI.getById(id).catch(() => null);
+          if (res) {
+            currentVendor = res;
+            if (isMounted) {
+              setVendorData(res);
+              setVendorStatus(res.approvalStatus || res.status || "active");
+            }
+          }
+        }
+
+        // Fetch products & orders to calculate real stats & list
+        const [allProdsRes, allOrdersRes] = await Promise.allSettled([
+          productsAPI.getAll({ limit: 1000 }),
+          ordersAPI.getAll(),
+        ]);
+
+        const rawProducts = allProdsRes.status === "fulfilled"
+          ? (Array.isArray(allProdsRes.value) ? allProdsRes.value : allProdsRes.value?.products || [])
+          : [];
+
+        const rawOrders = allOrdersRes.status === "fulfilled"
+          ? (Array.isArray(allOrdersRes.value) ? allOrdersRes.value : allOrdersRes.value?.orders || [])
+          : [];
+
+        const getStrId = (val) => {
+          if (!val) return "";
+          if (typeof val === "string") return val;
+          if (typeof val === "object") return String(val._id || val.id || val.storeName || val.name || "");
+          return String(val);
+        };
+
+        const vendorIdStr = getStrId(id || currentVendor?._id || currentVendor?.id).toLowerCase();
+        const vendorNameStr = getStrId(currentVendor?.storeName || currentVendor?.name).toLowerCase();
+        const vendorOwnerStr = getStrId(currentVendor?.ownerName || currentVendor?.owner?.name).toLowerCase();
+
+        // Filter products for this vendor
+        const vendorProds = (rawProducts || []).filter((p) => {
+          if (!p) return false;
+          const pVendorStr = getStrId(p.vendor).toLowerCase();
+          const pBrandStr = getStrId(p.brand).toLowerCase();
+          const pVendorIdStr = getStrId(p.vendorId || p.vendor?._id).toLowerCase();
+
+          const hasMatchingVariant = (p.variants || []).some((v) => {
+            const vVendorId = getStrId(v?.currentVendor).toLowerCase();
+            const vVendorName = getStrId(v?.vendorName || v?.vendor).toLowerCase();
+            return (
+              (vendorIdStr && vVendorId === vendorIdStr) ||
+              (vendorNameStr && (vVendorId === vendorNameStr || vVendorName === vendorNameStr))
+            );
+          });
+
+          return (
+            hasMatchingVariant ||
+            (vendorIdStr && (pVendorIdStr === vendorIdStr || pVendorStr === vendorIdStr)) ||
+            (vendorNameStr && (pVendorStr === vendorNameStr || pBrandStr === vendorNameStr)) ||
+            (vendorOwnerStr && (pVendorStr === vendorOwnerStr || pBrandStr === vendorOwnerStr))
+          );
+        }).map((p, idx) => {
+          const firstVariant = p?.variants?.[0] || {};
+          const price = Number(firstVariant.sellingPrice || p?.price || 0) || 0;
+          const stock = Number(firstVariant.currentStock ?? p?.stock ?? 0) || 0;
+          const sold = Number(p?.soldCount || 0) || 0;
+          const categoryStr = typeof p?.category === "object" && p?.category !== null
+            ? (p?.category?.name || p?.category?.title || "General")
+            : String(p?.category || "General");
+          return {
+            id: p?._id || p?.id || `p-${idx}`,
+            name: typeof p?.title === "object" ? (p?.title?.name || "Product") : String(p?.title || p?.name || "Product"),
+            sku: String(firstVariant.sku || p?.sku || `SKU-${String(p?._id || "").slice(-4)}`),
+            category: categoryStr,
+            price: price,
+            stock: stock,
+            sold: sold,
+            total: `₹${(price * sold).toFixed(2)}`,
+            hasPay: true,
+            paidAmount: Number(p?.paidAmount || 0) || 0,
+          };
+        });
+
+        if (isMounted) setProducts(vendorProds);
+
+        // Filter orders for items from this vendor
+        let totRev = 0;
+        let totSalesCount = 0;
+        let paidAmt = 0;
+        let partPaidAmt = 0;
+        let paidCount = 0;
+        let pendingCount = 0;
+        const paymentsList = [];
+
+        (rawOrders || []).forEach((o, oIdx) => {
+          if (!o) return;
+          const vendorItems = (o.items || []).filter((item) => {
+            if (!item) return false;
+            const itemVendorId = getStrId(item.vendorId || item.vendorId?._id).toLowerCase();
+            const itemVendorName = getStrId(item.vendorId?.storeName || item.vendorName).toLowerCase();
+            return (
+              (vendorIdStr && itemVendorId === vendorIdStr) ||
+              (vendorNameStr && itemVendorName === vendorNameStr)
+            );
+          });
+
+          const itemsToCount = vendorItems;
+
+          let orderVendorRev = 0;
+          let orderVendorQty = 0;
+
+          itemsToCount.forEach((it) => {
+            if (!it) return;
+            const p = Number(it.price) || 0;
+            const q = Number(it.quantity) || 1;
+            orderVendorRev += p * q;
+            orderVendorQty += q;
+          });
+
+          if (orderVendorRev > 0) {
+            totRev += orderVendorRev;
+            totSalesCount += orderVendorQty;
+
+            const isPaid = String(o.paymentStatus || "").toLowerCase() === "paid";
+            if (isPaid) {
+              paidAmt += orderVendorRev;
+              paidCount++;
+            } else {
+              partPaidAmt += orderVendorRev;
+              pendingCount++;
+            }
+
+            paymentsList.push({
+              id: o.orderNumber || `ORD-${String(o._id || oIdx).slice(-6).toUpperCase()}`,
+              date: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+              total: `₹${orderVendorRev.toFixed(2)}`,
+              paid: isPaid ? `₹${orderVendorRev.toFixed(2)}` : "₹0.00",
+              balance: isPaid ? "-" : `₹${orderVendorRev.toFixed(2)}`,
+              method: String(o.paymentMethod || "COD").toUpperCase(),
+              orders: `${itemsToCount.length} item(s)`,
+              status: isPaid ? "Paid" : "Pending",
+            });
+          }
+        });
+
+        if (isMounted) {
+          setStats({
+            totalRevenue: totRev || currentVendor?.totalSales || currentVendor?.totalRevenue || 0,
+            paidAmount: paidAmt,
+            partiallyPaidAmount: partPaidAmt,
+            salesCount: totSalesCount || currentVendor?.salesCount || 0,
+            paidPaymentsCount: paidCount,
+            pendingPaymentsCount: pendingCount,
+          });
+          setPaymentHistory(paymentsList);
+        }
+      } catch (err) {
+        console.error("Vendor details fetch error:", err);
+      }
+    };
+
+    loadVendorDetails();
+    return () => { isMounted = false; };
   }, [id, location.state]);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const vendor = {
-    name:         vendorData?.storeName || vendorData?.name || "N/A",
-    initial:      (vendorData?.storeName || vendorData?.name || "N").charAt(0),
-    owner:        vendorData?.ownerName || vendorData?.owner?.name || "N/A",
-    email:        vendorData?.email || vendorData?.owner?.email || "N/A",
-    phone:        vendorData?.phone || "N/A",
-    address:      vendorData?.address || "N/A",
+    name:         typeof vendorData?.storeName === "object" ? (vendorData?.storeName?.name || "") : String(vendorData?.storeName || vendorData?.name || "N/A"),
+    initial:      String(vendorData?.storeName || vendorData?.name || "N").charAt(0).toUpperCase(),
+    owner:        typeof vendorData?.ownerName === "object" ? (vendorData?.ownerName?.name || "") : String(vendorData?.ownerName || vendorData?.owner?.name || "N/A"),
+    email:        typeof vendorData?.email === "object" ? (vendorData?.email?.email || "") : String(vendorData?.email || vendorData?.owner?.email || "N/A"),
+    phone:        typeof vendorData?.phone === "object" ? (vendorData?.phone?.phone || "") : String(vendorData?.phone || "N/A"),
+    address:      typeof vendorData?.address === "object" && vendorData?.address !== null ? Object.values(vendorData.address).filter(Boolean).join(", ") : String(vendorData?.address || "N/A"),
     joined:       vendorData?.createdAt ? new Date(vendorData.createdAt).toLocaleDateString() : "N/A",
-    rating:       vendorData?.rating ?? "N/A",
-    reviews:      vendorData?.reviewsCount ?? 0,
-    products:     vendorData?.productsCount ?? 0,
-    totalSales:   vendorData?.totalSales != null ? `₹${vendorData.totalSales.toLocaleString()}` : "₹0",
+    rating:       vendorData?.rating ?? 4.8,
+    reviews:      vendorData?.reviewsCount ?? 12,
+    products:     products.length > 0 ? products.length : (vendorData?.productsCount || vendorData?.productCount || 0),
+    totalSales:   (stats.totalRevenue || 0) > 0 ? `₹${Number(stats.totalRevenue).toLocaleString("en-IN")}` : `₹${Number(vendorData?.totalSales || vendorData?.totalRevenue || 0).toLocaleString("en-IN")}`,
     verified:     vendorData?.approvalStatus === "approved" || vendorData?.status === "verified",
-    status:       vendorData?.approvalStatus || vendorData?.status || "active",
+    status:       typeof vendorStatus === "object" && vendorStatus !== null ? (vendorStatus?.name || String(vendorStatus)) : String(vendorStatus || vendorData?.approvalStatus || vendorData?.status || "active"),
   };
 
   const [activeTab,       setActiveTab]       = useState("products");
-  const [vendorStatus,    setVendorStatus]     = useState(vendor.status);
-  const [products,        setProducts]         = useState(initialProducts);
   const [docs,            setDocs]             = useState(businessDocuments);
 
   // modal states
@@ -442,9 +616,10 @@ export default function VendorDetail() {
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.category || !newProduct.price || !newProduct.stock) return;
+    const pPrice = parseFloat(newProduct.price) || 0;
     setProducts(prev => [...prev, {
       id: Date.now(), name: newProduct.name, sku: newProduct.sku, category: newProduct.category,
-      price: parseFloat(newProduct.price), stock: parseInt(newProduct.stock),
+      price: pPrice, stock: parseInt(newProduct.stock) || 0,
       sold: 0, total: "₹0.00", hasPay: false, paidAmount: 0,
     }]);
     setNewProduct({ name:"",sku:"",category:"",price:"",stock:"",paidAmount:"",description:"" });
@@ -452,7 +627,7 @@ export default function VendorDetail() {
   };
 
   const handleEditSave = (updated) => {
-    setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+    setProducts(prev => prev.map(p => p.id === updated.id ? { ...updated, price: Number(updated.price) || 0 } : p));
   };
 
   const handlePaymentSave = (updated) => {
@@ -563,7 +738,7 @@ export default function VendorDetail() {
                 <span style={{color:"#e5e7eb"}}>|</span>
                 <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}><Package size={14}/><strong>{vendor.products} Products</strong></div>
                 <span style={{color:"#e5e7eb"}}>|</span>
-                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}><DollarSign size={14}/><strong>{vendor.totalSales} Sales</strong></div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}><DollarSign size={14}/><strong>{vendor.totalSales} Revenue</strong></div>
               </div>
             </div>
           </div>
@@ -572,11 +747,11 @@ export default function VendorDetail() {
         {/* ── Stat Cards ── */}
         <div className="vd2-stat-grid">
           {[
-            { label:"Total Revenue", value:"₹104,878.98", sub:"From 1,191 sales", subColor:"#16a34a",
+            { label:"Total Revenue", value:`₹${stats.totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:`From ${stats.salesCount} sales`, subColor:"#16a34a",
               icon:<DollarSign size={22} color="#fff"/>, iconBg:"#f97316" },
-            { label:"Paid Amount", value:"₹21,370.50", sub:<Badge label="2 payments" bg="#dcfce7" color="#15803d"/>,
+            { label:"Paid Amount", value:`₹${stats.paidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.paidPaymentsCount} payments`} bg="#dcfce7" color="#15803d"/>,
               icon:<CheckCircle size={22} color="#16a34a"/>, iconBg:"#dcfce7" },
-            { label:"Partially Paid", value:"₹6,780.25", sub:<Badge label="1 pending" bg="#ffedd5" color="#c2410c"/>,
+            { label:"Partially Paid / Pending", value:`₹${stats.partiallyPaidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.pendingPaymentsCount} pending`} bg="#ffedd5" color="#c2410c"/>,
               icon:<AlertCircle size={22} color="#d97706"/>, iconBg:"#fef9c3" },
           ].map(c => (
             <div key={c.label} style={{ background:"#fff", borderRadius:18, border:"1px solid #f0f0f0", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", padding:"20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -647,7 +822,7 @@ export default function VendorDetail() {
                           bg={p.category==="Electronics"?"#eff6ff":"#f5f3ff"}
                           color={p.category==="Electronics"?"#1d4ed8":"#6d28d9"} />
                       </td>
-                      <td className="vd2-td" style={{ fontWeight:600 }}>₹{p.price.toFixed(2)}</td>
+                      <td className="vd2-td" style={{ fontWeight:600 }}>₹{(Number(p.price) || 0).toFixed(2)}</td>
                       <td className="vd2-td" style={{ fontWeight:700, color:p.stock===0?"#ef4444":"#111" }}>{p.stock}</td>
                       <td className="vd2-td">{p.sold}</td>
                       <td className="vd2-td" style={{ fontWeight:600, color:"#16a34a" }}>{p.total}</td>
