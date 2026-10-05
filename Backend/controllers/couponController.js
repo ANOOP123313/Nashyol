@@ -1,7 +1,7 @@
 import asyncHandler from "express-async-handler";
 import Coupon from "../models/Coupon.js";
 
-// ── Validate Coupon (Public) ──
+// ── Validate Coupon (Public / Authenticated) ──
 export const validateCoupon = asyncHandler(async (req, res) => {
   const { code, subtotal } = req.query;
   if (!code || !code.trim()) {
@@ -15,8 +15,22 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     return res.status(400).json({ valid: false, message: "Coupon has expired" });
   }
   if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
-    return res.status(400).json({ valid: false, message: "Coupon usage limit reached" });
+    return res.status(400).json({ valid: false, message: "Coupon total usage limit reached" });
   }
+  if (req.user) {
+    const userRecord = (coupon.usedBy || []).find(
+      (u) => u.userId && u.userId.toString() === req.user._id.toString()
+    );
+    const userCount = userRecord ? userRecord.count : 0;
+    const maxPerUser = coupon.maxUsesPerUser || 1;
+    if (userCount >= maxPerUser) {
+      return res.status(400).json({
+        valid: false,
+        message: "You have already used this coupon the maximum allowed times.",
+      });
+    }
+  }
+
   const sub = Math.max(0, Number(subtotal) || 0);
   let discountAmount = 0;
   if (coupon.discountType === "percentage") {
@@ -24,6 +38,7 @@ export const validateCoupon = asyncHandler(async (req, res) => {
   } else {
     discountAmount = Math.min(coupon.discountValue || 0, sub);
   }
+  discountAmount = Math.min(discountAmount, sub);
   res.json({
     valid: true,
     code: coupon.code,
@@ -40,7 +55,7 @@ export const getCoupons = asyncHandler(async (req, res) => {
     const coupons = await Coupon.find().sort({ createdAt: -1 });
     return res.json(coupons);
   }
-  const coupons = await Coupon.find({
+  const rawCoupons = await Coupon.find({
     isActive: true,
     $or: [
       { expiryDate: { $gt: new Date() } },
@@ -48,12 +63,36 @@ export const getCoupons = asyncHandler(async (req, res) => {
       { expiryDate: { $exists: false } },
     ],
   }).sort({ createdAt: -1 });
-  res.json(coupons);
+
+  // If regular customer user, filter out coupons already fully used by this user
+  if (req.user) {
+    const available = rawCoupons.filter((c) => {
+      const userRecord = (c.usedBy || []).find(
+        (u) => u.userId && u.userId.toString() === req.user._id.toString()
+      );
+      const userCount = userRecord ? userRecord.count : 0;
+      const maxPerUser = c.maxUsesPerUser || 1;
+      return userCount < maxPerUser;
+    });
+    return res.json(available);
+  }
+
+  res.json(rawCoupons);
 });
 
 // ── Create Coupon (Admin) ──
 export const createCoupon = asyncHandler(async (req, res) => {
-  const { code, discountType, discountValue, type, earnedBy, details, expiryDate, usageLimit } = req.body;
+  const {
+    code,
+    discountType,
+    discountValue,
+    type,
+    earnedBy,
+    details,
+    expiryDate,
+    usageLimit,
+    maxUsesPerUser,
+  } = req.body;
   if (!code || !discountValue) {
     return res.status(400).json({ message: "Coupon code and discount value are required" });
   }
@@ -71,6 +110,7 @@ export const createCoupon = asyncHandler(async (req, res) => {
     details,
     expiryDate: expiryDate ? new Date(expiryDate) : undefined,
     usageLimit: usageLimit ? Number(usageLimit) : undefined,
+    maxUsesPerUser: maxUsesPerUser != null ? Number(maxUsesPerUser) : 1,
   });
 
   res.status(201).json(coupon);

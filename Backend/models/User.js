@@ -93,6 +93,11 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    totalReferralRewards: {
+      type: Number,
+      default: 0,
+    },
+
     // OTP fields for WhatsApp verification / password reset
     otp: {
       type: String,

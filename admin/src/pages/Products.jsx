@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -11,7 +11,7 @@ import {
   Tag, Store, BarChart2, Box, AlertCircle, Loader2, List,
 } from "lucide-react";
 import { useProducts, useProduct, useProductMutations } from "../hooks/useProducts";
-import { productsAPI, reviewsAPI, uploadAPI, categoriesAPI, vendorsAPI, inventoryAPI } from "../services/api";
+import { productsAPI, uploadAPI, categoriesAPI, vendorsAPI, inventoryAPI } from "../services/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 

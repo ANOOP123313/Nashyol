@@ -153,7 +153,7 @@ function UpdateDeliveryModal({ order, onClose, onSave }) {
         <div className="op-mbody">
           <F label="Delivery Status">
             <select value={form.status} onChange={e => s("status", e.target.value)} className="op-sel">
-              {["Pending","Processing","Shipped","Delivered","Cancelled"].map(v => <option key={v}>{v}</option>)}
+              {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map(v => <option key={v}>{v}</option>)}
             </select>
           </F>
           <F label="Tracking Number">
@@ -200,7 +200,7 @@ function AssignDeliveryModal({ order, onClose, onSave }) {
         <div className="op-mbody">
           <F label="Delivery Status">
             <select value={form.status} onChange={e => s("status", e.target.value)} className="op-sel">
-              {["Pending","Processing","Shipped","Delivered","Cancelled"].map(v => <option key={v}>{v}</option>)}
+              {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map(v => <option key={v}>{v}</option>)}
             </select>
           </F>
           <F label="Tracking Number">
@@ -317,10 +317,10 @@ function FilterDropdown({ value, onChange }) {
    MAIN
 ═══════════════════════════════════════════ */
 export default function Orders() {
-  const [orders, setOrders]           = useState([]);
-  const [search, setSearch]           = useState("");
-  const [filter, setFilter]           = useState("All Status");
-  const [modal, setModal]             = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All Status");
+  const [modal, setModal] = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
 
   const exportOrders = () => {
@@ -341,26 +341,45 @@ export default function Orders() {
             const shortCode = (o._id || "").slice(-6).toUpperCase();
             const orderNum = o.orderNumber || `ORD-${shortCode}`;
             const invNum = o.invoiceNumber || `INV-${shortCode}`;
-            const itemsSubtotal = (o.items || []).reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
-            const shippingCharge = o.shippingCharge !== undefined ? o.shippingCharge : (o.paymentMethod === "cod" ? 0 : o.deliveryCharge || 0);
-            const codFee = o.codFee !== undefined ? o.codFee : (o.paymentMethod === "cod" ? o.deliveryCharge || 0 : 0);
-            const calcTotal = o.totalAmount != null
-              ? o.totalAmount
-              : Math.max(0, itemsSubtotal + shippingCharge + codFee - (o.discountAmount || 0));
+            // ── Pricing logic (same as client OrderSuccessPage → formatOrder) ──
+            const isCod = (o.paymentMethod || "").toLowerCase() === "cod" || (o.paymentMethod || "").toLowerCase().includes("cash");
+            const itemsSubtotal = (o.items || []).reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
+            const discountAmount = Number(o.discountAmount ?? 0);
+            const effectiveCoupon = Math.min(discountAmount, itemsSubtotal);
+            const netProduct = Math.max(0, itemsSubtotal - effectiveCoupon);
+            const codFee = isCod ? Number(o.codFee ?? o.deliveryCharge ?? 0) : 0;
+            const shippingCharge = Number(o.shippingCharge || 0);
+
+            const rawTotal = Number(o.totalAmount ?? o.amount ?? 0);
+            const beforeReferral = netProduct + shippingCharge + codFee;
+            let referralDiscount = Number(o.referralDiscount ?? 0);
+            let pointsUsed = Number(o.pointsUsed ?? 0);
+
+            if (referralDiscount === 0 && rawTotal > 0 && beforeReferral > rawTotal) {
+              referralDiscount = Math.round((beforeReferral - rawTotal) * 100) / 100;
+              pointsUsed = referralDiscount;
+            }
+            if (pointsUsed === 0 && referralDiscount > 0) {
+              pointsUsed = referralDiscount;
+            }
+
+            const calcTotal = rawTotal > 0 ? rawTotal : Math.max(0, beforeReferral - referralDiscount);
 
             return {
               id: orderNum,
               orderNumber: orderNum,
               invoiceNumber: invNum,
               _id: o._id,
-              referral: !!o.couponCode,
+              referral: !!o.couponCode || referralDiscount > 0 || pointsUsed > 0,
               customer: o.user?.name || o.address?.fullName || "Customer",
               vendor: o.items?.[0]?.vendorId?.storeName || "",
               amount: calcTotal,
               shippingCharge,
               codFee,
               deliveryCharge: o.deliveryCharge || 0,
-              discountAmount: o.discountAmount || 0,
+              discountAmount,
+              referralDiscount,
+              pointsUsed,
               couponCode: o.couponCode || "",
               items: o.items?.length || 1,
               payment: o.paymentStatus || "pending",
@@ -473,7 +492,7 @@ export default function Orders() {
         <div className="op-stat">
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Completed</p>
           <p style={{ fontSize: 34, fontWeight: 600, color: "#111", lineHeight: 1, marginBottom: 8 }}>{completedCount}</p>
-          <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>{orders.length > 0 ? `${Math.round((completedCount/orders.length)*100)}% completion rate` : "0% completion rate"}</p>
+          <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>{orders.length > 0 ? `${Math.round((completedCount / orders.length) * 100)}% completion rate` : "0% completion rate"}</p>
         </div>
         <div className="op-stat">
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Pending Payment</p>
@@ -501,7 +520,7 @@ export default function Orders() {
             <table className="op-tbl">
               <thead>
                 <tr>
-                  {["Order ID","Customer","Amount","Payment","Delivery","Date","Actions"].map(h => (
+                  {["Order ID", "Customer", "Amount", "Payment", "Delivery", "Date", "Actions"].map(h => (
                     <th key={h} className="op-th">{h}</th>
                   ))}
                 </tr>
@@ -519,6 +538,12 @@ export default function Orders() {
                     <td className="op-td">
                       <div style={{ fontWeight: 700, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
                       <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
+                      {(o.pointsUsed > 0 || o.referralDiscount > 0) && (
+                        <div style={{ fontSize: 11, color: "#ea580c", fontWeight: 600, marginTop: 2, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span>🎁</span>
+                          <span>{o.pointsUsed || o.referralDiscount} Pts Used</span>
+                        </div>
+                      )}
                     </td>
                     <td className="op-td">
                       <div style={{ marginBottom: 4 }}><Badge status={o.payment} /></div>
@@ -556,6 +581,11 @@ export default function Orders() {
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
                   <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
+                  {(o.pointsUsed > 0 || o.referralDiscount > 0) && (
+                    <div style={{ fontSize: 11, color: "#ea580c", fontWeight: 600, marginTop: 2 }}>
+                      🎁 {o.pointsUsed || o.referralDiscount} Pts Used
+                    </div>
+                  )}
                   <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{o.date}</div>
                 </div>
               </div>

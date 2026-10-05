@@ -5,7 +5,7 @@ import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { cmsApi } from "@/services/api";
+import { cmsApi, supportTicketsApi } from "@/services/api";
 import { toast } from "sonner";
 
 export function HelpCenterPage() {
@@ -212,8 +212,11 @@ export function HelpCenterPage() {
     }
     setSendingTicket(true);
     try {
-      // Simulate ticket creation
-      await new Promise((r) => setTimeout(r, 800));
+      await supportTicketsApi.create({
+        subject: ticketSubject.trim(),
+        message: ticketMessage.trim(),
+        priority: "medium",
+      });
       toast.success("Support ticket submitted successfully!", {
         description: "Our support team will reply within 24 hours.",
       });

@@ -118,6 +118,8 @@ const orderSchema = new mongoose.Schema(
 
     couponCode: String,
     discountAmount: { type: Number, default: 0 },
+    referralDiscount: { type: Number, default: 0 },
+    pointsUsed: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

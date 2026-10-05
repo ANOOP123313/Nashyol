@@ -25,6 +25,8 @@ interface OrderSuccessCardProps {
     productAmount?: number;
     couponCode?: string;
     discountAmount?: number;
+    referralDiscount?: number;
+    pointsUsed?: number;
     codCharge?: number;
     shippingCharge?: number;
     paymentMethod: string;
@@ -258,6 +260,18 @@ export function OrderSuccessCard({
                       </span>
                       <span className="font-bold text-emerald-700 dark:text-emerald-300">
                         -₹{(orderData.discountAmount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Referral Points Discount Row */}
+                  {Boolean((orderData?.referralDiscount && orderData.referralDiscount > 0) || (orderData?.pointsUsed && orderData.pointsUsed > 0)) && (
+                    <div className="flex items-center justify-between text-sm py-1 px-3 bg-orange-50 dark:bg-orange-950/40 rounded-xl border border-orange-200/80 dark:border-orange-800/80">
+                      <span className="flex items-center gap-2 text-orange-800 dark:text-orange-300 font-semibold text-xs sm:text-sm">
+                        🎁 Referral Points Discount ({orderData.pointsUsed || orderData.referralDiscount} Pts)
+                      </span>
+                      <span className="font-bold text-orange-700 dark:text-orange-300">
+                        -₹{(orderData.referralDiscount || orderData.pointsUsed || 0).toFixed(2)}
                       </span>
                     </div>
                   )}

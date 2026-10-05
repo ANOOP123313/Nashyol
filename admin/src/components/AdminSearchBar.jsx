@@ -133,7 +133,7 @@ export function AdminSearchBar() {
     navigate(`/products?search=${encodeURIComponent(p.title || p.name || "")}`);
   };
 
-  const handleSelectOrder = (o) => {
+  const handleSelectOrder = () => {
     setIsOpen(false);
     navigate(`/orders`);
   };
@@ -432,7 +432,7 @@ export function AdminSearchBar() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <button
-                      onClick={(e) => handleSelectCustomer(c)}
+                      onClick={() => handleSelectCustomer(c)}
                       className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-lg transition"
                       title="View Details"
                     >

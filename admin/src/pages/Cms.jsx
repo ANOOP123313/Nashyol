@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { cmsAPI, uploadAPI, blogCategoriesAPI } from "../services/api";
 import HomePageSectionManager from "../components/HomePageSectionManager";

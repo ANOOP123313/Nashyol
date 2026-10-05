@@ -190,8 +190,8 @@ export const transactionsApi = {
 
 // Payments
 export const paymentsApi = {
-  createIntentFromCart: (couponCode?: string) =>
-    request<{ clientSecret: string; paymentIntentId: string; totalAmount: number }>("/api/payments/create-intent-cart", { method: "POST", body: JSON.stringify({ couponCode }) }),
+  createIntentFromCart: (couponCode?: string, useReferralPoints?: boolean, referralPointsToUse?: number) =>
+    request<{ clientSecret: string; paymentIntentId: string; totalAmount: number }>("/api/payments/create-intent-cart", { method: "POST", body: JSON.stringify({ couponCode, useReferralPoints, referralPointsToUse }) }),
   createIntent: (orderId: string) =>
     request<{ clientSecret: string; paymentIntentId: string; totalAmount: number; orderId: string }>("/api/payments/create-intent", { method: "POST", body: JSON.stringify({ orderId }) }),
   verify: (orderId: string, paymentIntentId: string) =>
@@ -217,7 +217,7 @@ export const couponsApi = {
 
 // Orders
 export const ordersApi = {
-  create: (body: { addressId?: string; address?: { fullName: string; phone: string; street: string; city: string; state: string; pincode: string }; couponCode?: string; paymentMethod?: string; paymentStatus?: string; paymentId?: string }) =>
+  create: (body: { addressId?: string; address?: { fullName: string; phone: string; street: string; city: string; state: string; pincode: string }; couponCode?: string; useReferralPoints?: boolean; referralPointsToUse?: number; paymentMethod?: string; paymentStatus?: string; paymentId?: string }) =>
     request<Record<string, unknown>>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   myOrders: () => request<Array<{ _id: string; items: Array<{ title?: string; quantity: number; price: number }>; totalAmount: number; orderStatus: string; createdAt: string }>>("/api/orders"),
   byId: (id: string) => request<Record<string, unknown>>(`/api/orders/${id}`),

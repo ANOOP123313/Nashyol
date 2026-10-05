@@ -5,13 +5,14 @@ import SupportTicket from "../models/SupportTickets.js";
 // @route   POST /api/support-tickets
 // @access  Private
 export const createSupportTicket = asyncHandler(async (req, res) => {
-  const { subject, message, priority } = req.body;
+  const cleanPriority = priority ? String(priority).toLowerCase() : "medium";
+  const validPriority = ["low", "medium", "high"].includes(cleanPriority) ? cleanPriority : "medium";
 
   const ticket = await SupportTicket.create({
     userId: req.user._id,
     subject,
     message,
-    priority,
+    priority: validPriority,
   });
 
   res.status(201).json(ticket);

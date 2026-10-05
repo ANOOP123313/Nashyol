@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { dashboardAPI, referralsAPI } from "../services/api";
+import { referralsAPI } from "../services/api";
 
 
 /* ── useWindowWidth hook ── */
@@ -419,7 +419,17 @@ export default function ReferrersPage() {
 
   if (selectedReferrer) return <ReferrerDetail referrer={selectedReferrer} onBack={() => setSelectedReferrer(null)} onRefresh={loadReferrers} />;
 
-  const filtered = referrersList.filter(r => {
+  const customerReferrers = referrersList.filter(r => {
+    const roleLower = (r.role || "").toLowerCase();
+    const nameLower = (r.name || "").toLowerCase();
+    const emailLower = (r.email || "").toLowerCase();
+    const isCustomer = !["admin", "superadmin", "vendor"].includes(roleLower) &&
+                       !nameLower.startsWith("admin") &&
+                       !emailLower.includes("admin");
+    return isCustomer;
+  });
+
+  const filtered = customerReferrers.filter(r => {
     const ms = statusFilter === "All Status" || r.status === statusFilter.toLowerCase();
     const mq = (r.name || "").toLowerCase().includes(search.toLowerCase()) || (r.email || "").toLowerCase().includes(search.toLowerCase()) || (r.code || "").toLowerCase().includes(search.toLowerCase());
     return ms && mq;
@@ -434,9 +444,9 @@ export default function ReferrersPage() {
   };
 
   const referralStats = {
-    referrers: referrersList.length,
-    referrals: referrersList.reduce((acc, r) => acc + (r.referrals || 0), 0),
-    rewards: referrersList.reduce((acc, r) => acc + (r.rewardNum || (typeof r.reward === "number" ? r.reward : 0) || 0), 0),
+    referrers: customerReferrers.length,
+    referrals: customerReferrers.reduce((acc, r) => acc + (r.referrals || 0), 0),
+    rewards: customerReferrers.reduce((acc, r) => acc + (r.rewardNum || (typeof r.reward === "number" ? r.reward : 0) || 0), 0),
   };
 
   return (

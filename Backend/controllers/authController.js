@@ -61,6 +61,7 @@ export const register = asyncHandler(async (req, res) => {
     referrerUser.referralCount = (referrerUser.referralCount || 0) + 1;
     referrerUser.referralPoints = (referrerUser.referralPoints || 0) + rewardPoints;
     referrerUser.walletBalance = (referrerUser.walletBalance || 0) + rewardPoints;
+    referrerUser.totalReferralRewards = (referrerUser.totalReferralRewards || 0) + rewardPoints;
     await referrerUser.save();
 
     try {

@@ -43,6 +43,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"all" | "paid" | "pending" | "delivered" | "cancelled">("all");
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -106,10 +107,15 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
           returnDeliveryStatus: order.returnDeliveryStatus,
           returnTracking: order.returnTracking,
           paymentStatus: order.paymentStatus,
+          couponCode: order.couponCode || "",
+          discountAmount: Number(order.discountAmount) || 0,
+          referralDiscount: Number(order.referralDiscount) || 0,
+          pointsUsed: Number(order.pointsUsed) || 0,
+          shippingCharge: Number(order.shippingCharge) || 0,
           deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
           total: order.totalAmount || 0,
           productAmount: (order.items || []).reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0),
-          codCharge: order.paymentMethod === "cod" ? Number(order.deliveryCharge) || 0 : 0,
+          codCharge: order.codFee !== undefined ? Number(order.codFee) || 0 : (order.paymentMethod === "cod" ? Number(order.deliveryCharge) || 0 : 0),
           items: (order.items || []).map((item: any) => ({
             id: item.productId,
             name: item.title?.replace(/ \([^)]*\)$/, "") || "Product",
@@ -179,18 +185,45 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
     }
   };
 
-  const getReturnBadge = (status: string) => {
-    switch ((status || "").toLowerCase()) {
+  const getPaymentStatusBadge = (paymentStatus: string, paymentMethod: string) => {
+    const statusLower = (paymentStatus || "pending").toLowerCase();
+    if (statusLower === "paid") {
+      return {
+        label: "Paid",
+        class: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+      };
+    }
+    if (statusLower === "failed") {
+      return {
+        label: "Payment Failed",
+        class: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
+      };
+    }
+    if (statusLower === "refunded") {
+      return {
+        label: "Refunded",
+        class: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+      };
+    }
+    const isCod = (paymentMethod || "").toLowerCase() === "cod";
+    return {
+      label: isCod ? "Pending (COD)" : "Unpaid",
+      class: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+    };
+  };
+
+  const getReturnBadge = (returnStatus: string) => {
+    switch (returnStatus) {
       case "pending":
-        return { label: "Return Requested", class: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800" };
+        return { label: "Return Pending", class: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200" };
       case "approved":
-        return { label: "Return Approved", class: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800" };
+        return { label: "Return Approved", class: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200" };
       case "refunded":
-        return { label: "Refunded", class: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" };
+        return { label: "Refunded", class: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200" };
       case "rejected":
-        return { label: "Return Rejected", class: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800" };
+        return { label: "Return Rejected", class: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200" };
       default:
-        return { label: status, class: "bg-muted text-muted-foreground border-gray-200 dark:border-gray-700" };
+        return { label: returnStatus || "N/A", class: "bg-muted text-muted-foreground border-gray-200" };
     }
   };
 
@@ -200,14 +233,10 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
   };
 
   const handleTrackOrder = (orderNumber: string) => {
-    router.push(`/track-order?order=${orderNumber}`);
+    router.push(`/delivery-status?track=${encodeURIComponent(orderNumber)}`);
   };
 
   const handleReturnRequest = (order: any) => {
-    if (order.status !== "Delivered") {
-      toast.error("Returns can only be initiated for delivered orders");
-      return;
-    }
     setSelectedOrder(order);
     setReturnModalOpen(true);
   };
@@ -268,15 +297,27 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
     pdf.line(20, y, pageWidth - 20, y);
     y += 14;
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(14);
     pdf.setFontSize(10);
-    pdf.text(`Products: Rs. ${Number(order.productAmount ?? order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.text(`Products Subtotal: Rs. ${Number(order.productAmount ?? order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    if (order.shippingCharge) {
+      y += 7;
+      pdf.text(`Shipping Charge: Rs. ${Number(order.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
     if (order.codCharge) {
       y += 7;
-      pdf.text(`COD charge: Rs. ${Number(order.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`COD Fee: Rs. ${Number(order.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
-    y += 9;
+    if (order.discountAmount) {
+      y += 7;
+      pdf.text(`Coupon Discount: -Rs. ${Number(order.discountAmount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
+    if (order.referralDiscount) {
+      y += 7;
+      pdf.text(`Referral Points Discount: -Rs. ${Number(order.referralDiscount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    }
+    y += 10;
     pdf.setFontSize(14);
+    pdf.text(`Total Amount Paid: Rs. ${Number(order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     const invCode = order.invoiceNumber || `INV-${String(order.orderNumber).replace("ORD-", "")}`;
     pdf.save(`invoice-${String(invCode).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
     toast.success("Invoice PDF downloaded", { description: `${invCode} (${order.orderNumber})` });
@@ -359,10 +400,55 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
       )}
 
       <div className={hideHero ? "w-full" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"}>
+        {/* Status Filter Tabs */}
+        {orders.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 border-b border-border scrollbar-none">
+            {[
+              { id: "all", label: `All Orders (${orders.length})` },
+              { id: "paid", label: `Paid (${orders.filter(o => (o.paymentStatus || "").toLowerCase() === "paid").length})` },
+              { id: "pending", label: `Pending / Unpaid (${orders.filter(o => (o.paymentStatus || "").toLowerCase() !== "paid" && (o.orderStatus || "").toLowerCase() !== "cancelled").length})` },
+              { id: "delivered", label: `Delivered (${orders.filter(o => (o.orderStatus || "").toLowerCase() === "delivered").length})` },
+              { id: "cancelled", label: `Cancelled (${orders.filter(o => (o.orderStatus || "").toLowerCase() === "cancelled").length})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? "bg-[var(--primary-color)] text-white shadow-md"
+                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted border border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-4">
-          {ordersLoading ? <div className="glass-card p-8 text-center text-muted-foreground">Loading your orders...</div> : orders.length === 0 ? (
+          {ordersLoading ? (
+            <div className="glass-card p-8 text-center text-muted-foreground">Loading your orders...</div>
+          ) : orders.length === 0 ? (
             <div className="glass-card p-8 text-center text-muted-foreground">You have no orders yet.</div>
-          ) : orders.map((order) => (
+          ) : orders.filter((o) => {
+            const rawPayment = (o.paymentStatus || "").toLowerCase();
+            const rawOrder = (o.orderStatus || "").toLowerCase();
+            if (activeTab === "paid") return rawPayment === "paid";
+            if (activeTab === "pending") return rawPayment !== "paid" && rawOrder !== "cancelled";
+            if (activeTab === "delivered") return rawOrder === "delivered";
+            if (activeTab === "cancelled") return rawOrder === "cancelled";
+            return true;
+          }).length === 0 ? (
+            <div className="glass-card p-8 text-center text-muted-foreground">No orders match the selected filter.</div>
+          ) : orders.filter((o) => {
+            const rawPayment = (o.paymentStatus || "").toLowerCase();
+            const rawOrder = (o.orderStatus || "").toLowerCase();
+            if (activeTab === "paid") return rawPayment === "paid";
+            if (activeTab === "pending") return rawPayment !== "paid" && rawOrder !== "cancelled";
+            if (activeTab === "delivered") return rawOrder === "delivered";
+            if (activeTab === "cancelled") return rawOrder === "cancelled";
+            return true;
+          }).map((order) => (
             <div
               key={order.id}
               className="glass-card p-6 hover:shadow-xl transition-all duration-300"
@@ -370,7 +456,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
               {/* Order Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <h3 className="font-bold text-lg text-foreground">
                       Order {order.id}
                     </h3>
@@ -379,6 +465,12 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                       className={getStatusColor(order.status)}
                     >
                       {order.status}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={getPaymentStatusBadge(order.paymentStatus, order.paymentMethod).class}
+                    >
+                      💳 {getPaymentStatusBadge(order.paymentStatus, order.paymentMethod).label}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">

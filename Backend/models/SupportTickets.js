@@ -17,8 +17,9 @@ const supportTicketSchema = new mongoose.Schema(
     },
     priority: {
       type: String,
-      enum: ["low", "medium", "high"],
-      default: "low",
+      enum: ["low", "medium", "high", "Low", "Medium", "High"],
+      default: "medium",
+      set: (v) => (v ? String(v).toLowerCase() : "medium"),
     },
     status: {
       type: String,

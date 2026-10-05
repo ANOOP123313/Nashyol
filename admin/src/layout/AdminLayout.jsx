@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 
-import { Menu, X, Search, ChevronDown, Settings, LogOut } from "lucide-react";
+import { Menu, X, ChevronDown, Settings, LogOut } from "lucide-react";
 import { menuItems } from "../config/menuItems";
-import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import {
@@ -20,12 +19,8 @@ import { toast } from "sonner";
 
 export function AdminLayout() {
   const token = getToken();
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -41,6 +36,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!token) return;
     authAPI.getMe()
       .then((res) => {
         const u = res?.user || res?.data || res;
@@ -50,7 +46,11 @@ export function AdminLayout() {
         }
       })
       .catch(() => { });
-  }, []);
+  }, [token]);
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   const initials = currentUser?.name
     ? currentUser.name
@@ -60,12 +60,6 @@ export function AdminLayout() {
       .toUpperCase()
       .slice(0, 2)
     : "AD";
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter" && searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#F8FAFC]">

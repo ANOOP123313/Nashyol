@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { toast } from "sonner";
-import { cmsAPI, uploadAPI, productsAPI } from "../services/api";
+import { cmsAPI, uploadAPI } from "../services/api";
 
 
 import { Power, PowerOff } from "lucide-react";

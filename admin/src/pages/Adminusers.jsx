@@ -10,7 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { customersAPI, authAPI } from "../services/api";
+import { customersAPI } from "../services/api";
 
 
 export default function AdminUsers() {

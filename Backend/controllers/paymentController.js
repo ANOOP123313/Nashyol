@@ -62,6 +62,10 @@ export const getAdminPayments = asyncHandler(async (req, res) => {
       phone: order.user?.phone || order.address?.phone || "",
       amount: `₹${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       amountNum: amount,
+      referralDiscount: order.referralDiscount || 0,
+      pointsUsed: order.pointsUsed || 0,
+      couponCode: order.couponCode || "",
+      discountAmount: order.discountAmount || 0,
       orders: itemsSummary,
       itemsCount: order.items?.length || 1,
       paymentMethod: formattedMethod,
@@ -184,7 +188,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
 // @route   POST /api/payments/create-intent-cart
 // @access  Private
 export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
-  const { couponCode } = req.body;
+  const { couponCode, useReferralPoints, referralPointsToUse } = req.body;
 
   const cart = await Cart.findOne({ user: req.user._id }).populate("items.product");
   if (!cart || !cart.items.length) {
@@ -192,7 +196,7 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
     throw new Error("Cart is empty");
   }
 
-  let totalAmount = 0;
+  let itemsSubtotal = 0;
   for (const line of cart.items) {
     if (!line.product) continue;
     const product = await Product.findById(line.product._id);
@@ -204,10 +208,10 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
     const qty = Math.min(line.quantity, variant.currentStock);
     if (qty < 1) continue;
 
-    totalAmount += variant.sellingPrice * qty;
+    itemsSubtotal += variant.sellingPrice * qty;
   }
 
-  if (totalAmount === 0) {
+  if (itemsSubtotal === 0) {
     res.status(400);
     throw new Error("Total amount is 0");
   }
@@ -217,10 +221,11 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
     const coupon = await Coupon.findOne({ code: couponCode.trim().toUpperCase(), isActive: true });
     if (coupon && (!coupon.expiryDate || new Date(coupon.expiryDate) >= new Date()) && (coupon.usageLimit == null || coupon.usedCount < coupon.usageLimit)) {
       if (coupon.discountType === "percentage") {
-        discountAmount = (totalAmount * (coupon.discountValue || 0)) / 100;
+        discountAmount = (itemsSubtotal * (coupon.discountValue || 0)) / 100;
       } else {
-        discountAmount = Math.min(coupon.discountValue || 0, totalAmount);
+        discountAmount = Math.min(coupon.discountValue || 0, itemsSubtotal);
       }
+      discountAmount = Math.min(discountAmount, itemsSubtotal);
     }
   }
 
@@ -233,9 +238,22 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
   const configuredFreeThreshold = freeShippingThresholdSetting ? Math.max(0, Number(freeShippingThresholdSetting.value) || 0) : 100;
 
   const shipping = shippingEnabled
-    ? (configuredFreeThreshold > 0 && totalAmount >= configuredFreeThreshold ? 0 : configuredShippingCharge)
+    ? (configuredFreeThreshold > 0 && itemsSubtotal >= configuredFreeThreshold ? 0 : configuredShippingCharge)
     : 0;
-  totalAmount += shipping;
+
+  const productSubtotalAfterCoupon = Math.max(0, itemsSubtotal - discountAmount);
+  let totalAmount = productSubtotalAfterCoupon + shipping;
+
+  const reqPoints = Number(referralPointsToUse ?? (useReferralPoints ? 999999 : 0));
+  let referralDiscount = 0;
+  if (reqPoints > 0) {
+    const userDoc = await User.findById(req.user._id);
+    const availablePoints = Math.max(0, userDoc?.referralPoints || userDoc?.walletBalance || 0);
+    if (availablePoints > 0) {
+      referralDiscount = Math.min(reqPoints, availablePoints, totalAmount);
+      totalAmount = Math.max(0, totalAmount - referralDiscount);
+    }
+  }
 
   const amount = Math.round(totalAmount * 100);
 

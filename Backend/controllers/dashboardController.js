@@ -98,69 +98,36 @@ export const getAdminStats = asyncHandler(async (req, res) => {
     .select("storeName email totalRevenue");
 
   // 🥇 Leaderboard (Top Referrers)
-  const leaderboardRaw = await Referral.aggregate([
-    {
-      $group: {
-        _id: "$referrer",
-        referrals: { $sum: 1 },
-        conversions: {
-          $sum: {
-            $cond: ["$rewardGranted", 1, 0],
-          },
-        },
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "_id",
-        as: "referrerUser",
-      },
-    },
-    {
-      $unwind: {
-        path: "$referrerUser",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $project: {
-        referrals: 1,
-        conversions: 1,
-        rate: {
-          $multiply: [
-            { $divide: ["$conversions", { $cond: [{ $eq: ["$referrals", 0] }, 1, "$referrals"] }] },
-            100,
-          ],
-        },
-        name: { $ifNull: ["$referrerUser.name", "$referrerUser.email"] },
-        referrerName: { $ifNull: ["$referrerUser.name", "$referrerUser.email"] },
-      },
-    },
-    { $sort: { referrals: -1 } },
-    { $limit: 5 },
-  ]);
+  const customerUsers = await User.find({
+    role: { $nin: ["admin", "superadmin", "vendor"] },
+  }).select("name email referralCode referralCount referralPoints createdAt").lean();
 
-  const leaderboard = await Promise.all(
-    leaderboardRaw.map(async (entry) => {
-      let displayName = entry.name || entry.referrerName;
-      let userEmail = "";
-      if ((!displayName || /^[0-9a-fA-F]{24}$/.test(displayName)) && entry._id) {
-        const u = await User.findById(entry._id).select("name email").lean();
-        if (u) {
-          displayName = u.name || u.email;
-          userEmail = u.email || "";
-        }
-      }
-      return {
-        ...entry,
-        name: displayName || (entry._id ? `User (${String(entry._id).slice(-4).toUpperCase()})` : "Top Referrer"),
-        referrerName: displayName || (entry._id ? `User (${String(entry._id).slice(-4).toUpperCase()})` : "Top Referrer"),
-        email: userEmail,
-      };
-    })
-  );
+  const allReferralDocs = await Referral.find().lean();
+
+  const userReferralStats = customerUsers.map((u) => {
+    const userRefs = allReferralDocs.filter(
+      (r) => r.referrer && r.referrer.toString() === u._id.toString()
+    );
+    const refCount = Math.max(userRefs.length, u.referralCount || 0);
+    const conversions = userRefs.filter((r) => r.rewardGranted !== false).length || (refCount > 0 ? refCount : 0);
+    const rate = refCount > 0 ? (conversions / refCount) * 100 : 0;
+    const name = u.name || u.email || "Customer";
+
+    return {
+      _id: u._id,
+      name,
+      referrerName: name,
+      email: u.email || "",
+      referrals: refCount,
+      conversions,
+      rate: Math.min(100, Math.round(rate * 10) / 10),
+    };
+  });
+
+  const leaderboard = userReferralStats
+    .filter((u) => u.referrals > 0)
+    .sort((a, b) => b.referrals - a.referrals || b.conversions - a.conversions)
+    .slice(0, 5);
 
   // ================= RESPONSE =================
   res.json({

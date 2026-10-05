@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { PaymentGateway } from "../components/PaymentGateway";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
-import { paymentsApi, ordersApi, addressesApi, settingsApi, couponsApi } from "@/services/api";
+import { paymentsApi, ordersApi, addressesApi, settingsApi, couponsApi, referralsApi } from "@/services/api";
 import { StripePaymentModal } from "../components/StripePaymentModal";
 
 export function CheckoutPage() {
@@ -56,12 +56,25 @@ export function CheckoutPage() {
   } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
+  // Referral Points state
+  const [availablePoints, setAvailablePoints] = useState(0);
+  const [useReferralPoints, setUseReferralPoints] = useState(false);
+  const [customPointsInput, setCustomPointsInput] = useState<string>("");
+
   const shipping = shippingOn ? (subtotal >= freeShippingThreshold ? 0 : shippingCharge) : 0;
   const codDeliveryCharge = paymentMethod === "cod"
     ? hasGlobalCodCharge ? codCharge : items.reduce((sum, item) => sum + (item.deliveryCharge || 0) * item.quantity, 0)
     : 0;
   const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const total = Math.max(0, subtotal - couponDiscount + shipping + codDeliveryCharge);
+  const effectiveCouponDiscount = Math.min(couponDiscount, subtotal);
+  const productAfterCoupon = Math.max(0, subtotal - effectiveCouponDiscount);
+  const rawBeforeReferral = productAfterCoupon + shipping + codDeliveryCharge;
+
+  const pointsToUse = useReferralPoints
+    ? Math.min(availablePoints, Math.max(0, parseInt(customPointsInput || "0", 10) || 0))
+    : 0;
+  const referralPointsDiscount = Math.min(pointsToUse, rawBeforeReferral);
+  const total = Math.max(0, rawBeforeReferral - referralPointsDiscount);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -122,6 +135,14 @@ export function CheckoutPage() {
 
   useEffect(() => {
     if (user) {
+      referralsApi.stats()
+        .then((res: any) => {
+          if (res) {
+            setAvailablePoints(Math.max(0, Number(res.points || res.referralPoints || res.walletBalance) || 0));
+          }
+        })
+        .catch(() => {});
+
       if (user.name) {
         const parts = user.name.split(" ");
         setFirstName(parts[0] || "");
@@ -213,7 +234,11 @@ export function CheckoutPage() {
 
       if (finalMethod === "card") {
         try {
-          const intentData = await paymentsApi.createIntentFromCart(appliedCoupon?.code);
+          const intentData = await paymentsApi.createIntentFromCart(
+            appliedCoupon?.code,
+            useReferralPoints && referralPointsDiscount > 0,
+            referralPointsDiscount
+          );
           setStripeClientSecret(intentData.clientSecret);
           setStripeOrderId(null);
           setStripeModalOpen(true);
@@ -227,6 +252,8 @@ export function CheckoutPage() {
       // COD Flow
       const orderData = {
         couponCode: appliedCoupon?.code,
+        useReferralPoints: useReferralPoints && referralPointsDiscount > 0,
+        referralPointsToUse: referralPointsDiscount,
         address: {
           fullName: `${firstName} ${lastName}`,
           phone,
@@ -258,7 +285,9 @@ export function CheckoutPage() {
         codCharge: codDeliveryCharge,
         shippingCharge: shipping,
         couponCode: appliedCoupon?.code || result?.couponCode || "",
-        discountAmount: couponDiscount || result?.discountAmount || 0,
+        discountAmount: effectiveCouponDiscount || result?.discountAmount || 0,
+        referralDiscount: referralPointsDiscount || result?.referralDiscount || 0,
+        pointsUsed: pointsToUse || result?.pointsUsed || referralPointsDiscount || 0,
         amount: total,
         totalAmount: total,
         paymentMethod: "cod",
@@ -448,6 +477,55 @@ export function CheckoutPage() {
                 )}
               </div>
 
+              {/* Referral Points Section */}
+              {availablePoints > 0 && (
+                <div className="my-5 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border border-orange-200 dark:border-orange-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-foreground block">🎁 Apply Referral Points</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Available: <strong className="text-[var(--primary-color)]">{availablePoints} Points</strong> (1 Point = ₹1)
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={useReferralPoints}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setUseReferralPoints(checked);
+                        if (checked && (!customPointsInput || customPointsInput === "0")) {
+                          setCustomPointsInput(String(Math.min(availablePoints, rawBeforeReferral)));
+                        }
+                      }}
+                      className="size-5 text-[var(--primary-color)] rounded cursor-pointer accent-[var(--primary-color)]"
+                    />
+                  </div>
+
+                  {useReferralPoints && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={availablePoints}
+                        value={customPointsInput}
+                        onChange={(e) => setCustomPointsInput(e.target.value)}
+                        placeholder="Enter points to use"
+                        className="h-9 text-xs bg-background border-border"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomPointsInput(String(Math.min(availablePoints, rawBeforeReferral)))}
+                        className="h-9 text-xs shrink-0 font-medium border-orange-200 text-[var(--primary-color)] hover:bg-orange-100"
+                      >
+                        Use Max ({Math.min(availablePoints, rawBeforeReferral)} Pts)
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <Separator className="my-6 bg-muted" />
 
               <div className="space-y-3">
@@ -459,6 +537,12 @@ export function CheckoutPage() {
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                     <span className="flex items-center gap-1"><Tag className="size-3.5" /> Coupon Discount ({appliedCoupon?.code})</span>
                     <span>-₹{couponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {referralPointsDiscount > 0 && (
+                  <div className="flex justify-between text-orange-600 dark:text-orange-400 font-semibold">
+                    <span className="flex items-center gap-1">🎁 Referral Points Discount</span>
+                    <span>-₹{referralPointsDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-muted-foreground">
@@ -497,6 +581,7 @@ export function CheckoutPage() {
           try {
             const orderData = {
               couponCode: appliedCoupon?.code,
+              useReferralPoints: useReferralPoints && referralPointsDiscount > 0,
               address: {
                 fullName: `${firstName} ${lastName}`,
                 phone,

@@ -41,11 +41,27 @@ function formatOrder(raw: any, currentUser?: any) {
   const productAmount = Number(raw.productAmount) || items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const couponCode = raw.couponCode || raw.coupon || "";
   const discountAmount = Number(raw.discountAmount ?? raw.discount ?? 0);
+  const effectiveCoupon = Math.min(discountAmount, productAmount);
+  const netProduct = Math.max(0, productAmount - effectiveCoupon);
   const codCharge = isCod
     ? Number(raw.codCharge ?? raw.deliveryCharge ?? 0)
     : 0;
   const shippingCharge = Number(raw.shippingCharge || 0);
-  const amount = Number(raw.totalAmount ?? raw.amount) || Math.max(0, productAmount - discountAmount + shippingCharge + codCharge);
+
+  const rawTotal = Number(raw.totalAmount ?? raw.amount ?? 0);
+  const beforeReferral = netProduct + shippingCharge + codCharge;
+  let referralDiscount = Number(raw.referralDiscount ?? 0);
+  let pointsUsed = Number(raw.pointsUsed ?? 0);
+
+  if (referralDiscount === 0 && rawTotal > 0 && beforeReferral > rawTotal) {
+    referralDiscount = Math.round((beforeReferral - rawTotal) * 100) / 100;
+    pointsUsed = referralDiscount;
+  }
+  if (pointsUsed === 0 && referralDiscount > 0) {
+    pointsUsed = referralDiscount;
+  }
+
+  const amount = rawTotal > 0 ? rawTotal : Math.max(0, beforeReferral - referralDiscount);
 
   const createdDate = raw.createdAt ? new Date(raw.createdAt) : new Date();
   const deliveryDate = new Date(createdDate);
@@ -63,6 +79,8 @@ function formatOrder(raw: any, currentUser?: any) {
     productAmount,
     couponCode,
     discountAmount,
+    referralDiscount,
+    pointsUsed,
     codCharge,
     shippingCharge,
     paymentMethod,

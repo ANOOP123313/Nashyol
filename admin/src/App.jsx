@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AdminLayout } from "./layout/AdminLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-// import Products from "./pages/Products";
 import Products from "./pages/Products";
 import Payments from "./pages/Payments";
 import Customers from "./pages/Customers"
@@ -10,7 +9,6 @@ import Reports from "./pages/Reports"
 import Reviews from"./pages/Reviews"
 import Marketing from "./pages/Marketing";
 import Orders from "./pages/Orders";
-import OrderDetail from "./pages/OrderDetail";
 import Returns from "./pages/Returns";
 import Settings from "./pages/Settings";
 import VendorDashboard from "./pages/Vendors";

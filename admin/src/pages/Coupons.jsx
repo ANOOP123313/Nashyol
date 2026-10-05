@@ -77,6 +77,7 @@ function CreateCouponModal({ onClose, onSuccess }) {
   const [discountValue, setDiscountValue] = useState("");
   const [type, setType] = useState("Promotional");
   const [usageLimit, setUsageLimit] = useState("");
+  const [maxUsesPerUser, setMaxUsesPerUser] = useState("1");
   const [expiryDate, setExpiryDate] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -91,6 +92,7 @@ function CreateCouponModal({ onClose, onSuccess }) {
         discountValue: Number(discountValue),
         type,
         usageLimit: usageLimit ? Number(usageLimit) : undefined,
+        maxUsesPerUser: maxUsesPerUser ? Number(maxUsesPerUser) : 1,
         expiryDate: expiryDate || undefined,
       });
       toast.success("Coupon created successfully");
@@ -137,13 +139,19 @@ function CreateCouponModal({ onClose, onSuccess }) {
               </select>
             </div>
             <div>
-              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Usage Limit</label>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Total Usage Limit</label>
               <input type="number" value={usageLimit} onChange={e=>setUsageLimit(e.target.value)} placeholder="e.g. 100" style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d1d5db", fontSize:14 }}/>
             </div>
           </div>
-          <div>
-            <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Expiry Date</label>
-            <input type="date" value={expiryDate} onChange={e=>setExpiryDate(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d1d5db", fontSize:14 }}/>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Usage Limit Per Customer *</label>
+              <input type="number" min={1} value={maxUsesPerUser} onChange={e=>setMaxUsesPerUser(e.target.value)} placeholder="Default 1" style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d1d5db", fontSize:14 }}/>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>Expiry Date</label>
+              <input type="date" value={expiryDate} onChange={e=>setExpiryDate(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d1d5db", fontSize:14 }}/>
+            </div>
           </div>
           <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:10 }}>
             <button type="button" onClick={onClose} style={{ padding:"9px 18px", borderRadius:8, border:"1px solid #d1d5db", background:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>

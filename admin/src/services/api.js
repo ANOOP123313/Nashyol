@@ -80,7 +80,9 @@ const request = async (method, path, body = undefined, isRetry = false) => {
     try {
       const err = await res.json();
       message = err.message || message;
-    } catch (_) {}
+    } catch {
+      /* ignore parsing error */
+    }
     const error = new Error(message);
     error.status = res.status;
     throw error;

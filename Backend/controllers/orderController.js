@@ -68,7 +68,7 @@ const restoreInventoryStock = async (product, sku, qty, reason = "Stock restored
 };
 
 export const createOrder = asyncHandler(async (req, res) => {
-  const { addressId, address, couponCode, paymentMethod = "card", paymentStatus, paymentId } = req.body;
+  const { addressId, address, couponCode, useReferralPoints, paymentMethod = "card", paymentStatus, paymentId } = req.body;
   const codEnabledSetting = await Setting.findOne({ key: "codOn" }).lean();
   const codChargeSetting = await Setting.findOne({ key: "codCharge" }).lean();
   const codEnabled = codEnabledSetting?.value !== false;
@@ -173,17 +173,57 @@ export const createOrder = asyncHandler(async (req, res) => {
   let discountAmount = 0;
   if (couponCode && couponCode.trim()) {
     const coupon = await Coupon.findOne({ code: couponCode.trim().toUpperCase(), isActive: true });
-    if (coupon && (!coupon.expiryDate || new Date(coupon.expiryDate) >= new Date()) && (coupon.usageLimit == null || coupon.usedCount < coupon.usageLimit)) {
-      if (coupon.discountType === "percentage") {
-        discountAmount = (totalAmount * (coupon.discountValue || 0)) / 100;
-      } else {
-        discountAmount = Math.min(coupon.discountValue || 0, totalAmount);
+    if (
+      coupon &&
+      (!coupon.expiryDate || new Date(coupon.expiryDate) >= new Date()) &&
+      (coupon.usageLimit == null || coupon.usedCount < coupon.usageLimit)
+    ) {
+      const userRecord = (coupon.usedBy || []).find(
+        (u) => u.userId && u.userId.toString() === req.user._id.toString()
+      );
+      const userCount = userRecord ? userRecord.count : 0;
+      const maxPerUser = coupon.maxUsesPerUser || 1;
+
+      if (userCount < maxPerUser) {
+        if (coupon.discountType === "percentage") {
+          discountAmount = (itemsSubtotal * (coupon.discountValue || 0)) / 100;
+        } else {
+          discountAmount = Math.min(coupon.discountValue || 0, itemsSubtotal);
+        }
+        discountAmount = Math.min(discountAmount, itemsSubtotal);
+        coupon.usedCount = (coupon.usedCount || 0) + 1;
+        if (userRecord) {
+          userRecord.count += 1;
+        } else {
+          if (!coupon.usedBy) coupon.usedBy = [];
+          coupon.usedBy.push({ userId: req.user._id, count: 1 });
+        }
+        await coupon.save();
       }
-      coupon.usedCount = (coupon.usedCount || 0) + 1;
-      await coupon.save();
     }
   }
-  totalAmount = Math.max(0, totalAmount - discountAmount);
+  const productSubtotalAfterCoupon = Math.max(0, itemsSubtotal - discountAmount);
+  totalAmount = productSubtotalAfterCoupon + deliveryCharge;
+
+  // Process Referral Points Discount if requested (supports custom requested points)
+  const reqPoints = Number(req.body.referralPointsToUse ?? (useReferralPoints ? 999999 : 0));
+  let referralDiscount = 0;
+  let pointsUsed = 0;
+  if (reqPoints > 0) {
+    const userDoc = await User.findById(req.user._id);
+    const availablePoints = Math.max(0, userDoc?.referralPoints || userDoc?.walletBalance || 0);
+    if (availablePoints > 0) {
+      pointsUsed = Math.min(reqPoints, availablePoints, totalAmount);
+      referralDiscount = pointsUsed;
+      totalAmount = Math.max(0, totalAmount - referralDiscount);
+
+      if (userDoc) {
+        userDoc.referralPoints = Math.max(0, (userDoc.referralPoints || 0) - pointsUsed);
+        userDoc.walletBalance = Math.max(0, (userDoc.walletBalance || 0) - pointsUsed);
+        await userDoc.save();
+      }
+    }
+  }
 
   const hexSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
   const orderNumber = `ORD-${hexSuffix}`;
@@ -211,6 +251,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     orderStatus: "pending",
     couponCode: discountAmount > 0 ? couponCode : undefined,
     discountAmount,
+    referralDiscount,
+    pointsUsed,
   });
 
   await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
@@ -343,12 +385,45 @@ export const getMyOrders = asyncHandler(async (req, res) => {
 
 export const getAllOrdersAdmin = asyncHandler(async (req, res) => {
   const orders = await Order.find().populate("user", "name email").sort({ createdAt: -1 }).lean();
+  const coupons = await Coupon.find().lean();
+  const couponMap = new Map(coupons.map((c) => [c.code.toUpperCase(), c]));
+
   const formatted = orders.map((o) => {
     const shortCode = (o._id || "").toString().slice(-6).toUpperCase();
+    const itemsSubtotal = (o.items || []).reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+
+    let discountAmount = o.discountAmount || 0;
+    if (o.couponCode && couponMap.has(o.couponCode.toUpperCase())) {
+      const coupon = couponMap.get(o.couponCode.toUpperCase());
+      if (coupon.discountType === "percentage") {
+        discountAmount = (itemsSubtotal * (coupon.discountValue || 0)) / 100;
+      } else {
+        discountAmount = Math.min(coupon.discountValue || 0, itemsSubtotal);
+      }
+      discountAmount = Math.min(discountAmount, itemsSubtotal);
+    } else if (discountAmount > 0 && itemsSubtotal > 0) {
+      const deliveryFee = (o.shippingCharge || 0) + (o.codFee || 0) || o.deliveryCharge || 0;
+      const grandTotal = itemsSubtotal + deliveryFee;
+      if (grandTotal > 0 && Math.abs(discountAmount - grandTotal * 0.10) < 1) {
+        discountAmount = Math.round(itemsSubtotal * 0.10 * 100) / 100;
+      } else {
+        discountAmount = Math.min(discountAmount, itemsSubtotal);
+      }
+    }
+
+    const shippingCharge = o.shippingCharge !== undefined ? o.shippingCharge : (o.paymentMethod === "cod" ? 0 : o.deliveryCharge || 0);
+    const codFee = o.codFee !== undefined ? o.codFee : (o.paymentMethod === "cod" ? o.deliveryCharge || 0 : 0);
+    const referralDiscount = o.referralDiscount || 0;
+
+    const productSubtotalAfterCoupon = Math.max(0, itemsSubtotal - discountAmount);
+    const calculatedTotal = Math.max(0, productSubtotalAfterCoupon + shippingCharge + codFee - referralDiscount);
+
     return {
       ...o,
       orderNumber: o.orderNumber || `ORD-${shortCode}`,
       invoiceNumber: o.invoiceNumber || `INV-${shortCode}`,
+      discountAmount,
+      totalAmount: o.totalAmount != null && Math.abs(o.totalAmount - calculatedTotal) < 1 ? o.totalAmount : calculatedTotal,
     };
   });
   res.json(formatted);
@@ -376,6 +451,38 @@ export const getOrderById = asyncHandler(async (req, res) => {
   const orderObj = order.toObject ? order.toObject() : order;
   orderObj.orderNumber = orderObj.orderNumber || `ORD-${shortCode}`;
   orderObj.invoiceNumber = orderObj.invoiceNumber || `INV-${shortCode}`;
+
+  const itemsSubtotal = (orderObj.items || []).reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+  let discountAmount = orderObj.discountAmount || 0;
+
+  if (orderObj.couponCode) {
+    const coupon = await Coupon.findOne({ code: orderObj.couponCode.toUpperCase() }).lean();
+    if (coupon) {
+      if (coupon.discountType === "percentage") {
+        discountAmount = (itemsSubtotal * (coupon.discountValue || 0)) / 100;
+      } else {
+        discountAmount = Math.min(coupon.discountValue || 0, itemsSubtotal);
+      }
+      discountAmount = Math.min(discountAmount, itemsSubtotal);
+    }
+  } else if (discountAmount > 0 && itemsSubtotal > 0) {
+    const deliveryFee = (orderObj.shippingCharge || 0) + (orderObj.codFee || 0) || orderObj.deliveryCharge || 0;
+    const grandTotal = itemsSubtotal + deliveryFee;
+    if (grandTotal > 0 && Math.abs(discountAmount - grandTotal * 0.10) < 1) {
+      discountAmount = Math.round(itemsSubtotal * 0.10 * 100) / 100;
+    } else {
+      discountAmount = Math.min(discountAmount, itemsSubtotal);
+    }
+  }
+
+  const shippingCharge = orderObj.shippingCharge !== undefined ? orderObj.shippingCharge : (orderObj.paymentMethod === "cod" ? 0 : orderObj.deliveryCharge || 0);
+  const codFee = orderObj.codFee !== undefined ? orderObj.codFee : (orderObj.paymentMethod === "cod" ? orderObj.deliveryCharge || 0 : 0);
+  const referralDiscount = orderObj.referralDiscount || 0;
+  const productSubtotalAfterCoupon = Math.max(0, itemsSubtotal - discountAmount);
+
+  orderObj.discountAmount = discountAmount;
+  orderObj.totalAmount = Math.max(0, productSubtotalAfterCoupon + shippingCharge + codFee - referralDiscount);
+
   res.json(orderObj);
 });
 

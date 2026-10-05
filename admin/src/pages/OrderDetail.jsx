@@ -295,11 +295,11 @@ function SelectField({ label, value, onChange, options }) {
 /* ── DeliveryBadge ── */
 function DeliveryBadge({ status }) {
   const cls = {
-    Shipped:    "od-del-badge od-badge-shipped",
-    Delivered:  "od-del-badge od-badge-delivered",
+    Shipped: "od-del-badge od-badge-shipped",
+    Delivered: "od-del-badge od-badge-delivered",
     Processing: "od-del-badge od-badge-processing",
-    Pending:    "od-del-badge od-badge-pending",
-    Cancelled:  "od-del-badge od-badge-cancelled",
+    Pending: "od-del-badge od-badge-pending",
+    Cancelled: "od-del-badge od-badge-cancelled",
   };
   return <span className={cls[status] || "od-del-badge"}>{status}</span>;
 }
@@ -307,9 +307,9 @@ function DeliveryBadge({ status }) {
 /* ── UpdateDeliveryModal ── */
 function UpdateDeliveryModal({ order, onClose, onSave }) {
   const [form, setForm] = useState({
-    status:            order.tracking?.status || "Pending",
-    carrier:           order.tracking?.carrier || "",
-    trackingNo:        order.tracking?.trackingNo || "",
+    status: order.tracking?.status || "Pending",
+    carrier: order.tracking?.carrier || "",
+    trackingNo: order.tracking?.trackingNo || "",
     estimatedDelivery: order.tracking?.estimatedDelivery || "",
   });
   const s = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -356,10 +356,10 @@ function UpdateDeliveryModal({ order, onClose, onSave }) {
                 className="od-date-inp" />
               <span className="od-date-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </span>
             </div>
@@ -422,6 +422,8 @@ export default function OrderDetail({ order: orderProp, onBack }) {
           shippingCharge: res.shippingCharge !== undefined ? res.shippingCharge : (res.paymentMethod === "cod" ? 0 : res.deliveryCharge || 0),
           codFee: res.codFee !== undefined ? res.codFee : (res.paymentMethod === "cod" ? res.deliveryCharge || 0 : 0),
           discountAmount: res.discountAmount || 0,
+          referralDiscount: res.referralDiscount || 0,
+          pointsUsed: res.pointsUsed || 0,
           couponCode: res.couponCode || "",
           paymentMethod: res.paymentMethod || "card",
           payment: res.paymentStatus || "pending",
@@ -441,7 +443,7 @@ export default function OrderDetail({ order: orderProp, onBack }) {
             estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "N/A"
           }
         });
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [id, orderProp]);
 
@@ -453,18 +455,33 @@ export default function OrderDetail({ order: orderProp, onBack }) {
     }));
   };
 
-  const subtotal = (order.products || []).reduce((sum, p) => sum + (p.price || 0) * (p.qty || 1), 0);
-  const shippingCharge = order.shippingCharge !== undefined
-    ? order.shippingCharge
-    : (order.paymentMethod?.toLowerCase() === "cod" ? 0 : order.deliveryCharge || 0);
-  const codFee = order.codFee !== undefined
-    ? order.codFee
-    : (order.paymentMethod?.toLowerCase() === "cod" ? order.deliveryCharge || 0 : 0);
-  const discountAmount = order.discountAmount || 0;
+  // ── Pricing logic (same as client OrderSuccessPage → formatOrder) ──
+  const isCod = (order.paymentMethod || "").toLowerCase() === "cod" || (order.paymentMethod || "").toLowerCase().includes("cash");
+
+  const subtotal = (order.products || []).reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.qty) || 1), 0);
+  const discountAmount = Number(order.discountAmount ?? 0);
+  const effectiveCouponDiscount = Math.min(discountAmount, subtotal);
+  const productSubtotalAfterCoupon = Math.max(0, subtotal - effectiveCouponDiscount);
+  const codFee = isCod
+    ? Number(order.codFee ?? order.deliveryCharge ?? 0)
+    : 0;
+  const shippingCharge = Number(order.shippingCharge || 0);
+
+  const rawTotal = Number(order.amount ?? order.totalAmount ?? 0);
+  const beforeReferral = productSubtotalAfterCoupon + shippingCharge + codFee;
+  let referralDiscount = Number(order.referralDiscount ?? 0);
+  let pointsUsed = Number(order.pointsUsed ?? 0);
+
+  if (referralDiscount === 0 && rawTotal > 0 && beforeReferral > rawTotal) {
+    referralDiscount = Math.round((beforeReferral - rawTotal) * 100) / 100;
+    pointsUsed = referralDiscount;
+  }
+  if (pointsUsed === 0 && referralDiscount > 0) {
+    pointsUsed = referralDiscount;
+  }
+
   const tax = order.tax || 0;
-  const total = order.amount != null && order.amount >= subtotal
-    ? order.amount
-    : Math.max(0, subtotal + shippingCharge + codFee - discountAmount + tax);
+  const total = rawTotal > 0 ? rawTotal : Math.max(0, beforeReferral - referralDiscount);
 
   return (
     <div className="od-page">
@@ -590,8 +607,8 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                     {order.paymentMethod?.toLowerCase() === "cod"
                       ? "COD"
                       : order.paymentMethod?.toLowerCase() === "card"
-                      ? "Card"
-                      : order.paymentMethod}
+                        ? "Card"
+                        : order.paymentMethod}
                     {(order.payment === "paid" || order.paymentStatus === "paid") && (
                       <span style={{ marginLeft: 6, fontSize: 11, background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
                         Paid
@@ -611,9 +628,23 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                   </div>
                 )}
                 <div className="od-pay-row">
-                  <span style={{ fontSize: 14, color: "#6b7280" }}>Product Price / Subtotal:</span>
+                  <span style={{ fontSize: 14, color: "#6b7280" }}>Product Price (Subtotal):</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{subtotal.toFixed(2)}</span>
                 </div>
+                {effectiveCouponDiscount > 0 && (
+                  <div className="od-pay-row" style={{ background: "#f0fdf4", padding: "6px 10px", borderRadius: 8, margin: "4px 0" }}>
+                    <span style={{ fontSize: 13, color: "#15803d", fontWeight: 600 }}>
+                      Coupon Discount ({order.couponCode || "COUPON"}) [Applied to Product Price Only]:
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#15803d" }}>-₹{effectiveCouponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {effectiveCouponDiscount > 0 && (
+                  <div className="od-pay-row" style={{ borderBottom: "1px dashed #e5e7eb", paddingBottom: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, color: "#4b5563", fontWeight: 600 }}>Net Product Amount:</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>₹{productSubtotalAfterCoupon.toFixed(2)}</span>
+                  </div>
+                )}
                 {shippingCharge > 0 && (
                   <div className="od-pay-row">
                     <span style={{ fontSize: 14, color: "#6b7280" }}>Shipping Charge:</span>
@@ -626,12 +657,12 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                     <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+₹{codFee.toFixed(2)}</span>
                   </div>
                 )}
-                {discountAmount > 0 && (
+                {(referralDiscount > 0 || pointsUsed > 0) && (
                   <div className="od-pay-row">
-                    <span style={{ fontSize: 14, color: "#16a34a" }}>
-                      Coupon Discount ({order.couponCode || "COUPON"}):
+                    <span style={{ fontSize: 14, color: "#ea580c", fontWeight: 600 }}>
+                      🎁 Referral Discount ({pointsUsed || referralDiscount} Points Used):
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#16a34a" }}>-₹{discountAmount.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#ea580c" }}>-₹{(referralDiscount || pointsUsed).toFixed(2)}</span>
                   </div>
                 )}
                 {tax > 0 && (

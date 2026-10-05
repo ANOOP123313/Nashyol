@@ -68,6 +68,7 @@ export const applyReferralCode = asyncHandler(async (req, res) => {
   referrer.referralCount = (referrer.referralCount || 0) + 1;
   referrer.referralPoints = (referrer.referralPoints || 0) + rewardPoints;
   referrer.walletBalance = (referrer.walletBalance || 0) + rewardPoints;
+  referrer.totalReferralRewards = (referrer.totalReferralRewards || 0) + rewardPoints;
   await referrer.save();
 
   // Notify referrer
@@ -95,6 +96,8 @@ export const rewardReferrer = async (order) => {
 
   const rewardAmount = order.totalAmount * 0.05; // 5% reward
   buyer.referredBy.walletBalance = (buyer.referredBy.walletBalance || 0) + rewardAmount;
+  buyer.referredBy.referralPoints = (buyer.referredBy.referralPoints || 0) + rewardAmount;
+  buyer.referredBy.totalReferralRewards = (buyer.referredBy.totalReferralRewards || 0) + rewardAmount;
   await buyer.referredBy.save();
 
   referral.rewardGranted = true;
@@ -126,7 +129,7 @@ export const rewardReferrer = async (order) => {
 // @route   GET /api/referrals/stats
 // @access  Private
 export const getReferralStats = asyncHandler(async (req, res) => {
-  const user = req.user;
+  const user = await User.findById(req.user._id);
   if (!user.referralCode) {
     user.referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
     await User.findByIdAndUpdate(user._id, { referralCode: user.referralCode });
@@ -170,22 +173,44 @@ export const getReferralStats = asyncHandler(async (req, res) => {
   }
 
   const referralCount = Math.max(referrals.length, user.referralCount || 0);
-  const calculatedPoints = referralCount * 100;
-  const points = Math.max(user.referralPoints || 0, user.walletBalance || 0, calculatedPoints);
 
-  if ((user.referralCount || 0) < referralCount || (user.referralPoints || 0) < points) {
-    await User.findByIdAndUpdate(user._id, {
-      referralCount,
-      referralPoints: points,
-    });
+  // Total all-time earned referral rewards
+  const totalEarnedFromRefs = referrals.reduce((sum, r) => sum + (r.rewardAmount || 100), 0);
+  const totalEarnedRewards = Math.max(totalEarnedFromRefs, referralCount * 100, user.totalReferralRewards || 0);
+
+  let updateObj = {};
+  if ((user.referralCount || 0) < referralCount) {
+    const newlyDetected = referralCount - (user.referralCount || 0);
+    const addedPoints = newlyDetected * 100;
+    updateObj.referralCount = referralCount;
+    updateObj.referralPoints = (user.referralPoints || 0) + addedPoints;
+    updateObj.walletBalance = (user.walletBalance || 0) + addedPoints;
+    updateObj.totalReferralRewards = totalEarnedRewards;
+
+    user.referralCount = referralCount;
+    user.referralPoints = updateObj.referralPoints;
+    user.walletBalance = updateObj.walletBalance;
+    user.totalReferralRewards = totalEarnedRewards;
+
+    await User.findByIdAndUpdate(user._id, updateObj);
+  } else if ((user.totalReferralRewards || 0) < totalEarnedRewards) {
+    updateObj.totalReferralRewards = totalEarnedRewards;
+    user.totalReferralRewards = totalEarnedRewards;
+    await User.findByIdAndUpdate(user._id, updateObj);
   }
+
+  // Current spendable balance (decreased when user spends points on product purchases)
+  const availableBalance = Math.max(0, user.referralPoints !== undefined && user.referralPoints !== null
+    ? user.referralPoints
+    : (user.walletBalance || 0));
 
   res.json({
     referralCode: user.referralCode,
     referralCount,
-    walletBalance: user.walletBalance || 0,
-    referralPoints: points,
-    points,
+    walletBalance: availableBalance,
+    referralPoints: availableBalance,
+    points: availableBalance,
+    totalEarnedRewards: totalEarnedRewards,
     referrals: referrals.map((r) => ({
       _id: r._id,
       name: r.referredUser?.name || "Friend",
@@ -203,8 +228,10 @@ export const getReferralStats = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 export const getAdminReferrers = asyncHandler(async (req, res) => {
   const users = await User.find({
-    role: { $ne: "admin" },
-  }).select("name email phone referralCode referralCount referralPoints walletBalance isBlocked createdAt updatedAt");
+    role: { $nin: ["admin", "superadmin", "vendor"] },
+    email: { $not: /admin/i },
+    name: { $not: /^admin/i },
+  }).select("name email phone role referralCode referralCount referralPoints walletBalance isBlocked createdAt updatedAt");
 
   const allReferrals = await Referral.find();
   const allCoupons = await Coupon.find();

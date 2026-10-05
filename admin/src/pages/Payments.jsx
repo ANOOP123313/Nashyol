@@ -332,9 +332,16 @@ export default function Payments() {
                     {/* Amount & Method */}
                     <td className="px-3 sm:px-4 lg:px-5 py-3 sm:py-4">
                       <div className="font-semibold text-gray-900 text-xs sm:text-sm">{item.amount}</div>
-                      <span className="inline-block text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded mt-0.5">
-                        {item.paymentMethod}
-                      </span>
+                      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                        <span className="inline-block text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                          {item.paymentMethod}
+                        </span>
+                        {(item.pointsUsed > 0 || item.referralDiscount > 0) && (
+                          <span className="inline-block text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                            🎁 {item.pointsUsed || item.referralDiscount} Pts
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Orders */}
