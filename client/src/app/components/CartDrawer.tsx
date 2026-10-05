@@ -5,7 +5,9 @@ import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import Link from "next/link";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useState, useEffect } from "react";
 import { useCart, CartItem } from "../contexts/CartContext";
+import { settingsApi } from "@/services/api";
 
 export function CartDrawer() {
   const { 
@@ -17,7 +19,29 @@ export function CartDrawer() {
     removeItem: onRemoveItem 
   } = useCart();
 
-  const shipping = subtotal > 100 ? 0 : 10;
+  const [shippingOn, setShippingOn] = useState(true);
+  const [shippingCharge, setShippingCharge] = useState(10);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(100);
+
+  useEffect(() => {
+    settingsApi.get()
+      .then((settings: any) => {
+        if (settings) {
+          setShippingOn(settings.shippingOn !== false);
+          if (settings.shippingCharge !== undefined) {
+            setShippingCharge(Math.max(0, Number(settings.shippingCharge) || 0));
+          }
+          if (settings.freeShippingThreshold !== undefined) {
+            setFreeShippingThreshold(Math.max(0, Number(settings.freeShippingThreshold) || 0));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const shipping = shippingOn
+    ? (freeShippingThreshold > 0 && subtotal >= freeShippingThreshold ? 0 : shippingCharge)
+    : 0;
   const total = subtotal + shipping;
 
   return (
@@ -196,9 +220,13 @@ export function CartDrawer() {
                 </Link>
               </Button>
             </div>
-            <p className="text-center text-[10px] text-muted-foreground dark:text-muted-foreground font-medium">
-              ✨ Free shipping on orders over ₹100
-            </p>
+            {shippingOn && freeShippingThreshold > 0 && (
+              <p className="text-center text-[10px] text-muted-foreground dark:text-muted-foreground font-medium">
+                {subtotal >= freeShippingThreshold
+                  ? "✨ You qualify for Free shipping!"
+                  : `✨ Free shipping on orders over ₹${freeShippingThreshold}`}
+              </p>
+            )}
           </div>
         )}
       </div>

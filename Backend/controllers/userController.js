@@ -128,7 +128,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
       email: u.email || "",
       phone: u.phone || "",
       role: u.role || "user",
-      isVerified: Boolean(u.isVerified || u.isPhoneVerified),
+      isVerified: (stat ? stat.orderCount : 0) > 0,
       isBlocked: Boolean(u.isBlocked),
       createdAt: u.createdAt,
       country,

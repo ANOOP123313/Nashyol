@@ -358,7 +358,7 @@ export default function CustomersPage() {
               totalSpent: stats.totalSpent,
 
               country: u.address?.country || "United States",
-              verified: u.isVerified ?? true,
+              verified: stats.orderCount > 0,
               recentOrders: [],
             };
           });

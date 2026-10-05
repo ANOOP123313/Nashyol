@@ -341,31 +341,45 @@ export default function Orders() {
             const shortCode = (o._id || "").slice(-6).toUpperCase();
             const orderNum = o.orderNumber || `ORD-${shortCode}`;
             const invNum = o.invoiceNumber || `INV-${shortCode}`;
+            const itemsSubtotal = (o.items || []).reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+            const shippingCharge = o.shippingCharge !== undefined ? o.shippingCharge : (o.paymentMethod === "cod" ? 0 : o.deliveryCharge || 0);
+            const codFee = o.codFee !== undefined ? o.codFee : (o.paymentMethod === "cod" ? o.deliveryCharge || 0 : 0);
+            const calcTotal = o.totalAmount != null
+              ? o.totalAmount
+              : Math.max(0, itemsSubtotal + shippingCharge + codFee - (o.discountAmount || 0));
+
             return {
               id: orderNum,
               orderNumber: orderNum,
               invoiceNumber: invNum,
               _id: o._id,
               referral: !!o.couponCode,
-            customer: o.user?.name || o.address?.fullName || "Customer",
-            vendor: o.items?.[0]?.vendorId?.storeName || "",
-            amount: o.totalAmount || 0,
-            items: o.items?.length || 1,
-            payment: o.paymentStatus || "paid",
-            paymentMethod: o.paymentMethod || "card",
-            delivery: o.orderStatus || "delivered",
-            date: new Date(o.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            email: o.user?.email || "",
-            tax: o.taxAmount || 0,
-            tracking: { status: o.orderStatus, trackingNo: o.trackingNumber || "", carrier: o.carrier || "", estimatedDelivery: o.estimatedDelivery || "" },
-            products: (o.items || []).map((it) => ({
-              name: it.title || "Product Item",
-              qty: it.quantity || 1,
-              price: it.price || 0,
-              img: "📦",
-            })),
-          };
-        });
+              customer: o.user?.name || o.address?.fullName || "Customer",
+              vendor: o.items?.[0]?.vendorId?.storeName || "",
+              amount: calcTotal,
+              shippingCharge,
+              codFee,
+              deliveryCharge: o.deliveryCharge || 0,
+              discountAmount: o.discountAmount || 0,
+              couponCode: o.couponCode || "",
+              items: o.items?.length || 1,
+              payment: o.paymentStatus || "pending",
+              paymentMethod: o.paymentMethod || "card",
+              paymentId: o.paymentId || "",
+              delivery: o.orderStatus || "pending",
+              date: new Date(o.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+              email: o.user?.email || "",
+              tax: o.taxAmount || 0,
+              tracking: { status: o.orderStatus, trackingNo: o.trackingNumber || "", carrier: o.carrier || "", estimatedDelivery: o.estimatedDelivery || "" },
+              products: (o.items || []).map((it) => ({
+                name: it.title || "Product Item",
+                qty: it.quantity || 1,
+                price: it.price || 0,
+                img: "📦",
+                attributes: it.attributes || [],
+              })),
+            };
+          });
           setOrders(mapped);
         }
       })
@@ -407,11 +421,7 @@ export default function Orders() {
 
   const goToDetail = (o, e) => {
     if (e) e.stopPropagation();
-    if (o._id || o.id) {
-      navigate(`/orders/${o._id || o.id}`);
-    } else {
-      setDetailOrder(o);
-    }
+    setDetailOrder(o);
   };
 
   const ActionBtns = ({ o }) => (
@@ -512,7 +522,9 @@ export default function Orders() {
                     </td>
                     <td className="op-td">
                       <div style={{ marginBottom: 4 }}><Badge status={o.payment} /></div>
-                      <div style={{ fontSize: 12, color: "#6b7280", textTransform: "capitalize" }}>{o.paymentMethod === "cod" ? "COD" : o.paymentMethod}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", textTransform: "capitalize" }}>
+                        {o.paymentMethod?.toLowerCase() === "cod" ? "COD" : o.paymentMethod?.toLowerCase() === "card" ? "Card" : o.paymentMethod}
+                      </div>
                     </td>
                     <td className="op-td"><Badge status={o.delivery} /></td>
                     <td className="op-td" style={{ color: "#6b7280" }}>{o.date}</td>
@@ -548,7 +560,12 @@ export default function Orders() {
                 </div>
               </div>
               <div className="op-mob-badges">
-                <div><span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>Payment ({o.paymentMethod === "cod" ? "COD" : "Card"})</span><Badge status={o.payment} /></div>
+                <div>
+                  <span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>
+                    Payment ({o.paymentMethod?.toLowerCase() === "cod" ? "COD" : "Card"})
+                  </span>
+                  <Badge status={o.payment} />
+                </div>
                 <div><span style={{ fontSize: 11, color: "#9ca3af", display: "block", marginBottom: 2 }}>Delivery</span><Badge status={o.delivery} /></div>
               </div>
               <div className="op-mob-acts" onClick={e => e.stopPropagation()}>

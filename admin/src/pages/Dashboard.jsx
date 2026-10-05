@@ -274,7 +274,7 @@ const RecentOrders = ({ orders }) => {
               </div>
 
               <div className="text-right">
-                <p className="font-semibold text-gray-900 text-sm">${(order.totalAmount || 0).toFixed(2)}</p>
+                <p className="font-semibold text-gray-900 text-sm">₹{(order.totalAmount || 0).toFixed(2)}</p>
                 <span
                   className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${
                     order.orderStatus === "delivered"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
@@ -12,11 +12,31 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useCart } from "../contexts/CartContext";
+import { settingsApi } from "@/services/api";
 
 export function CartPage() {
   const router = useRouter();
   const { items, updateQuantity, removeItem, subtotal } = useCart();
   const [couponCode, setCouponCode] = useState("");
+  const [shippingOn, setShippingOn] = useState(true);
+  const [shippingCharge, setShippingCharge] = useState(10);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(100);
+
+  useEffect(() => {
+    settingsApi.get()
+      .then((settings: any) => {
+        if (settings) {
+          setShippingOn(settings.shippingOn !== false);
+          if (settings.shippingCharge !== undefined) {
+            setShippingCharge(Math.max(0, Number(settings.shippingCharge) || 0));
+          }
+          if (settings.freeShippingThreshold !== undefined) {
+            setFreeShippingThreshold(Math.max(0, Number(settings.freeShippingThreshold) || 0));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleUpdateQuantity = async (productId: string, sku: string, newQuantity: number) => {
     try {
@@ -43,7 +63,9 @@ export function CartPage() {
     }
   };
 
-  const shipping = subtotal > 100 ? 0 : 10;
+  const shipping = shippingOn
+    ? (freeShippingThreshold > 0 && subtotal >= freeShippingThreshold ? 0 : shippingCharge)
+    : 0;
   const discount = 0;
   const total = subtotal + shipping - discount;
 

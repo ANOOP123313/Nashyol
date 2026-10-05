@@ -230,7 +230,7 @@ export function AccountPage() {
       <div className="relative overflow-hidden">
         {/* Decorative Background */}
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary-color)] to-orange-600 dark:from-orange-600 dark:to-orange-800"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02gNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width=%2260%22%20height=%2260%22%20viewBox=%220%200%2060%2060%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M36%2018c3.314%200%206%202.686%206%206s-2.686%206-6%206-6-2.686-6-6%202.686-6%206-6z%22%20fill=%22%23fff%22%20fill-opacity=%220.05%22/%3E%3C/svg%3E')] opacity-30"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -362,10 +362,17 @@ export function AccountPage() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="outline" className="w-fit bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-semibold px-3 py-1 flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5" />
-                  Verified Account
-                </Badge>
+                {Boolean(user?.isVerified || orders.length > 0) ? (
+                  <Badge variant="outline" className="w-fit bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-semibold px-3 py-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="size-3.5" />
+                    Verified Account
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="w-fit bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-semibold px-3 py-1 flex items-center gap-1.5" title="Make at least 1 purchase to get verified">
+                    <AlertCircle className="size-3.5" />
+                    Unverified Account
+                  </Badge>
+                )}
               </div>
 
               {/* Profile Photo Management Row */}

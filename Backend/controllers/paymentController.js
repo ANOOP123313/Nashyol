@@ -48,6 +48,9 @@ export const getAdminPayments = asyncHandler(async (req, res) => {
       ? order.items.map((i) => `${i.quantity || 1}x ${i.title || "Item"}`).join(", ")
       : "1 item";
 
+    const rawMethod = String(order.paymentMethod || "card").toLowerCase();
+    const formattedMethod = rawMethod === "cod" ? "COD" : rawMethod === "card" ? "Card" : rawMethod.toUpperCase();
+
     return {
       _id: order._id,
       orderId: order._id,
@@ -61,7 +64,7 @@ export const getAdminPayments = asyncHandler(async (req, res) => {
       amountNum: amount,
       orders: itemsSummary,
       itemsCount: order.items?.length || 1,
-      paymentMethod: (order.paymentMethod || "card").toUpperCase(),
+      paymentMethod: formattedMethod,
       dueDate: orderDate.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
       rawDate: orderDate.toISOString(),
       status: status === "paid" ? "Paid" : status === "pending" ? "Pending" : status === "failed" ? "Failed" : "Refunded",
@@ -221,9 +224,17 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
     }
   }
 
-  totalAmount = Math.max(0, totalAmount - discountAmount);
-  // Add base shipping if applicable
-  const shipping = totalAmount > 100 ? 0 : 10;
+  const shippingOnSetting = await Setting.findOne({ key: "shippingOn" }).lean();
+  const shippingChargeSetting = await Setting.findOne({ key: "shippingCharge" }).lean();
+  const freeShippingThresholdSetting = await Setting.findOne({ key: "freeShippingThreshold" }).lean();
+
+  const shippingEnabled = shippingOnSetting?.value !== false;
+  const configuredShippingCharge = shippingChargeSetting ? Math.max(0, Number(shippingChargeSetting.value) || 0) : 10;
+  const configuredFreeThreshold = freeShippingThresholdSetting ? Math.max(0, Number(freeShippingThresholdSetting.value) || 0) : 100;
+
+  const shipping = shippingEnabled
+    ? (configuredFreeThreshold > 0 && totalAmount >= configuredFreeThreshold ? 0 : configuredShippingCharge)
+    : 0;
   totalAmount += shipping;
 
   const amount = Math.round(totalAmount * 100);

@@ -44,7 +44,7 @@ export function PaymentGateway({
   const paymentMethods = [
     {
       id: "card",
-      name: "Pay Now",
+      name: "Card / Online Payment",
       icon: CreditCard,
       description: "Pay securely via Stripe (Credit/Debit Card)",
       badge: "Secure",
@@ -54,20 +54,22 @@ export function PaymentGateway({
       id: "cod",
       name: "Cash on Delivery",
       icon: Banknote,
-      description: codCharge > 0 ? `Pay when you receive (+$${codCharge.toFixed(2)} COD fee)` : "Pay when you receive",
+      description: codCharge > 0 ? `Pay when you receive (+₹${codCharge.toFixed(2)} COD fee)` : "Pay when you receive",
       badge: "Available",
       logos: ["💵"],
     }] : []),
   ];
 
+  const handleMethodSelect = (methodId: string) => {
+    setPaymentMethod(methodId);
+    onPaymentMethodChange?.(methodId);
+  };
+
   useEffect(() => {
     if (!codEnabled && paymentMethod === "cod") {
-      setPaymentMethod("card");
-      onPaymentMethodChange?.("card");
+      handleMethodSelect("card");
     }
-  }, [codEnabled, paymentMethod, onPaymentMethodChange]);
-
-
+  }, [codEnabled, paymentMethod]);
 
   const validatePaymentMethod = () => {
     return true; // Stripe handles its own validation later
@@ -137,7 +139,7 @@ export function PaymentGateway({
             Total Amount
           </span>
           <span className="text-xl sm:text-2xl font-bold text-[var(--primary-color)]">
-            ${amount.toFixed(2)}
+            ₹{amount.toFixed(2)}
           </span>
         </div>
       </div>
@@ -147,7 +149,7 @@ export function PaymentGateway({
         <Label className="text-sm font-semibold mb-3 sm:mb-4 block text-foreground">
           Select Payment Method
         </Label>
-        <RadioGroup value={paymentMethod} onValueChange={(method) => { setPaymentMethod(method); onPaymentMethodChange?.(method); }}>
+        <RadioGroup value={paymentMethod} onValueChange={handleMethodSelect}>
           <div className="grid grid-cols-1 gap-2 sm:gap-3">
             {paymentMethods.map((method) => {
               const Icon = method.icon;
@@ -160,7 +162,7 @@ export function PaymentGateway({
                       ? "border-[var(--primary-color)] bg-[var(--primary-color)]/5 dark:bg-[var(--primary-color)]/10"
                       : "border-gray-200 dark:border-gray-700 hover:border-[var(--primary-color)]/50"
                     }`}
-                  onClick={() => setPaymentMethod(method.id)}
+                  onClick={() => handleMethodSelect(method.id)}
                 >
                   <RadioGroupItem value={method.id} id={method.id} className="flex-shrink-0" />
                   <Label
@@ -279,7 +281,7 @@ export function PaymentGateway({
         </div>
       </div>
 
-      {/* Pay Button */}
+      {/* Pay / Place Order Button */}
       <Button
         size="lg"
         onClick={handlePayment}
@@ -289,12 +291,17 @@ export function PaymentGateway({
         {isProcessing ? (
           <>
             <div className="size-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            Processing Payment...
+            {paymentMethod === "cod" ? "Placing Order..." : "Processing Payment..."}
+          </>
+        ) : paymentMethod === "cod" ? (
+          <>
+            <CheckCircle2 className="size-5 mr-2" />
+            Place Order (₹{amount.toFixed(2)})
           </>
         ) : (
           <>
             <Lock className="size-5 mr-2" />
-            Pay ₹{amount.toFixed(2)} Securely
+            Pay Now (₹{amount.toFixed(2)})
           </>
         )}
       </Button>

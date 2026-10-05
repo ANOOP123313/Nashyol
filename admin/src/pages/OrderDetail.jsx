@@ -405,34 +405,42 @@ export default function OrderDetail({ order: orderProp, onBack }) {
 
   useEffect(() => {
     if (id && !orderProp) {
-      ordersAPI.getById(id).then(res => {
-          const shortCode = (res._id || id || "").slice(-6).toUpperCase();
-          const ordNum = res.orderNumber || `ORD-${shortCode}`;
-          const invNum = res.invoiceNumber || `INV-${shortCode}`;
-          setOrder({
-            id: ordNum,
-            orderNumber: ordNum,
-            invoiceNumber: invNum,
-            customer: res.user?.name || res.address?.fullName || "N/A",
-            email: res.user?.email || "N/A",
-            date: res.createdAt ? new Date(res.createdAt).toLocaleDateString() : "N/A",
-            delivery: (res.orderStatus || "pending").toLowerCase(),
-            amount: res.totalAmount || 0,
-            tax: res.taxAmount || 0,
-            products: (res.items || []).map(item => ({
-              name: item.title || "N/A",
-              qty: item.quantity || 1,
-              price: item.price || 0,
-              img: "📦",
-              attributes: item.attributes || [],
-            })),
-            tracking: {
-              status: res.orderStatus || "Pending",
-              carrier: res.carrier || "N/A",
-              trackingNo: res.trackingNumber || "N/A",
-              estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "N/A"
-            }
-          });
+      ordersAPI.getById(id).then((res) => {
+        const shortCode = (res._id || id || "").slice(-6).toUpperCase();
+        const ordNum = res.orderNumber || `ORD-${shortCode}`;
+        const invNum = res.invoiceNumber || `INV-${shortCode}`;
+        setOrder({
+          id: ordNum,
+          orderNumber: ordNum,
+          invoiceNumber: invNum,
+          customer: res.user?.name || res.address?.fullName || "N/A",
+          email: res.user?.email || "N/A",
+          date: res.createdAt ? new Date(res.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A",
+          delivery: (res.orderStatus || "pending").toLowerCase(),
+          amount: res.totalAmount || 0,
+          deliveryCharge: res.deliveryCharge || 0,
+          shippingCharge: res.shippingCharge !== undefined ? res.shippingCharge : (res.paymentMethod === "cod" ? 0 : res.deliveryCharge || 0),
+          codFee: res.codFee !== undefined ? res.codFee : (res.paymentMethod === "cod" ? res.deliveryCharge || 0 : 0),
+          discountAmount: res.discountAmount || 0,
+          couponCode: res.couponCode || "",
+          paymentMethod: res.paymentMethod || "card",
+          payment: res.paymentStatus || "pending",
+          paymentId: res.paymentId || "",
+          tax: res.taxAmount || 0,
+          products: (res.items || []).map((item) => ({
+            name: item.title || "N/A",
+            qty: item.quantity || 1,
+            price: item.price || 0,
+            img: "📦",
+            attributes: item.attributes || [],
+          })),
+          tracking: {
+            status: res.orderStatus || "Pending",
+            carrier: res.carrier || "N/A",
+            trackingNo: res.trackingNumber || "N/A",
+            estimatedDelivery: res.estimatedDelivery ? new Date(res.estimatedDelivery).toLocaleDateString() : "N/A"
+          }
+        });
       }).catch(() => {});
     }
   }, [id, orderProp]);
@@ -446,8 +454,17 @@ export default function OrderDetail({ order: orderProp, onBack }) {
   };
 
   const subtotal = (order.products || []).reduce((sum, p) => sum + (p.price || 0) * (p.qty || 1), 0);
+  const shippingCharge = order.shippingCharge !== undefined
+    ? order.shippingCharge
+    : (order.paymentMethod?.toLowerCase() === "cod" ? 0 : order.deliveryCharge || 0);
+  const codFee = order.codFee !== undefined
+    ? order.codFee
+    : (order.paymentMethod?.toLowerCase() === "cod" ? order.deliveryCharge || 0 : 0);
+  const discountAmount = order.discountAmount || 0;
   const tax = order.tax || 0;
-  const total = subtotal || order.amount || 0;
+  const total = order.amount != null && order.amount >= subtotal
+    ? order.amount
+    : Math.max(0, subtotal + shippingCharge + codFee - discountAmount + tax);
 
   return (
     <div className="od-page">
@@ -563,28 +580,68 @@ export default function OrderDetail({ order: orderProp, onBack }) {
               <div className="od-card-hdr">
                 <div className="od-card-hdr-left">
                   <CreditCard size={17} color="#6b7280" />
-                  <span className="od-card-hdr-title">Payment</span>
+                  <span className="od-card-hdr-title">Payment Information</span>
                 </div>
               </div>
               <div className="od-card-body">
                 <div className="od-pay-row">
                   <span style={{ fontSize: 14, color: "#6b7280" }}>Method:</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#111", textTransform: "capitalize" }}>
-                    {order.paymentMethod === "cod" ? "Cash on Delivery" : order.paymentMethod}
-                    {order.payment === "paid" && <span style={{ marginLeft: 6, fontSize: 11, background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: 4 }}>Paid</span>}
-                    {order.payment !== "paid" && <span style={{ marginLeft: 6, fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: 4 }}>Pending</span>}
+                    {order.paymentMethod?.toLowerCase() === "cod"
+                      ? "COD"
+                      : order.paymentMethod?.toLowerCase() === "card"
+                      ? "Card"
+                      : order.paymentMethod}
+                    {(order.payment === "paid" || order.paymentStatus === "paid") && (
+                      <span style={{ marginLeft: 6, fontSize: 11, background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
+                        Paid
+                      </span>
+                    )}
+                    {order.payment !== "paid" && order.paymentStatus !== "paid" && (
+                      <span style={{ marginLeft: 6, fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
+                        Pending
+                      </span>
+                    )}
                   </span>
                 </div>
+                {order.paymentId && (
+                  <div className="od-pay-row">
+                    <span style={{ fontSize: 14, color: "#6b7280" }}>Payment Reference / ID:</span>
+                    <span style={{ fontSize: 13, fontFamily: "monospace", color: "#374151" }}>{order.paymentId}</span>
+                  </div>
+                )}
                 <div className="od-pay-row">
-                  <span style={{ fontSize: 14, color: "#6b7280" }}>Subtotal:</span>
+                  <span style={{ fontSize: 14, color: "#6b7280" }}>Product Price / Subtotal:</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{subtotal.toFixed(2)}</span>
                 </div>
-                <div className="od-pay-row">
-                  <span style={{ fontSize: 14, color: "#6b7280" }}>Tax:</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{tax.toFixed(2)}</span>
-                </div>
+                {shippingCharge > 0 && (
+                  <div className="od-pay-row">
+                    <span style={{ fontSize: 14, color: "#6b7280" }}>Shipping Charge:</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+₹{shippingCharge.toFixed(2)}</span>
+                  </div>
+                )}
+                {codFee > 0 && (
+                  <div className="od-pay-row">
+                    <span style={{ fontSize: 14, color: "#6b7280" }}>COD Fee:</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+₹{codFee.toFixed(2)}</span>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="od-pay-row">
+                    <span style={{ fontSize: 14, color: "#16a34a" }}>
+                      Coupon Discount ({order.couponCode || "COUPON"}):
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#16a34a" }}>-₹{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {tax > 0 && (
+                  <div className="od-pay-row">
+                    <span style={{ fontSize: 14, color: "#6b7280" }}>Tax:</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{tax.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="od-pay-total">
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Total:</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Total Amount:</span>
                   <span style={{ fontSize: 18, fontWeight: 800, color: "#f97316" }}>₹{total.toFixed(2)}</span>
                 </div>
               </div>

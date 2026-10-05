@@ -135,11 +135,7 @@ export function AdminSearchBar() {
 
   const handleSelectOrder = (o) => {
     setIsOpen(false);
-    if (o._id) {
-      navigate(`/orders/${o._id}`);
-    } else {
-      navigate(`/orders`);
-    }
+    navigate(`/orders`);
   };
 
   const handleSelectVendor = (v) => {
@@ -212,7 +208,7 @@ export function AdminSearchBar() {
           "Placed On": item.createdAt ? new Date(item.createdAt).toLocaleString() : "—",
           "Items Count": `${item.items?.length || 0} item(s)`,
         },
-        actionLink: item._id ? `/orders/${item._id}` : `/orders`,
+        actionLink: `/orders`,
         actionLabel: "Open Order Details Page",
       });
     } else if (type === "Vendor") {

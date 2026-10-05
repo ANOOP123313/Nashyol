@@ -693,7 +693,7 @@ export const getPublicHomePage = asyncHandler(async (req, res) => {
                 productCount: s.productCount || 0,
               }));
           }
-        } catch (_) {}
+        } catch (_) { }
 
         try {
           const products = await Product.find(query)
@@ -1017,9 +1017,9 @@ export const getTopBarOffers = asyncHandler(async (req, res) => {
   const messages = Array.isArray(section.items) && section.items.length > 0
     ? section.items.map((i) => i.title || i.name).filter(Boolean)
     : [
-        "✨ Free shipping on orders over ₹500",
-        "🎉 20% OFF on your first order - Use code: WELCOME20",
-      ];
+      "✨ Free shipping on orders over ₹500",
+      "🎉 20% OFF on your first order - Use code: WELCOME20",
+    ];
 
   res.json({
     success: true,
@@ -1038,9 +1038,9 @@ export const updateTopBarOffers = asyncHandler(async (req, res) => {
 
   const items = Array.isArray(messages)
     ? messages.map((msg, idx) => ({
-        title: typeof msg === "string" ? msg : msg.title || msg.text || "",
-        displayOrder: idx + 1,
-      }))
+      title: typeof msg === "string" ? msg : msg.title || msg.text || "",
+      displayOrder: idx + 1,
+    }))
     : [];
 
   const section = await HomePageSection.findOneAndUpdate(

@@ -258,6 +258,10 @@ export default function SettingsPage() {
   const [codOn, setCodOn] = useState(false);
   const [codCharge, setCodCharge] = useState("0");
 
+  const [shippingOn, setShippingOn] = useState(true);
+  const [shippingCharge, setShippingCharge] = useState("10");
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState("100");
+
   const [twoFA, setTwoFA] = useState(false);
   const [gdpr, setGdpr] = useState(false);
   const [passExpiry, setPassExpiry] = useState("");
@@ -284,6 +288,9 @@ export default function SettingsPage() {
       if (res.paypalOn !== undefined) setPaypalOn(res.paypalOn);
       if (res.codOn !== undefined) setCodOn(res.codOn);
       if (res.codCharge !== undefined) setCodCharge(String(res.codCharge));
+      if (res.shippingOn !== undefined) setShippingOn(res.shippingOn !== false);
+      if (res.shippingCharge !== undefined) setShippingCharge(String(res.shippingCharge));
+      if (res.freeShippingThreshold !== undefined) setFreeShippingThreshold(String(res.freeShippingThreshold));
       if (res.twoFA !== undefined) setTwoFA(res.twoFA);
       if (res.gdpr !== undefined) setGdpr(res.gdpr);
       if (res.passExpiry !== undefined) setPassExpiry(res.passExpiry);
@@ -297,7 +304,9 @@ export default function SettingsPage() {
       await settingsAPI.update({
         platformName, supportEmail, currency, language, timezone, maintenance,
         smtpHost, smtpPort, smtpUser, smtpPass, encryption, stripeOn, paypalOn,
-        codOn, codCharge: Number(codCharge) || 0, twoFA, gdpr, passExpiry, sessionTimeout, ipWhitelist,
+        codOn, codCharge: Number(codCharge) || 0,
+        shippingOn, shippingCharge: Number(shippingCharge) || 0, freeShippingThreshold: Number(freeShippingThreshold) || 0,
+        twoFA, gdpr, passExpiry, sessionTimeout, ipWhitelist,
       });
       toast.success("Settings saved successfully!");
     } catch (err) {
@@ -468,6 +477,48 @@ export default function SettingsPage() {
                 style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", color: "#374151" }}
               />
               <div style={{ marginTop: 5, fontSize: 11, color: "#6b7280" }}>Added to each COD order when COD is enabled.</div>
+            </div>
+          </div>
+
+          {/* Shipping Charge Settings */}
+          <div style={{ border: "1px solid #f0f0f0", borderRadius: 13, padding: 26, marginBottom: 30 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 50, height: 50, borderRadius: 12, background: "#f97316", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 19 }}>🚚</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>Shipping Charge Settings</div>
+                  <div style={{ fontSize: 14, color: "#aaa" }}>Configure base shipping fee & free shipping rules</div>
+                </div>
+              </div>
+              <Toggle checked={shippingOn} onChange={setShippingOn} />
+            </div>
+            <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Base Shipping Charge (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={shippingCharge}
+                  onChange={(event) => setShippingCharge(event.target.value)}
+                  placeholder="10.00"
+                  style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", color: "#374151" }}
+                />
+                <div style={{ marginTop: 5, fontSize: 11, color: "#6b7280" }}>Standard shipping charge applied to orders.</div>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Free Shipping Above Amount (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={freeShippingThreshold}
+                  onChange={(event) => setFreeShippingThreshold(event.target.value)}
+                  placeholder="100.00"
+                  style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", color: "#374151" }}
+                />
+                <div style={{ marginTop: 5, fontSize: 11, color: "#6b7280" }}>Orders with subtotal above this amount get FREE shipping.</div>
+              </div>
             </div>
           </div>
           <OrangeBtn onClick={handleSaveSettings}>Save Settings</OrangeBtn>

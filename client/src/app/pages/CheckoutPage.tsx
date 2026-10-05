@@ -37,6 +37,9 @@ export function CheckoutPage() {
   const [codEnabled, setCodEnabled] = useState(true);
   const [codCharge, setCodCharge] = useState(0);
   const [hasGlobalCodCharge, setHasGlobalCodCharge] = useState(false);
+  const [shippingOn, setShippingOn] = useState(true);
+  const [shippingCharge, setShippingCharge] = useState(10);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(100);
 
   // Stripe Modal state
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
@@ -53,7 +56,7 @@ export function CheckoutPage() {
   } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  const shipping = subtotal > 100 ? 0 : 10;
+  const shipping = shippingOn ? (subtotal >= freeShippingThreshold ? 0 : shippingCharge) : 0;
   const codDeliveryCharge = paymentMethod === "cod"
     ? hasGlobalCodCharge ? codCharge : items.reduce((sum, item) => sum + (item.deliveryCharge || 0) * item.quantity, 0)
     : 0;
@@ -102,10 +105,17 @@ export function CheckoutPage() {
 
   useEffect(() => {
     settingsApi.get()
-      .then((settings) => {
+      .then((settings: any) => {
         setCodEnabled(settings.codOn !== false);
         setHasGlobalCodCharge(settings.codCharge !== undefined);
         setCodCharge(Math.max(0, Number(settings.codCharge) || 0));
+        setShippingOn(settings.shippingOn !== false);
+        if (settings.shippingCharge !== undefined) {
+          setShippingCharge(Math.max(0, Number(settings.shippingCharge) || 0));
+        }
+        if (settings.freeShippingThreshold !== undefined) {
+          setFreeShippingThreshold(Math.max(0, Number(settings.freeShippingThreshold) || 0));
+        }
       })
       .catch(() => undefined);
   }, []);

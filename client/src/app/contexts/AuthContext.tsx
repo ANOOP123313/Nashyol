@@ -10,6 +10,7 @@ type User = {
   phone?: string;
   avatar?: string;
   role: string;
+  isVerified?: boolean;
   isPhoneVerified?: boolean;
   referralCode?: string;
   referralPoints?: number;

@@ -250,17 +250,15 @@ function PromoCarouselSection({ section }: { section: any }) {
           {items.map((card: any, idx: number) => (
             <div key={card._id || idx} className="px-2 sm:px-3 py-2">
               <Card
-                className={`relative overflow-hidden group hover:shadow-xl transition-all hover:scale-[1.02] bg-gradient-to-br ${
-                  card.gradient || "from-purple-600 to-purple-800"
-                } border-0 shadow-lg h-full`}
+                className={`relative overflow-hidden group hover:shadow-xl transition-all hover:scale-[1.02] bg-gradient-to-br ${card.gradient || "from-purple-600 to-purple-800"
+                  } border-0 shadow-lg h-full`}
               >
                 <div className="p-5 sm:p-6 lg:p-8 flex flex-col min-h-[260px] sm:min-h-[280px] lg:min-h-[300px]">
                   <div className="flex-1 space-y-2 sm:space-y-3 lg:space-y-4">
                     {card.badge && (
                       <Badge
-                        className={`w-fit bg-background ${
-                          card.badgeColor || "text-purple-600"
-                        } hover:bg-background border-0 font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm`}
+                        className={`w-fit bg-background ${card.badgeColor || "text-purple-600"
+                          } hover:bg-background border-0 font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm`}
                       >
                         {card.emoji} {card.badge}
                       </Badge>
@@ -347,9 +345,8 @@ function LovedOnesSection({ section }: { section: any }) {
             <Link
               key={item._id || index}
               href={item.link || `/category?category=Fashion`}
-              className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${
-                item.gradient || "from-blue-400 to-blue-500"
-              } aspect-[4/3] hover:shadow-2xl transition-all duration-300 hover:scale-105`}
+              className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${item.gradient || "from-blue-400 to-blue-500"
+                } aspect-[4/3] hover:shadow-2xl transition-all duration-300 hover:scale-105`}
             >
               <ImageWithFallback
                 src={item.image}
@@ -393,9 +390,8 @@ function PromotionalCardsSection({ section }: { section: any }) {
               className="group flex-shrink-0 w-64 snap-start"
             >
               <div
-                className={`${
-                  item.gradient ? `bg-gradient-to-br ${item.gradient}` : "bg-gradient-to-br from-yellow-200 to-yellow-300"
-                } rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105`}
+                className={`${item.gradient ? `bg-gradient-to-br ${item.gradient}` : "bg-gradient-to-br from-yellow-200 to-yellow-300"
+                  } rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105`}
               >
                 <div className="aspect-[3/4] relative overflow-hidden">
                   <ImageWithFallback
@@ -662,11 +658,10 @@ function CategoryProductsSection({ section }: { section: any }) {
                 <Button
                   size="icon"
                   variant="secondary"
-                  className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${
-                    isInWishlist(product.id)
+                  className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${isInWishlist(product.id)
                       ? "bg-red-500 text-white hover:bg-red-600 border-0"
                       : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
-                  }`}
+                    }`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -683,11 +678,10 @@ function CategoryProductsSection({ section }: { section: any }) {
                   }}
                 >
                   <Heart
-                    className={`size-3.5 transition-all ${
-                      isInWishlist(product.id)
+                    className={`size-3.5 transition-all ${isInWishlist(product.id)
                         ? "fill-white text-white"
                         : "text-muted-foreground hover:text-red-500"
-                    }`}
+                      }`}
                   />
                 </Button>
                 <ImageWithFallback
@@ -710,11 +704,10 @@ function CategoryProductsSection({ section }: { section: any }) {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`size-2.5 sm:size-3 ${
-                          i < Math.floor(product.rating || 4.8)
+                        className={`size-2.5 sm:size-3 ${i < Math.floor(product.rating || 4.8)
                             ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
                             : "text-muted dark:text-muted-foreground"
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>
@@ -813,11 +806,10 @@ function FeaturedProductsSection({ section, featuredProducts = [] }: { section: 
                 <Button
                   size="icon"
                   variant="secondary"
-                  className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${
-                    isInWishlist(product.id)
+                  className={`absolute top-2 left-2 z-10 opacity-100 transition-all size-7 shadow-sm ${isInWishlist(product.id)
                       ? "bg-red-500 text-white hover:bg-red-600 border-0"
                       : "bg-background/90 dark:bg-card text-foreground hover:bg-muted"
-                  }`}
+                    }`}
                   onClick={async (e) => {
                     e.preventDefault();
                     toggleWishlist({
@@ -833,11 +825,10 @@ function FeaturedProductsSection({ section, featuredProducts = [] }: { section: 
                   }}
                 >
                   <Heart
-                    className={`size-3.5 transition-all ${
-                      isInWishlist(product.id)
+                    className={`size-3.5 transition-all ${isInWishlist(product.id)
                         ? "fill-white text-white"
                         : "text-muted-foreground hover:text-red-500"
-                    }`}
+                      }`}
                   />
                 </Button>
                 <ImageWithFallback
@@ -860,11 +851,10 @@ function FeaturedProductsSection({ section, featuredProducts = [] }: { section: 
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`size-2.5 sm:size-3 ${
-                          i < Math.floor(product.rating)
+                        className={`size-2.5 sm:size-3 ${i < Math.floor(product.rating)
                             ? "fill-[var(--primary-color)] text-[var(--primary-color)]"
                             : "text-muted dark:text-muted-foreground"
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>

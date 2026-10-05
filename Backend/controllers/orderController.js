@@ -68,7 +68,7 @@ const restoreInventoryStock = async (product, sku, qty, reason = "Stock restored
 };
 
 export const createOrder = asyncHandler(async (req, res) => {
-  const { addressId, address, couponCode, paymentMethod = "card" } = req.body;
+  const { addressId, address, couponCode, paymentMethod = "card", paymentStatus, paymentId } = req.body;
   const codEnabledSetting = await Setting.findOne({ key: "codOn" }).lean();
   const codChargeSetting = await Setting.findOne({ key: "codCharge" }).lean();
   const codEnabled = codEnabledSetting?.value !== false;
@@ -106,9 +106,17 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw new Error("Cart is empty");
   }
 
+  const shippingOnSetting = await Setting.findOne({ key: "shippingOn" }).lean();
+  const shippingChargeSetting = await Setting.findOne({ key: "shippingCharge" }).lean();
+  const freeShippingThresholdSetting = await Setting.findOne({ key: "freeShippingThreshold" }).lean();
+
+  const shippingEnabled = shippingOnSetting?.value !== false;
+  const configuredShippingCharge = shippingChargeSetting ? Math.max(0, Number(shippingChargeSetting.value) || 0) : 10;
+  const configuredFreeThreshold = freeShippingThresholdSetting ? Math.max(0, Number(freeShippingThresholdSetting.value) || 0) : 100;
+
   const items = [];
-  let totalAmount = 0;
-  let deliveryCharge = 0;
+  let itemsSubtotal = 0;
+  let itemCodChargeSum = 0;
   for (const line of cart.items) {
     if (!line.product) continue;
     const product = await Product.findById(line.product._id);
@@ -121,9 +129,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     if (qty < 1) continue;
 
     const price = variant.sellingPrice;
-      const itemDeliveryCharge = paymentMethod === "cod" && !hasGlobalCodCharge
-        ? (Number(product.deliveryCharge) || 0) * qty
-        : 0;
+    const itemDeliveryCharge = paymentMethod === "cod" && !hasGlobalCodCharge
+      ? (Number(product.deliveryCharge) || 0) * qty
+      : 0;
     items.push({
       productId: product._id,
       sku: line.sku,
@@ -135,8 +143,8 @@ export const createOrder = asyncHandler(async (req, res) => {
       vendorId: variant.currentVendor,
       attributes: line.attributes || [],
     });
-    totalAmount += price * qty + itemDeliveryCharge;
-    deliveryCharge += itemDeliveryCharge;
+    itemsSubtotal += price * qty;
+    itemCodChargeSum += itemDeliveryCharge;
 
     // Deduct stock on product variant
     variant.currentStock -= qty;
@@ -151,10 +159,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw new Error("No valid items in cart");
   }
 
-  if (paymentMethod === "cod" && hasGlobalCodCharge) {
-    totalAmount += configuredCodCharge;
-    deliveryCharge = configuredCodCharge;
-  }
+  const baseShippingFee = shippingEnabled
+    ? (itemsSubtotal >= configuredFreeThreshold ? 0 : configuredShippingCharge)
+    : 0;
+
+  const codDeliveryCharge = paymentMethod === "cod"
+    ? (hasGlobalCodCharge ? configuredCodCharge : itemCodChargeSum)
+    : 0;
+
+  const deliveryCharge = baseShippingFee + codDeliveryCharge;
+  let totalAmount = itemsSubtotal + deliveryCharge;
 
   let discountAmount = 0;
   if (couponCode && couponCode.trim()) {
@@ -175,6 +189,12 @@ export const createOrder = asyncHandler(async (req, res) => {
   const orderNumber = `ORD-${hexSuffix}`;
   const invoiceNumber = `INV-${hexSuffix}`;
 
+  const initialPaymentStatus = paymentStatus && ["paid", "pending", "failed"].includes(String(paymentStatus).toLowerCase())
+    ? String(paymentStatus).toLowerCase()
+    : "pending";
+
+  const initialPaymentId = paymentId || (initialPaymentStatus === "paid" ? `PAY-${hexSuffix}` : undefined);
+
   const order = await Order.create({
     orderNumber,
     invoiceNumber,
@@ -182,15 +202,33 @@ export const createOrder = asyncHandler(async (req, res) => {
     items,
     totalAmount,
     deliveryCharge,
+    shippingCharge: baseShippingFee,
+    codFee: codDeliveryCharge,
     paymentMethod,
     address: shippingAddress,
-    paymentStatus: "pending",
+    paymentStatus: initialPaymentStatus,
+    paymentId: initialPaymentId,
     orderStatus: "pending",
     couponCode: discountAmount > 0 ? couponCode : undefined,
     discountAmount,
   });
 
   await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
+
+  // Mark customer as verified once they make at least one purchase
+  await User.findByIdAndUpdate(req.user._id, { isVerified: true });
+
+  if (initialPaymentStatus === "paid") {
+    await logTransaction(
+      req.user._id,
+      totalAmount,
+      "payment",
+      paymentMethod,
+      "completed",
+      `Online payment completed for order #${order.orderNumber}`,
+      order._id
+    );
+  }
 
   // Notify user in app
   await sendNotification(

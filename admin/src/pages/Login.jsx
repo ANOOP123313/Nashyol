@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { authAPI, setToken, getToken } from "../services/api";
@@ -8,8 +8,8 @@ import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@naashyol.com");
-  const [password, setPassword] = useState("admin123password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -78,7 +78,7 @@ export default function Login() {
               <Input
                 type="email"
                 required
-                placeholder="admin@naashyol.com"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 h-11 bg-gray-50/50 border-gray-200 focus:bg-white rounded-xl text-sm"
@@ -96,7 +96,7 @@ export default function Login() {
               <Input
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="••••••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 pr-10 h-11 bg-gray-50/50 border-gray-200 focus:bg-white rounded-xl text-sm"
@@ -131,12 +131,6 @@ export default function Login() {
             )}
           </Button>
         </form>
-
-        {/* Demo Credentials Footer */}
-        <div className="mt-8 pt-6 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400 justify-center">
-          <ShieldCheck size={14} className="text-[#F7931A]" />
-          <span>Default: admin@naashyol.com / admin123password</span>
-        </div>
       </div>
     </div>
   );
