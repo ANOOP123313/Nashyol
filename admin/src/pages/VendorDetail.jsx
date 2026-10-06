@@ -293,7 +293,7 @@ function EditProductModal({ product, vendorName, onClose, onSave }) {
           </div>
 
           <div className="vd2-modal-grid">
-            <FormField label="Price (₹) *">
+            <FormField label="Price (AED) *">
               <input value={form.price} onChange={e => set("price", e.target.value)}
                 placeholder="e.g., 89.99" type="number" className="vd2-inp" />
             </FormField>
@@ -303,7 +303,7 @@ function EditProductModal({ product, vendorName, onClose, onSave }) {
             </FormField>
           </div>
 
-          <FormField label="Paid Amount (₹)">
+          <FormField label="Paid Amount (AED)">
             <input value={form.paidAmount} onChange={e => set("paidAmount", e.target.value)}
               placeholder="e.g., 30.00" type="number" className="vd2-inp" />
           </FormField>
@@ -353,10 +353,10 @@ function AddPaymentModal({ product, onClose, onSave }) {
           
           <div className="vd2-modal-grid">
             <FormField label="Paid Amount">
-              <input value={`₹${(Number(product.paidAmount) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`AED ${(Number(product.paidAmount) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
             <FormField label="Balance">
-              <input value={`₹${(Number(balance) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
+              <input value={`AED ${(Number(balance) || 0).toFixed(2)}`} disabled className="vd2-inp vd2-inp-disabled" />
             </FormField>
           </div>
           
@@ -481,7 +481,7 @@ export default function VendorDetail() {
             price: price,
             stock: stock,
             sold: sold,
-            total: `₹${(price * sold).toFixed(2)}`,
+            total: `AED ${(price * sold).toFixed(2)}`,
             hasPay: true,
             paidAmount: Number(p?.paidAmount || 0) || 0,
           };
@@ -539,9 +539,9 @@ export default function VendorDetail() {
             paymentsList.push({
               id: o.orderNumber || `ORD-${String(o._id || oIdx).slice(-6).toUpperCase()}`,
               date: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
-              total: `₹${orderVendorRev.toFixed(2)}`,
-              paid: isPaid ? `₹${orderVendorRev.toFixed(2)}` : "₹0.00",
-              balance: isPaid ? "-" : `₹${orderVendorRev.toFixed(2)}`,
+              total: `AED ${orderVendorRev.toFixed(2)}`,
+              paid: isPaid ? `AED ${orderVendorRev.toFixed(2)}` : "AED 0.00",
+              balance: isPaid ? "-" : `AED ${orderVendorRev.toFixed(2)}`,
               method: String(o.paymentMethod || "COD").toUpperCase(),
               orders: `${itemsToCount.length} item(s)`,
               status: isPaid ? "Paid" : "Pending",
@@ -582,7 +582,7 @@ export default function VendorDetail() {
     rating:       vendorData?.rating ?? 4.8,
     reviews:      vendorData?.reviewsCount ?? 12,
     products:     products.length > 0 ? products.length : (vendorData?.productsCount || vendorData?.productCount || 0),
-    totalSales:   (stats.totalRevenue || 0) > 0 ? `₹${Number(stats.totalRevenue).toLocaleString("en-IN")}` : `₹${Number(vendorData?.totalSales || vendorData?.totalRevenue || 0).toLocaleString("en-IN")}`,
+    totalSales:   (stats.totalRevenue || 0) > 0 ? `AED ${Number(stats.totalRevenue).toLocaleString("en-IN")}` : `AED ${Number(vendorData?.totalSales || vendorData?.totalRevenue || 0).toLocaleString("en-IN")}`,
     verified:     vendorData?.approvalStatus === "approved" || vendorData?.status === "verified",
     status:       typeof vendorStatus === "object" && vendorStatus !== null ? (vendorStatus?.name || String(vendorStatus)) : String(vendorStatus || vendorData?.approvalStatus || vendorData?.status || "active"),
   };
@@ -620,7 +620,7 @@ export default function VendorDetail() {
     setProducts(prev => [...prev, {
       id: Date.now(), name: newProduct.name, sku: newProduct.sku, category: newProduct.category,
       price: pPrice, stock: parseInt(newProduct.stock) || 0,
-      sold: 0, total: "₹0.00", hasPay: false, paidAmount: 0,
+      sold: 0, total: "AED 0.00", hasPay: false, paidAmount: 0,
     }]);
     setNewProduct({ name:"",sku:"",category:"",price:"",stock:"",paidAmount:"",description:"" });
     setShowAddProduct(false);
@@ -747,11 +747,11 @@ export default function VendorDetail() {
         {/* ── Stat Cards ── */}
         <div className="vd2-stat-grid">
           {[
-            { label:"Total Revenue", value:`₹${stats.totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:`From ${stats.salesCount} sales`, subColor:"#16a34a",
+            { label:"Total Revenue", value:`AED ${stats.totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:`From ${stats.salesCount} sales`, subColor:"#16a34a",
               icon:<DollarSign size={22} color="#fff"/>, iconBg:"#f97316" },
-            { label:"Paid Amount", value:`₹${stats.paidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.paidPaymentsCount} payments`} bg="#dcfce7" color="#15803d"/>,
+            { label:"Paid Amount", value:`AED ${stats.paidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.paidPaymentsCount} payments`} bg="#dcfce7" color="#15803d"/>,
               icon:<CheckCircle size={22} color="#16a34a"/>, iconBg:"#dcfce7" },
-            { label:"Partially Paid / Pending", value:`₹${stats.partiallyPaidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.pendingPaymentsCount} pending`} bg="#ffedd5" color="#c2410c"/>,
+            { label:"Partially Paid / Pending", value:`AED ${stats.partiallyPaidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub:<Badge label={`${stats.pendingPaymentsCount} pending`} bg="#ffedd5" color="#c2410c"/>,
               icon:<AlertCircle size={22} color="#d97706"/>, iconBg:"#fef9c3" },
           ].map(c => (
             <div key={c.label} style={{ background:"#fff", borderRadius:18, border:"1px solid #f0f0f0", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", padding:"20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -822,7 +822,7 @@ export default function VendorDetail() {
                           bg={p.category==="Electronics"?"#eff6ff":"#f5f3ff"}
                           color={p.category==="Electronics"?"#1d4ed8":"#6d28d9"} />
                       </td>
-                      <td className="vd2-td" style={{ fontWeight:600 }}>₹{(Number(p.price) || 0).toFixed(2)}</td>
+                      <td className="vd2-td" style={{ fontWeight:600 }}>AED {(Number(p.price) || 0).toFixed(2)}</td>
                       <td className="vd2-td" style={{ fontWeight:700, color:p.stock===0?"#ef4444":"#111" }}>{p.stock}</td>
                       <td className="vd2-td">{p.sold}</td>
                       <td className="vd2-td" style={{ fontWeight:600, color:"#16a34a" }}>{p.total}</td>
@@ -1079,7 +1079,7 @@ export default function VendorDetail() {
                 </FormField>
               </div>
               <div className="vd2-modal-grid">
-                <FormField label="Price (₹) *">
+                <FormField label="Price (AED) *">
                   <input value={newProduct.price} onChange={e=>setNewProduct({...newProduct,price:e.target.value})}
                     placeholder="89.99" type="number" className="vd2-inp" />
                 </FormField>
@@ -1088,7 +1088,7 @@ export default function VendorDetail() {
                     placeholder="100" type="number" className="vd2-inp" />
                 </FormField>
               </div>
-              <FormField label="Paid Amount (₹)">
+              <FormField label="Paid Amount (AED)">
                 <input value={newProduct.paidAmount} onChange={e=>setNewProduct({...newProduct,paidAmount:e.target.value})}
                   placeholder="30.00" type="number" className="vd2-inp" />
               </FormField>

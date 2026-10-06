@@ -54,7 +54,7 @@ export function PaymentGateway({
       id: "cod",
       name: "Cash on Delivery",
       icon: Banknote,
-      description: codCharge > 0 ? `Pay when you receive (+₹${codCharge.toFixed(2)} COD fee)` : "Pay when you receive",
+      description: codCharge > 0 ? `Pay when you receive (+AED ${codCharge.toFixed(2)} COD fee)` : "Pay when you receive",
       badge: "Available",
       logos: ["💵"],
     }] : []),
@@ -139,7 +139,7 @@ export function PaymentGateway({
             Total Amount
           </span>
           <span className="text-xl sm:text-2xl font-bold text-[var(--primary-color)]">
-            ₹{amount.toFixed(2)}
+            AED {amount.toFixed(2)}
           </span>
         </div>
       </div>
@@ -296,12 +296,12 @@ export function PaymentGateway({
         ) : paymentMethod === "cod" ? (
           <>
             <CheckCircle2 className="size-5 mr-2" />
-            Place Order (₹{amount.toFixed(2)})
+            Place Order (AED {amount.toFixed(2)})
           </>
         ) : (
           <>
             <Lock className="size-5 mr-2" />
-            Pay Now (₹{amount.toFixed(2)})
+            Pay Now (AED {amount.toFixed(2)})
           </>
         )}
       </Button>

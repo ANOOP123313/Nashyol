@@ -202,9 +202,9 @@ export function ProductsPage() {
             <span className="text-[10px] text-muted-foreground">({product.reviewsCount})</span>
           </div>
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-sm font-bold text-[var(--primary-color)]">₹{product.price}</span>
+            <span className="text-sm font-bold text-[var(--primary-color)]">AED {product.price}</span>
             {product.originalPrice && (
-              <span className="text-[10px] text-muted-foreground line-through">₹{product.originalPrice}</span>
+              <span className="text-[10px] text-muted-foreground line-through">AED {product.originalPrice}</span>
             )}
           </div>
         </div>

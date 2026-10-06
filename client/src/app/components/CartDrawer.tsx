@@ -164,7 +164,7 @@ export function CartDrawer() {
                       </button>
                     </div>
                     <span className="text-sm font-bold text-[var(--primary-color)]">
-                      ₹{(item.price * item.quantity).toFixed(2)}
+                      AED {(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -180,13 +180,13 @@ export function CartDrawer() {
               <div className="flex justify-between text-muted-foreground">
                 <span className="text-sm">Subtotal</span>
                 <span className="font-semibold text-foreground">
-                  ₹{subtotal.toFixed(2)}
+                  AED {subtotal.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span className="text-sm">Shipping</span>
                 <span className="font-semibold text-green-600">
-                  {shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}
+                  {shipping === 0 ? "FREE" : `AED ${shipping.toFixed(2)}`}
                 </span>
               </div>
               <Separator className="bg-muted" />
@@ -195,7 +195,7 @@ export function CartDrawer() {
                   Total
                 </span>
                 <span className="text-xl font-black text-[var(--primary-color)]">
-                  ₹{total.toFixed(2)}
+                  AED {total.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -224,7 +224,7 @@ export function CartDrawer() {
               <p className="text-center text-[10px] text-muted-foreground dark:text-muted-foreground font-medium">
                 {subtotal >= freeShippingThreshold
                   ? "✨ You qualify for Free shipping!"
-                  : `✨ Free shipping on orders over ₹${freeShippingThreshold}`}
+                  : `✨ Free shipping on orders over AED ${freeShippingThreshold}`}
               </p>
             )}
           </div>

@@ -128,10 +128,10 @@ function ProductCard({
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[var(--primary-color)] font-bold text-sm">₹{product.price}</span>
+          <span className="text-[var(--primary-color)] font-bold text-sm">AED {product.price}</span>
           {product.originalPrice && (
             <span className="text-muted-foreground text-xs line-through">
-              ₹{product.originalPrice}
+              AED {product.originalPrice}
             </span>
           )}
         </div>

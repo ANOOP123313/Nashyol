@@ -424,7 +424,7 @@ function AddProductModal({ onClose, onAdd }) {
               </select>
             </div>
             <div>
-              <label style={lS}>Price (₹) <span style={{ color: "#ef4444" }}>*</span></label>
+              <label style={lS}>Price (AED) <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="price"
                 value={form.price}
@@ -469,7 +469,7 @@ function AddProductModal({ onClose, onAdd }) {
           {/* Row 5: Paid Amount & Cash on Delivery Charge */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={lS}>Paid Amount (₹)</label>
+              <label style={lS}>Paid Amount (AED)</label>
               <input
                 name="paidAmount"
                 value={form.paidAmount}
@@ -480,7 +480,7 @@ function AddProductModal({ onClose, onAdd }) {
               />
             </div>
             <div>
-              <label style={lS}>Cash on Delivery Charge (₹)</label>
+              <label style={lS}>Cash on Delivery Charge (AED)</label>
               <input
                 name="deliveryCharge"
                 value={form.deliveryCharge}
@@ -964,7 +964,7 @@ function EditProductModal({ item, onClose, onUpdate }) {
               </select>
             </div>
             <div>
-              <label style={lS}>Price (₹) <span style={{ color: "#ef4444" }}>*</span></label>
+              <label style={lS}>Price (AED) <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="price"
                 value={form.price}
@@ -1009,7 +1009,7 @@ function EditProductModal({ item, onClose, onUpdate }) {
           {/* Row 5: Paid Amount & Cash on Delivery Charge */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={lS}>Paid Amount (₹)</label>
+              <label style={lS}>Paid Amount (AED)</label>
               <input
                 name="paidAmount"
                 value={form.paidAmount}
@@ -1020,7 +1020,7 @@ function EditProductModal({ item, onClose, onUpdate }) {
               />
             </div>
             <div>
-              <label style={lS}>Cash on Delivery Charge (₹)</label>
+              <label style={lS}>Cash on Delivery Charge (AED)</label>
               <input
                 name="deliveryCharge"
                 value={form.deliveryCharge}
@@ -1259,8 +1259,8 @@ function DetailsModal({ item, onClose, onAdjust }) {
               { label: "Category:", value: item.category },
               { label: "Vendor:", value: item.vendor },
               { label: "Warehouse:", value: item.warehouse },
-              { label: "Unit Price:", value: `₹${item.price.toFixed(2)}` },
-              { label: "Total Value:", value: `₹${(item.price * item.currentStock).toFixed(2)}` },
+              { label: "Unit Price:", value: `AED ${item.price.toFixed(2)}` },
+              { label: "Total Value:", value: `AED ${(item.price * item.currentStock).toFixed(2)}` },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 3px" }}>{label}</p>
@@ -1822,7 +1822,7 @@ export default function InventoryManagement() {
                     </div>
                     <div>
                       <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 2px" }}>Price:</p>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: "#111827", margin: 0 }}>₹{item.price.toFixed(2)}</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: "#111827", margin: 0 }}>AED {item.price.toFixed(2)}</p>
                     </div>
                   </div>
 

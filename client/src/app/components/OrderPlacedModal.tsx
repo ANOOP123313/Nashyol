@@ -113,8 +113,8 @@ export function OrderPlacedModal({
     orderData.items.forEach((item) => {
       pdf.text(pdf.splitTextToSize(item.name || "Product", 92)[0], 24, y);
       pdf.text(String(item.quantity), 125, y);
-      pdf.text(`Rs. ${Number(item.price).toFixed(2)}`, 145, y);
-      pdf.text(`Rs. ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`AED ${Number(item.price).toFixed(2)}`, 145, y);
+      pdf.text(`AED ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
       y += 9;
     });
 
@@ -124,18 +124,18 @@ export function OrderPlacedModal({
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(14);
     pdf.setFontSize(10);
-    pdf.text(`Products: Rs. ${Number(orderData.productAmount ?? orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.text(`Products: AED ${Number(orderData.productAmount ?? orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     if (orderData.shippingCharge) {
       y += 7;
-      pdf.text(`Shipping: Rs. ${Number(orderData.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`Shipping: AED ${Number(orderData.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     if (orderData.codCharge) {
       y += 7;
-      pdf.text(`COD charge: Rs. ${Number(orderData.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`COD charge: AED ${Number(orderData.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     y += 9;
     pdf.setFontSize(14);
-    pdf.text(`Total: Rs. ${Number(orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.text(`Total: AED ${Number(orderData.amount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     pdf.save(`receipt-${String(orderData.orderNumber).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
     toast.success("Receipt PDF downloaded", { description: `Order ${orderData.orderNumber}` });
   };
@@ -281,7 +281,7 @@ export function OrderPlacedModal({
                 {orderData.paymentMethod}
               </span>
               <span className="text-2xl font-bold text-[var(--primary-color)]">
-                ₹{orderData.amount.toFixed(2)}
+                AED {orderData.amount.toFixed(2)}
               </span>
             </div>
           </div>
@@ -335,7 +335,7 @@ export function OrderPlacedModal({
                     )}
                   </div>
                   <span className="font-semibold text-foreground">
-                    ₹{(item.price * item.quantity).toFixed(2)}
+                    AED {(item.price * item.quantity).toFixed(2)}
                   </span>
                 </div>
               ))}

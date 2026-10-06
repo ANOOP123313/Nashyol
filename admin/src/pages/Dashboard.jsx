@@ -81,7 +81,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Revenue"
-          value={`₹${(stats?.revenue || 0).toLocaleString()}`}
+          value={`AED ${(stats?.revenue || 0).toLocaleString()}`}
           change="+15.3%"
           icon={DollarSign}
           iconBg="bg-orange-500"
@@ -113,7 +113,7 @@ const Dashboard = () => {
 
         <StatCard
           title="Referral Revenue"
-          value={`₹${(stats?.referralRevenue || 0).toLocaleString()}`}
+          value={`AED ${(stats?.referralRevenue || 0).toLocaleString()}`}
           change="+24.1%"
           icon={Gift}
           iconBg="bg-orange-400"
@@ -274,7 +274,7 @@ const RecentOrders = ({ orders }) => {
               </div>
 
               <div className="text-right">
-                <p className="font-semibold text-gray-900 text-sm">₹{(order.totalAmount || 0).toFixed(2)}</p>
+                <p className="font-semibold text-gray-900 text-sm">AED {(order.totalAmount || 0).toFixed(2)}</p>
                 <span
                   className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${
                     order.orderStatus === "delivered"

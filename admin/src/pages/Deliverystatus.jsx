@@ -538,7 +538,7 @@ export default function DeliveryStatus() {
               name: it.title || it.name || "Product Item",
               qty: it.quantity || it.qty || 1,
             })),
-            amount: `₹${(o.totalAmount || 0).toFixed(2)}`,
+            amount: `AED ${(o.totalAmount || 0).toFixed(2)}`,
             carrier: "FedEx",
             tracking: o.paymentId ? `TRK-${o.paymentId.slice(-6).toUpperCase()}` : `TRK-${(o._id || "").slice(-6).toUpperCase()}`,
             trackingColor: "text-orange-500",

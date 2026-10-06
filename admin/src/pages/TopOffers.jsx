@@ -25,7 +25,7 @@ export default function TopOffers() {
 
   // ── 1. Top Bar Offers State (From Screenshot 3) ──
   const [topBarMessages, setTopBarMessages] = useState([
-    "✨ Free shipping on orders over ₹500",
+    "✨ Free shipping on orders over AED 500",
     "🎉 20% OFF on your first order - Use code: WELCOME20",
     "🔥 Flash Sale! Up to 50% OFF on selected items",
     "💎 New Arrivals - Shop the latest trends now",
@@ -536,7 +536,7 @@ export default function TopOffers() {
                 <span className="text-xs text-gray-400 font-medium">Quick Presets:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    "✨ Free shipping on orders over ₹500",
+                    "✨ Free shipping on orders over AED 500",
                     "🎉 20% OFF on your first order - Use code: WELCOME20",
                     "🔥 Flash Sale! Up to 50% OFF on selected items",
                     "💎 New Arrivals - Shop the latest trends now",

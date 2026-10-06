@@ -536,7 +536,7 @@ export default function Orders() {
                     </td>
                     <td className="op-td" style={{ fontWeight: 700, color: "#111" }}>{o.customer}</td>
                     <td className="op-td">
-                      <div style={{ fontWeight: 700, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
+                      <div style={{ fontWeight: 700, color: "#111" }}>AED {o.amount.toFixed(2)}</div>
                       <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
                       {(o.pointsUsed > 0 || o.referralDiscount > 0) && (
                         <div style={{ fontSize: 11, color: "#ea580c", fontWeight: 600, marginTop: 2, display: "flex", alignItems: "center", gap: 3 }}>
@@ -579,7 +579,7 @@ export default function Orders() {
                   <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{o.customer}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>₹{o.amount.toFixed(2)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>AED {o.amount.toFixed(2)}</div>
                   <div style={{ fontSize: 12, color: "#9ca3af" }}>{o.items} items</div>
                   {(o.pointsUsed > 0 || o.referralDiscount > 0) && (
                     <div style={{ fontSize: 11, color: "#ea580c", fontWeight: 600, marginTop: 2 }}>

@@ -274,7 +274,7 @@ export function ReturnsRefundsPage() {
                     </p>
                     <div className="flex flex-wrap items-center gap-4 mt-2 text-xs">
                       <span className="font-medium text-orange-600 dark:text-orange-400">
-                        Refund Amount: ₹{Number(trackedReturn.refundAmount || 0).toFixed(2)}
+                        Refund Amount: AED {Number(trackedReturn.refundAmount || 0).toFixed(2)}
                       </span>
                       {trackedReturn.refundMethod && (
                         <span className="text-gray-500">via {trackedReturn.refundMethod}</span>
@@ -400,7 +400,7 @@ export function ReturnsRefundsPage() {
                   </div>
                   <div className="border-t pt-3 mt-2 flex items-center justify-between text-xs">
                     <span className="font-medium text-orange-600">
-                      ₹{Number(item.refundAmount || 0).toFixed(2)}
+                      AED {Number(item.refundAmount || 0).toFixed(2)}
                     </span>
                     <button
                       onClick={() => {
@@ -557,7 +557,7 @@ export function ReturnsRefundsPage() {
                 </p>
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <p className="text-sm text-blue-900 dark:text-blue-300">
-                    <strong>Standard Return:</strong> ₹7.99 deducted from refund
+                    <strong>Standard Return:</strong> AED 7.99 deducted from refund
                   </p>
                 </div>
               </div>

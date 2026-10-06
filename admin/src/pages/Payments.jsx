@@ -194,7 +194,7 @@ export default function Payments() {
             <div>
               <p className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Total Revenue</p>
               <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                ₹{stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                AED {stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <span className="inline-flex items-center mt-1 sm:mt-2 text-xs text-green-600 bg-green-50 px-1.5 sm:px-2 py-0.5 rounded font-medium">
                 {stats.paidCount} paid orders
@@ -211,7 +211,7 @@ export default function Payments() {
             <div>
               <p className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Pending Payments</p>
               <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                ₹{stats.pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                AED {stats.pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <span className="inline-flex items-center mt-1 sm:mt-2 text-xs text-orange-600 bg-orange-50 px-1.5 sm:px-2 py-0.5 rounded font-medium">
                 {stats.pendingCount} pending
@@ -228,7 +228,7 @@ export default function Payments() {
             <div>
               <p className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Paid This Month</p>
               <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                ₹{stats.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                AED {stats.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <span className="inline-flex items-center mt-1 sm:mt-2 text-xs text-blue-600 bg-blue-50 px-1.5 sm:px-2 py-0.5 rounded font-medium">
                 Current month

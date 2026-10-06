@@ -138,12 +138,12 @@ export function WishlistPage() {
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xl font-bold text-[var(--primary-color)]">
-                    ₹{product.price}
+                    AED {product.price}
                   </span>
                   {product.originalPrice && (
                     <>
                       <span className="text-sm text-muted-foreground line-through">
-                        ₹{product.originalPrice}
+                        AED {product.originalPrice}
                       </span>
                       <Badge className="ml-auto bg-gradient-to-r from-green-500 to-green-600 text-inverse text-xs">
                         {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF

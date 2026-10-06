@@ -336,7 +336,7 @@ export default function SettingsPage() {
             <InputField label="Support Email" value={supportEmail} onChange={setSupportEmail} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, marginBottom: 24 }}>
-            <CustomSelect label="Currency" value={currency} onChange={setCurrency} options={["INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","JPY - Japanese Yen","AUD - Australian Dollar"]} />
+            <CustomSelect label="Currency" value={currency} onChange={setCurrency} options={["AED - UAE Dirham","INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","JPY - Japanese Yen","AUD - Australian Dollar"]} />
             <CustomSelect label="Language" value={language} onChange={setLanguage} options={["English","Spanish","French","German","Japanese"]} />
             <CustomSelect label="Timezone" value={timezone} onChange={setTimezone} options={["UTC","Eastern Time (US)","Pacific Time (US)","London","Tokyo"]} />
           </div>
@@ -382,9 +382,9 @@ export default function SettingsPage() {
         <Card>
           <SectionTitle title="Shipping Zones" btn={<OrangeBtn small icon="+">Add Shipping Zone</OrangeBtn>} />
           {[
-            { name: "India (Domestic)", tag: "Active", countries: "IN", flat: "₹99.00", free: "₹500" },
-            { name: "International", tag: "Active", countries: "US, EU, UK", flat: "₹999.00", free: "₹5,000" },
-            { name: "Rest of World", tag: "Active", countries: "—", flat: "₹1,499.00", free: "₹7,500" },
+            { name: "India (Domestic)", tag: "Active", countries: "IN", flat: "AED 99.00", free: "AED 500" },
+            { name: "International", tag: "Active", countries: "US, EU, UK", flat: "AED 999.00", free: "AED 5,000" },
+            { name: "Rest of World", tag: "Active", countries: "—", flat: "AED 1,499.00", free: "AED 7,500" },
           ].map((z, i) => (
             <div key={i}>
               {i > 0 && <Divider />}
@@ -457,7 +457,7 @@ export default function SettingsPage() {
           <div style={{ border: "1px solid #f0f0f0", borderRadius: 13, padding: 26, marginBottom: 30 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 50, height: 50, borderRadius: 12, background: "#4caf50", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 19 }}>₹</div>
+                <div style={{ width: 50, height: 50, borderRadius: 12, background: "#4caf50", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>AED</div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 16 }}>Cash on Delivery</div>
                   <div style={{ fontSize: 14, color: "#aaa" }}>Payment on delivery</div>
@@ -466,7 +466,7 @@ export default function SettingsPage() {
               <Toggle checked={codOn} onChange={setCodOn} />
             </div>
             <div style={{ marginTop: 20, maxWidth: 360 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>COD Charge (₹)</label>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>COD Charge (AED)</label>
               <input
                 type="number"
                 min="0"
@@ -494,7 +494,7 @@ export default function SettingsPage() {
             </div>
             <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Base Shipping Charge (₹)</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Base Shipping Charge (AED)</label>
                 <input
                   type="number"
                   min="0"
@@ -507,7 +507,7 @@ export default function SettingsPage() {
                 <div style={{ marginTop: 5, fontSize: 11, color: "#6b7280" }}>Standard shipping charge applied to orders.</div>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Free Shipping Above Amount (₹)</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#4b5563", marginBottom: 4 }}>Free Shipping Above Amount (AED)</label>
                 <input
                   type="number"
                   min="0"

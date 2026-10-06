@@ -192,17 +192,17 @@ export function BooksPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-bold text-foreground">
-                          ₹{product.price}
+                          AED {product.price}
                         </span>
                         {product.originalPrice && (
                           <span className="text-sm text-muted-foreground line-through">
-                            ₹{product.originalPrice}
+                            AED {product.originalPrice}
                           </span>
                         )}
                       </div>
                       {product.originalPrice && (
                         <span className="text-xs text-green-600 font-semibold">
-                          Save ₹{(product.originalPrice - product.price).toFixed(2)}
+                          Save AED {(product.originalPrice - product.price).toFixed(2)}
                         </span>
                       )}
                     </div>

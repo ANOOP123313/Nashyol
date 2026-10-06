@@ -33,7 +33,7 @@ const couponStatusStyle = (s) => {
 };
 
 const formatRevenue = (n) =>
-  n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
+  n >= 1000 ? `AED ${(n / 1000).toFixed(1)}k` : `AED ${n}`;
 
 const escapeCSV = (value) => {
   const text = value == null ? "" : String(value);
@@ -214,7 +214,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, o
     try {
       const newRule = {
         code: newCouponCode.trim().toUpperCase(),
-        discountPrefix: "₹",
+        discountPrefix: "AED ",
         discountValue: Number(newCouponDiscount) || 10,
         rewardType: "discount",
         rewardValue: Number(newCouponDiscount) || 10,
@@ -305,7 +305,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, o
               {[
                 { Icon:Tag,      label:"Category", val:product.subCategory ? `${product.category} › ${product.subCategory}` : product.category },
                 { Icon:Store,    label:"Vendor",   val:product.vendor },
-                { Icon:DollarSign, label:"Price",  val:`₹${product.price.toFixed(2)}` },
+                { Icon:DollarSign, label:"Price",  val:`AED ${product.price.toFixed(2)}` },
                 { Icon:Box,      label:"Stock",    val:product.stock },
               ].map(m => (
                 <div key={m.label}>
@@ -422,7 +422,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, o
                     </div>
                     <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:18 }}>
                       <div>
-                        <label style={{ display:"block",fontSize:12,fontWeight:500,color:"#4b5563",marginBottom:4 }}>Discount (₹)</label>
+                        <label style={{ display:"block",fontSize:12,fontWeight:500,color:"#4b5563",marginBottom:4 }}>Discount (AED)</label>
                         <input type="number" value={newCouponDiscount} onChange={e => setNewCouponDiscount(e.target.value)} placeholder="10" style={{ width:"100%",borderRadius:8,border:"1px solid #d1d5db",padding:"8px 12px",fontSize:13,outline:"none" }}/>
                       </div>
                       <div>
@@ -447,7 +447,7 @@ function ProductDetailsPage({ productId, rawProduct, onBack, onEdit, onDelete, o
               <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:20 }}>
                 <div style={{ background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:16 }}>
                   <p style={{ fontSize:12,color:"#6b7280",margin:"0 0 4px" }}>Est. Total Revenue</p>
-                  <p style={{ fontSize:22,fontWeight:700,color:"#10b981",margin:0 }}>₹{((product.price || 0) * (product.stock || 5)).toFixed(2)}</p>
+                  <p style={{ fontSize:22,fontWeight:700,color:"#10b981",margin:0 }}>AED {((product.price || 0) * (product.stock || 5)).toFixed(2)}</p>
                 </div>
                 <div style={{ background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:16 }}>
                   <p style={{ fontSize:12,color:"#6b7280",margin:"0 0 4px" }}>Available Stock Units</p>
@@ -1067,18 +1067,18 @@ function ProductFormModal({ product, onClose, onSuccess }) {
           </div>
 
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
-            <div><label style={lS}>Price (₹) <span style={{ color:"#ef4444" }}>*</span></label><input name="price" value={form.price} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+            <div><label style={lS}>Price (AED) <span style={{ color:"#ef4444" }}>*</span></label><input name="price" value={form.price} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
             <div><label style={lS}>Stock Quantity</label><input name="stock" value={form.stock} onChange={handleChange} type="number" placeholder="0" className="add-modal-input" style={iS}/></div>
           </div>
 
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
             <div><label style={lS}>Status</label><select name="status" value={form.status} onChange={handleChange} className="add-modal-select" style={{ ...iS,appearance:"none",cursor:"pointer" }}><option>Pending</option><option>Approved</option><option>Out of Stock</option></select></div>
-            <div><label style={lS}>Paid Amount (₹)</label><input name="paidAmount" value={form.paidAmount} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+            <div><label style={lS}>Paid Amount (AED)</label><input name="paidAmount" value={form.paidAmount} onChange={handleChange} type="number" placeholder="0.00" className="add-modal-input" style={iS}/></div>
           </div>
 
           <div className="modal-grid" style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16 }}>
             <div><label style={lS}>Warehouse</label><input name="warehouse" value={form.warehouse} onChange={handleChange} placeholder="Warehouse location" className="add-modal-input" style={iS}/></div>
-            <div><label style={lS}>Cash on Delivery Charge (₹)</label><input name="deliveryCharge" value={form.deliveryCharge} onChange={handleChange} type="number" min="0" step="0.01" placeholder="0.00" className="add-modal-input" style={iS}/></div>
+            <div><label style={lS}>Cash on Delivery Charge (AED)</label><input name="deliveryCharge" value={form.deliveryCharge} onChange={handleChange} type="number" min="0" step="0.01" placeholder="0.00" className="add-modal-input" style={iS}/></div>
           </div>
 
           <div style={{ marginBottom:16 }}><label style={lS}>Description</label><textarea name="description" value={form.description} onChange={handleChange} rows={3} className="add-modal-textarea" style={{ ...iS,resize:"none" }}/></div>
@@ -1683,7 +1683,7 @@ export default function Products() {
                         ) : null}
                       </td>
                       <td style={{ padding:"14px 12px",fontSize:13,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{product.vendor}</td>
-                      <td style={{ padding:"14px 12px",fontSize:14,fontWeight:400,color:"#374151",whiteSpace:"nowrap" }}>₹{product.price.toLocaleString("en-US",{ minimumFractionDigits:2 })}</td>
+                      <td style={{ padding:"14px 12px",fontSize:14,fontWeight:400,color:"#374151",whiteSpace:"nowrap" }}>AED {product.price.toLocaleString("en-US",{ minimumFractionDigits:2 })}</td>
                       <td style={{ padding:"14px 12px" }}><span style={{ fontSize:14,...sc }}>{product.stock}</span></td>
                       <td style={{ padding:"14px 12px" }}>
                         <button

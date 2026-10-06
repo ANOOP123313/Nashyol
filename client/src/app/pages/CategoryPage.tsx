@@ -169,11 +169,11 @@ function CategoryPageInner() {
   }, [categoryParam, subcategoryParam]);
 
   const priceRanges = [
-    { label: "Under ₹1,000", value: "0-1000" },
-    { label: "₹1,000 – ₹5,000", value: "1000-5000" },
-    { label: "₹5,000 – ₹20,000", value: "5000-20000" },
-    { label: "₹20,000 – ₹50,000", value: "20000-50000" },
-    { label: "Over ₹50,000", value: "50000-999999" },
+    { label: "Under AED 1,000", value: "0-1000" },
+    { label: "AED 1,000 – AED 5,000", value: "1000-5000" },
+    { label: "AED 5,000 – AED 20,000", value: "5000-20000" },
+    { label: "AED 20,000 – AED 50,000", value: "20000-50000" },
+    { label: "Over AED 50,000", value: "50000-999999" },
   ];
 
   // Client-side filtering & sorting
@@ -588,9 +588,9 @@ function CategoryPageInner() {
                       <span className="text-[10px] text-muted-foreground">({product.reviews})</span>
                     </div>
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-sm font-bold text-[var(--primary-color)]">₹{product.price}</span>
+                      <span className="text-sm font-bold text-[var(--primary-color)]">AED {product.price}</span>
                       {product.originalPrice && (
-                        <span className="text-[10px] text-muted-foreground line-through">₹{product.originalPrice}</span>
+                        <span className="text-[10px] text-muted-foreground line-through">AED {product.originalPrice}</span>
                       )}
                     </div>
                     <Button

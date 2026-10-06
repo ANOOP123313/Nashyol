@@ -537,7 +537,7 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                         </div>
                       )}
                     </div>
-                    <div className="od-item-price">₹{(p.price || 0).toFixed(2)}</div>
+                    <div className="od-item-price">AED {(p.price || 0).toFixed(2)}</div>
                   </div>
                 ))
               )}
@@ -629,32 +629,32 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                 )}
                 <div className="od-pay-row">
                   <span style={{ fontSize: 14, color: "#6b7280" }}>Product Price (Subtotal):</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{subtotal.toFixed(2)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>AED {subtotal.toFixed(2)}</span>
                 </div>
                 {effectiveCouponDiscount > 0 && (
                   <div className="od-pay-row" style={{ background: "#f0fdf4", padding: "6px 10px", borderRadius: 8, margin: "4px 0" }}>
                     <span style={{ fontSize: 13, color: "#15803d", fontWeight: 600 }}>
                       Coupon Discount ({order.couponCode || "COUPON"}) [Applied to Product Price Only]:
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#15803d" }}>-₹{effectiveCouponDiscount.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#15803d" }}>-AED {effectiveCouponDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 {effectiveCouponDiscount > 0 && (
                   <div className="od-pay-row" style={{ borderBottom: "1px dashed #e5e7eb", paddingBottom: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 13, color: "#4b5563", fontWeight: 600 }}>Net Product Amount:</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>₹{productSubtotalAfterCoupon.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>AED {productSubtotalAfterCoupon.toFixed(2)}</span>
                   </div>
                 )}
                 {shippingCharge > 0 && (
                   <div className="od-pay-row">
                     <span style={{ fontSize: 14, color: "#6b7280" }}>Shipping Charge:</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+₹{shippingCharge.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+AED {shippingCharge.toFixed(2)}</span>
                   </div>
                 )}
                 {codFee > 0 && (
                   <div className="od-pay-row">
                     <span style={{ fontSize: 14, color: "#6b7280" }}>COD Fee:</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+₹{codFee.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>+AED {codFee.toFixed(2)}</span>
                   </div>
                 )}
                 {(referralDiscount > 0 || pointsUsed > 0) && (
@@ -662,18 +662,18 @@ export default function OrderDetail({ order: orderProp, onBack }) {
                     <span style={{ fontSize: 14, color: "#ea580c", fontWeight: 600 }}>
                       🎁 Referral Discount ({pointsUsed || referralDiscount} Points Used):
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#ea580c" }}>-₹{(referralDiscount || pointsUsed).toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#ea580c" }}>-AED {(referralDiscount || pointsUsed).toFixed(2)}</span>
                   </div>
                 )}
                 {tax > 0 && (
                   <div className="od-pay-row">
                     <span style={{ fontSize: 14, color: "#6b7280" }}>Tax:</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>₹{tax.toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>AED {tax.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="od-pay-total">
                   <span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Total Amount:</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: "#f97316" }}>₹{total.toFixed(2)}</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: "#f97316" }}>AED {total.toFixed(2)}</span>
                 </div>
               </div>
             </div>

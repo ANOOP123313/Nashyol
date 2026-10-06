@@ -57,7 +57,7 @@ export function HelpCenterPage() {
     },
     {
       question: "How long does shipping take?",
-      answer: "Standard shipping typically takes 5-7 business days. Express shipping takes 2-3 business days. Orders are processed within 24 hours on business days. Free shipping is available on orders over ₹50.",
+      answer: "Standard shipping typically takes 5-7 business days. Express shipping takes 2-3 business days. Orders are processed within 24 hours on business days. Free shipping is available on orders over AED 50.",
     },
     {
       question: "What payment methods do you accept?",

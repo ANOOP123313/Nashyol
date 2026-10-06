@@ -237,11 +237,11 @@ export function HomeGardenPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-lg sm:text-xl font-bold text-[var(--primary-color)]">
-                        ₹{product.price.toFixed(2)}
+                        AED {product.price.toFixed(2)}
                       </span>
                       {product.originalPrice && (
                         <span className="ml-2 text-xs sm:text-sm text-muted-foreground line-through">
-                          ₹{product.originalPrice.toFixed(2)}
+                          AED {product.originalPrice.toFixed(2)}
                         </span>
                       )}
                     </div>

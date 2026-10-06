@@ -85,7 +85,7 @@ const CustomLegend = ({ payload }) => (
           />
         </div>
         <span className="text-xs sm:text-sm font-medium" style={{ color: entry.color }}>
-          {entry.value === "orders" ? "Orders" : "Avg Order Value (₹)"}
+          {entry.value === "orders" ? "Orders" : "Avg Order Value (AED)"}
         </span>
       </div>
     ))}
@@ -155,7 +155,7 @@ export default function ReportsDashboard() {
         setVendorsList(data.map((v, i) => ({
           rank: i + 1,
           name: v.name || "Vendor",
-          revenue: "₹" + (v.totalRevenue || 0).toLocaleString(),
+          revenue: "AED " + (v.totalRevenue || 0).toLocaleString(),
           orders: v.totalOrders || 0,
           products: v.totalProducts || 0,
           rating: v.rating ?? "N/A",
@@ -174,7 +174,7 @@ export default function ReportsDashboard() {
             name: p.title || "Product",
             category: p.category?.name || "General",
             unitsSold: p.soldCount ?? 0,
-            revenue: "₹" + ((p.variants?.[0]?.sellingPrice ?? 0) * (p.soldCount ?? 0)).toLocaleString(),
+            revenue: "AED " + ((p.variants?.[0]?.sellingPrice ?? 0) * (p.soldCount ?? 0)).toLocaleString(),
             stock: totalStock,
             stockColor: totalStock > 10 ? "bg-green-500" : "bg-orange-500",
           };
@@ -266,10 +266,10 @@ export default function ReportsDashboard() {
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
-          <StatCard label="Total Revenue" value={`₹${stats.revenue.toLocaleString()}`} change="Live" positive icon={DollarSign} iconBg="bg-orange-500" />
+          <StatCard label="Total Revenue" value={`AED ${stats.revenue.toLocaleString()}`} change="Live" positive icon={DollarSign} iconBg="bg-orange-500" />
           <StatCard label="Total Orders" value={stats.orders.toLocaleString()} change="Live" positive icon={ShoppingCart} iconBg="bg-blue-500" />
           <StatCard label="Active Customers" value={stats.customers.toLocaleString()} change="Live" positive icon={Users} iconBg="bg-green-500" />
-          <StatCard label="Avg Order Value" value={`₹${stats.avgOrderValue.toFixed(2)}`} change="Calculated" positive icon={BarChart3} iconBg="bg-orange-400" />
+          <StatCard label="Avg Order Value" value={`AED ${stats.avgOrderValue.toFixed(2)}`} change="Calculated" positive icon={BarChart3} iconBg="bg-orange-400" />
         </div>
 
         {/* Tabs */}

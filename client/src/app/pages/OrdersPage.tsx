@@ -291,8 +291,8 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
       const name = pdf.splitTextToSize(item.name || "Product", 92)[0];
       pdf.text(name, 24, y);
       pdf.text(String(item.quantity), 125, y);
-      pdf.text(`Rs. ${Number(item.price).toFixed(2)}`, 145, y);
-      pdf.text(`Rs. ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`AED ${Number(item.price).toFixed(2)}`, 145, y);
+      pdf.text(`AED ${(Number(item.price) * item.quantity).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
       y += 9;
     });
 
@@ -301,26 +301,26 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
     y += 14;
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(10);
-    pdf.text(`Products Subtotal: Rs. ${Number(order.productAmount ?? order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.text(`Products Subtotal: AED ${Number(order.productAmount ?? order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     if (order.shippingCharge) {
       y += 7;
-      pdf.text(`Shipping Charge: Rs. ${Number(order.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`Shipping Charge: AED ${Number(order.shippingCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     if (order.codCharge) {
       y += 7;
-      pdf.text(`COD Fee: Rs. ${Number(order.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`COD Fee: AED ${Number(order.codCharge).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     if (order.discountAmount) {
       y += 7;
-      pdf.text(`Coupon Discount: -Rs. ${Number(order.discountAmount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`Coupon Discount: -AED ${Number(order.discountAmount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     if (order.referralDiscount) {
       y += 7;
-      pdf.text(`Referral Points Discount: -Rs. ${Number(order.referralDiscount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+      pdf.text(`Referral Points Discount: -AED ${Number(order.referralDiscount).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     }
     y += 10;
     pdf.setFontSize(14);
-    pdf.text(`Total Amount Paid: Rs. ${Number(order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
+    pdf.text(`Total Amount Paid: AED ${Number(order.total).toFixed(2)}`, pageWidth - 24, y, { align: "right" });
     const invCode = order.invoiceNumber || `INV-${String(order.orderNumber).replace("ORD-", "")}`;
     pdf.save(`invoice-${String(invCode).replace(/[^a-z0-9_-]/gi, "-")}.pdf`);
     toast.success("Invoice PDF downloaded", { description: `${invCode} (${order.orderNumber})` });
@@ -498,7 +498,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                     Total Amount
                   </p>
                   <p className="text-2xl font-bold text-[var(--primary-color)]">
-                    ₹{order.total.toFixed(2)}
+                    AED {order.total.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                       </div>
                     </div>
                     <span className="text-sm sm:text-base font-medium text-muted-foreground shrink-0">
-                      ₹{(item.price * item.quantity).toFixed(2)}
+                      AED {(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
@@ -724,7 +724,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                         )}
                       </div>
                       <p className="font-bold text-foreground">
-                        ₹{(item.price * item.quantity).toFixed(2)}
+                        AED {(item.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   ))}
@@ -744,7 +744,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                     <span>
                       Products Subtotal ({selectedOrder.items.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 1), 0)} items)
                     </span>
-                    <span>₹{Number(selectedOrder.productAmount || 0).toFixed(2)}</span>
+                    <span>AED {Number(selectedOrder.productAmount || 0).toFixed(2)}</span>
                   </div>
 
                   {selectedOrder.discountAmount > 0 && (
@@ -759,7 +759,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                         )}
                       </span>
                       <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                        -₹{Number(selectedOrder.discountAmount).toFixed(2)}
+                        -AED {Number(selectedOrder.discountAmount).toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -771,7 +771,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                         Referral Points Used ({selectedOrder.pointsUsed || selectedOrder.referralDiscount} Pts)
                       </span>
                       <span className="font-bold text-orange-700 dark:text-orange-300">
-                        -₹{Number(selectedOrder.referralDiscount || selectedOrder.pointsUsed || 0).toFixed(2)}
+                        -AED {Number(selectedOrder.referralDiscount || selectedOrder.pointsUsed || 0).toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -779,14 +779,14 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Shipping Charge</span>
                     <span>
-                      {selectedOrder.shippingCharge > 0 ? `₹${Number(selectedOrder.shippingCharge).toFixed(2)}` : "FREE"}
+                      {selectedOrder.shippingCharge > 0 ? `AED ${Number(selectedOrder.shippingCharge).toFixed(2)}` : "FREE"}
                     </span>
                   </div>
 
                   {selectedOrder.codCharge > 0 && (
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Cash on Delivery Fee</span>
-                      <span>₹{Number(selectedOrder.codCharge).toFixed(2)}</span>
+                      <span>AED {Number(selectedOrder.codCharge).toFixed(2)}</span>
                     </div>
                   )}
 
@@ -799,7 +799,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                           : "Total Amount"}
                     </span>
                     <span className="text-2xl font-extrabold text-[var(--primary-color)]">
-                      ₹{Number(selectedOrder.total || 0).toFixed(2)}
+                      AED {Number(selectedOrder.total || 0).toFixed(2)}
                     </span>
                   </div>
 
@@ -863,7 +863,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                       Total {selectedOrder.paymentStatus === "paid" ? "Paid" : "Amount"}
                     </span>
                     <span className="text-xl font-bold text-[var(--primary-color)]">
-                      ₹{selectedOrder.total.toFixed(2)}
+                      AED {selectedOrder.total.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -913,7 +913,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                     </div>
                     {Number(selectedOrder.refundAmount) > 0 && (
                       <p className="text-sm text-muted-foreground">
-                        Refund Amount: <span className="font-semibold text-foreground">₹{Number(selectedOrder.refundAmount).toFixed(2)}</span>
+                        Refund Amount: <span className="font-semibold text-foreground">AED {Number(selectedOrder.refundAmount).toFixed(2)}</span>
                         {selectedOrder.refundMethod ? ` via ${selectedOrder.refundMethod.toUpperCase()}` : ""}
                       </p>
                     )}

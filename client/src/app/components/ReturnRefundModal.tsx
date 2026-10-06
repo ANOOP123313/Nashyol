@@ -219,7 +219,7 @@ export function ReturnRefundModal({
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-foreground text-sm sm:text-base">
-                      ₹{(item.price * item.quantity).toFixed(2)}
+                      AED {(item.price * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export function ReturnRefundModal({
                   </span>
                 </div>
                 <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                  ₹{calculateRefundAmount().toFixed(2)}
+                  AED {calculateRefundAmount().toFixed(2)}
                 </span>
               </div>
             </div>
@@ -354,7 +354,7 @@ export function ReturnRefundModal({
                   <li>Items must be in original condition</li>
                   <li>Free return shipping for defective items</li>
                   <li>
-                    For other returns, shipping costs may apply (₹49)
+                    For other returns, shipping costs may apply (AED 49)
                   </li>
                 </ul>
               </div>

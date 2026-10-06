@@ -246,7 +246,7 @@ export default function ReturnsRefunds() {
           status: "refunded",
           refundAmount: amt,
           refundMethod,
-          adminNotes: `Refund of ₹${amt.toFixed(2)} processed via ${refundMethod}`,
+          adminNotes: `Refund of AED ${amt.toFixed(2)} processed via ${refundMethod}`,
         });
       }
       setReturns((prev) =>
@@ -257,12 +257,12 @@ export default function ReturnsRefunds() {
                 status: "Refunded",
                 refundAmount: amt,
                 refundMethod,
-                adminNotes: `Refund of ₹${amt.toFixed(2)} processed via ${refundMethod}`,
+                adminNotes: `Refund of AED ${amt.toFixed(2)} processed via ${refundMethod}`,
               }
             : r
         )
       );
-      toast.success(`Refund of ₹${amt.toFixed(2)} processed successfully`);
+      toast.success(`Refund of AED ${amt.toFixed(2)} processed successfully`);
       closeModal();
       fetchReturnRequests();
     } catch (err) {
@@ -402,8 +402,8 @@ export default function ReturnsRefunds() {
           <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Return Reason</div>
           <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "#374151", marginBottom: 16 }}>{ret.reason}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><div style={styles.detailLabel}>Order Amount</div><div style={{ fontSize: 18, fontWeight: 700 }}>₹{ret.orderAmount.toFixed(2)}</div></div>
-            <div><div style={styles.detailLabel}>Refund Amount</div><div style={{ fontSize: 18, fontWeight: 700, color: "#F97316" }}>₹{ret.refundAmount.toFixed(2)}</div></div>
+            <div><div style={styles.detailLabel}>Order Amount</div><div style={{ fontSize: 18, fontWeight: 700 }}>AED {ret.orderAmount.toFixed(2)}</div></div>
+            <div><div style={styles.detailLabel}>Refund Amount</div><div style={{ fontSize: 18, fontWeight: 700, color: "#F97316" }}>AED {ret.refundAmount.toFixed(2)}</div></div>
             <div><div style={styles.detailLabel}>Status</div><StatusBadge status={ret.status} /></div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -487,7 +487,7 @@ export default function ReturnsRefunds() {
         </div>
         <div style={styles.modalBody}>
           <div style={styles.idBox}><div style={styles.idLabel}>Return ID</div><div style={styles.idValue}>{ret.id}</div></div>
-          <label style={styles.label}>Refund Amount (₹) *</label>
+          <label style={styles.label}>Refund Amount (AED) *</label>
           <input type="number" step="0.01" style={{ ...styles.input, marginBottom: 14, border: "1.5px solid #F97316", background: "#FFF7ED", fontWeight: 600, color: "#D97706" }} value={refundAmount} onChange={e => setRefundAmount(e.target.value)} />
           <label style={styles.label}>Refund Method *</label>
           <div style={{ position: "relative" }}>
@@ -564,7 +564,7 @@ export default function ReturnsRefunds() {
             { label: "Approved", value: stats.Approved, icon: <Icons.CheckCircle />, iconBg: "#EFF6FF" },
             { label: "Rejected", value: stats.Rejected, icon: <Icons.XCircle />, iconBg: "#FEF2F2" },
             { label: "Refunded", value: stats.Refunded, icon: <Icons.RefreshCw />, iconBg: "#F0FDF4" },
-            { label: "Total Refunded", value: `₹${stats.total.toFixed(2)}`, icon: <Icons.Dollar />, iconBg: "#FFF7ED" },
+            { label: "Total Refunded", value: `AED ${stats.total.toFixed(2)}`, icon: <Icons.Dollar />, iconBg: "#FFF7ED" },
           ].map((s) => (
             <div key={s.label} style={styles.statCard}>
               <div>
@@ -654,7 +654,7 @@ export default function ReturnsRefunds() {
                   </div>
                   <div style={styles.reason}><b>Reason:</b> {ret.reason}</div>
                   <div style={styles.amountRow}>
-                    <span style={styles.amount}>Refund Amount: <b>₹{ret.refundAmount.toFixed(2)}</b></span>
+                    <span style={styles.amount}>Refund Amount: <b>AED {ret.refundAmount.toFixed(2)}</b></span>
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <TruckIcon />
                       <DeliveryBadge status={ret.deliveryStatus} />

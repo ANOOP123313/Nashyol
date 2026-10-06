@@ -243,7 +243,7 @@ export function OrderSuccessCard({
                 <div className="space-y-2.5 pt-3 border-t border-orange-200/60 dark:border-orange-800/60">
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Products Subtotal ({orderData?.itemCount || orderData?.items?.length || 1} items)</span>
-                    <span>₹{(orderData?.productAmount ?? orderData?.amount ?? 0).toFixed(2)}</span>
+                    <span>AED {(orderData?.productAmount ?? orderData?.amount ?? 0).toFixed(2)}</span>
                   </div>
 
                   {/* Coupon & Discount Row */}
@@ -259,7 +259,7 @@ export function OrderSuccessCard({
                         )}
                       </span>
                       <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                        -₹{(orderData.discountAmount || 0).toFixed(2)}
+                        -AED {(orderData.discountAmount || 0).toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -271,20 +271,20 @@ export function OrderSuccessCard({
                         🎁 Referral Points Discount ({orderData.pointsUsed || orderData.referralDiscount} Pts)
                       </span>
                       <span className="font-bold text-orange-700 dark:text-orange-300">
-                        -₹{(orderData.referralDiscount || orderData.pointsUsed || 0).toFixed(2)}
+                        -AED {(orderData.referralDiscount || orderData.pointsUsed || 0).toFixed(2)}
                       </span>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Shipping</span>
-                    <span>{orderData?.shippingCharge ? `₹${orderData.shippingCharge.toFixed(2)}` : "FREE"}</span>
+                    <span>{orderData?.shippingCharge ? `AED ${orderData.shippingCharge.toFixed(2)}` : "FREE"}</span>
                   </div>
 
                   {orderData?.codCharge ? (
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Cash on Delivery fee</span>
-                      <span>₹{orderData.codCharge.toFixed(2)}</span>
+                      <span>AED {orderData.codCharge.toFixed(2)}</span>
                     </div>
                   ) : null}
 
@@ -296,7 +296,7 @@ export function OrderSuccessCard({
                       <span className="text-xs text-muted-foreground font-medium">All taxes & charges included</span>
                     </div>
                     <span className="text-3xl sm:text-4xl font-extrabold text-[var(--primary-color)]">
-                      ₹{(orderData?.amount || orderData?.totalAmount || 0).toFixed(2)}
+                      AED {(orderData?.amount || orderData?.totalAmount || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -373,10 +373,10 @@ export function OrderSuccessCard({
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-[var(--primary-color)]">
-                      ₹{((Number(item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}
+                      AED {((Number(item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      ₹{(Number(item.price) || 0).toFixed(2)} / unit
+                      AED {(Number(item.price) || 0).toFixed(2)} / unit
                     </p>
                   </div>
                 </motion.div>

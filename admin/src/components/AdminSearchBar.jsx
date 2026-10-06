@@ -175,7 +175,7 @@ export function AdminSearchBar() {
         image: item.images?.[0] || item.variants?.[0]?.image,
         description: item.description,
         data: {
-          "Price": `₹${item.price || item.variants?.[0]?.sellingPrice || 0}`,
+          "Price": `AED ${item.price || item.variants?.[0]?.sellingPrice || 0}`,
           "Category": item.category?.name || item.category || "—",
           "Subcategory": item.subCategory || "—",
           "SKU / Code": item.variants?.[0]?.sku || item.SKU || "—",
@@ -200,7 +200,7 @@ export function AdminSearchBar() {
         data: {
           "Customer Name": item.user?.name || addr?.fullName || "—",
           "Customer Email": item.user?.email || "—",
-          "Total Amount": `₹${(item.totalAmount || 0).toFixed(2)}`,
+          "Total Amount": `AED ${(item.totalAmount || 0).toFixed(2)}`,
           "Order Status": item.orderStatus || item.status || "pending",
           "Payment Status": item.paymentStatus || item.paymentInfo?.status || "—",
           "Payment Method": item.paymentMethod || item.paymentInfo?.method || "—",
@@ -220,7 +220,7 @@ export function AdminSearchBar() {
           "Contact Email": item.email || "—",
           "Phone Number": item.phone || "—",
           "Approval Status": item.approvalStatus || item.status || "—",
-          "Total Revenue": `₹${(item.totalRevenue || 0).toFixed(2)}`,
+          "Total Revenue": `AED ${(item.totalRevenue || 0).toFixed(2)}`,
           "Products Count": `${item.productsCount || item.products?.length || 0}`,
         },
         actionLink: item._id ? `/vendorsdetails/${item._id}` : `/vendors`,
@@ -316,7 +316,7 @@ export function AdminSearchBar() {
                           {p.title || p.name}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {p.category?.name || p.category || "General"} • ₹{price}
+                          {p.category?.name || p.category || "General"} • AED {price}
                         </p>
                       </div>
                     </div>
@@ -354,7 +354,7 @@ export function AdminSearchBar() {
                       {o.orderNumber || `ORD-${String(o._id).slice(-6).toUpperCase()}`}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {o.user?.name || o.user?.email || "Customer"} • ₹{(o.totalAmount || 0).toFixed(2)} •{" "}
+                      {o.user?.name || o.user?.email || "Customer"} • AED {(o.totalAmount || 0).toFixed(2)} •{" "}
                       <span className="capitalize">{o.orderStatus}</span>
                     </p>
                   </div>
@@ -506,7 +506,7 @@ export function AdminSearchBar() {
                           {it.title || it.name || it.product?.title || "Item"} {it.quantity ? `× ${it.quantity}` : ""}
                         </span>
                         <span className="text-gray-900 font-bold shrink-0">
-                          ₹{((it.price || it.unitPrice || 0) * (it.quantity || 1)).toFixed(2)}
+                          AED {((it.price || it.unitPrice || 0) * (it.quantity || 1)).toFixed(2)}
                         </span>
                       </div>
                     ))}

@@ -717,11 +717,11 @@ function CategoryProductsSection({ section }: { section: any }) {
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                   <span className="text-sm sm:text-lg font-bold text-[var(--primary-color)]">
-                    ₹{Number(product.price || 0).toLocaleString()}
+                    AED {Number(product.price || 0).toLocaleString()}
                   </span>
                   {product.originalPrice && product.originalPrice > product.price && (
                     <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
-                      ₹{Number(product.originalPrice).toLocaleString()}
+                      AED {Number(product.originalPrice).toLocaleString()}
                     </span>
                   )}
                 </div>
@@ -864,11 +864,11 @@ function FeaturedProductsSection({ section, featuredProducts = [] }: { section: 
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                   <span className="text-sm sm:text-lg font-bold text-[var(--primary-color)]">
-                    ₹{product.price}
+                    AED {product.price}
                   </span>
                   {product.originalPrice && (
                     <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
-                      ₹{product.originalPrice}
+                      AED {product.originalPrice}
                     </span>
                   )}
                 </div>

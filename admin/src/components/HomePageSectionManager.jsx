@@ -1018,7 +1018,7 @@ function SectionFormModal({ section, categories = [], onClose, onSuccess }) {
                               handleUpdateItem(idx, "offer", e.target.value);
                             }}
                             className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none"
-                            placeholder="e.g. Min. 70% Off / From ₹299"
+                            placeholder="e.g. Min. 70% Off / From AED 299"
                           />
                         </div>
                       </div>

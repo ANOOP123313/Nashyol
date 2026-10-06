@@ -376,7 +376,7 @@ export default function VendorDashboard() {
                   <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 2 }}>{v.email}</div>
                 </td>
                 <td style={{ padding: "16px 24px" }}><StatusBadge status={v.status} /></td>
-                <td style={{ padding: "16px 24px", fontWeight: 700, fontSize: 16, color: "#111" }}>₹{v.sales.toLocaleString()}</td>
+                <td style={{ padding: "16px 24px", fontWeight: 700, fontSize: 16, color: "#111" }}>AED {v.sales.toLocaleString()}</td>
                 <td style={{ padding: "16px 24px", position: "relative" }}>
                   <button
                     onClick={(e) => {
@@ -502,7 +502,7 @@ export default function VendorDashboard() {
               ["Owner", detailVendor.owner],
               ["Email", detailVendor.email],
               ["Products", detailVendor.products],
-              ["Total Sales", `₹${detailVendor.sales.toLocaleString()}`],
+              ["Total Sales", `AED ${detailVendor.sales.toLocaleString()}`],
               ...(detailVendor.phone ? [["Phone", detailVendor.phone]] : []),
               ...(detailVendor.license ? [["License No.", detailVendor.license]] : []),
               ...(detailVendor.address ? [["Address", detailVendor.address]] : []),

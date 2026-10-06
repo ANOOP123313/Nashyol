@@ -92,11 +92,11 @@ export function FeaturedProductsSection() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <span className="text-xl font-bold text-foreground">
-                      ₹{product.price}
+                      AED {product.price}
                     </span>
                     {product.originalPrice && (
                       <span className="text-sm text-muted-foreground dark:text-muted-foreground line-through ml-2">
-                        ₹{product.originalPrice}
+                        AED {product.originalPrice}
                       </span>
                     )}
                   </div>

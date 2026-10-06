@@ -644,7 +644,7 @@ export function AccountPage() {
                         Refund Amount
                       </Label>
                       <Input 
-                        defaultValue={`₹${ret.refundAmount.toFixed(2)}`} 
+                        defaultValue={`AED ${ret.refundAmount.toFixed(2)}`} 
                         className="glass-input border-gray-300 dark:border-gray-600 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20 h-12 text-base" 
                         readOnly
                       />

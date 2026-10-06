@@ -91,7 +91,7 @@ export function CheckoutPage() {
           discountType: (res as any).discountType,
           discountValue: (res as any).discountValue,
         });
-        toast.success(`Coupon "${couponCode.trim().toUpperCase()}" applied! Saved ₹${(res.discountAmount || 0).toFixed(2)}`);
+        toast.success(`Coupon "${couponCode.trim().toUpperCase()}" applied! Saved AED ${(res.discountAmount || 0).toFixed(2)}`);
       } else {
         toast.error(res?.message || "Invalid or expired coupon");
       }
@@ -419,7 +419,7 @@ export function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-bold text-foreground truncate">{item.name}</h4>
-                      <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity} × AED {item.price.toFixed(2)}</p>
                       {item.variant?.attributes && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {item.variant.attributes.map((a: any) => (
@@ -429,7 +429,7 @@ export function CheckoutPage() {
                       )}
                     </div>
                     <div className="text-sm font-bold text-foreground">
-                      ₹{(item.price * item.quantity).toFixed(2)}
+                      AED {(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -449,7 +449,7 @@ export function CheckoutPage() {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 font-mono tracking-wide">{appliedCoupon.code}</p>
-                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Discount applied: -₹{appliedCoupon.discountAmount.toFixed(2)}</p>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Discount applied: -AED {appliedCoupon.discountAmount.toFixed(2)}</p>
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-transparent">
@@ -484,7 +484,7 @@ export function CheckoutPage() {
                     <div>
                       <span className="text-xs font-bold text-foreground block">🎁 Apply Referral Points</span>
                       <span className="text-[11px] text-muted-foreground">
-                        Available: <strong className="text-[var(--primary-color)]">{availablePoints} Points</strong> (1 Point = ₹1)
+                        Available: <strong className="text-[var(--primary-color)]">{availablePoints} Points</strong> (1 Point = AED 1)
                       </span>
                     </div>
                     <input
@@ -531,33 +531,33 @@ export function CheckoutPage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">₹{subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-foreground">AED {subtotal.toFixed(2)}</span>
                 </div>
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                     <span className="flex items-center gap-1"><Tag className="size-3.5" /> Coupon Discount ({appliedCoupon?.code})</span>
-                    <span>-₹{couponDiscount.toFixed(2)}</span>
+                    <span>-AED {couponDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 {referralPointsDiscount > 0 && (
                   <div className="flex justify-between text-orange-600 dark:text-orange-400 font-semibold">
                     <span className="flex items-center gap-1">🎁 Referral Points Discount</span>
-                    <span>-₹{referralPointsDiscount.toFixed(2)}</span>
+                    <span>-AED {referralPointsDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-muted-foreground">
                   <span>Shipping</span>
-                  <span className="font-semibold text-green-600">{shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span>
+                  <span className="font-semibold text-green-600">{shipping === 0 ? "FREE" : `AED ${shipping.toFixed(2)}`}</span>
                 </div>
                 {paymentMethod === "cod" && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Cash on Delivery charge</span>
-                    <span className="font-semibold text-foreground">₹{codDeliveryCharge.toFixed(2)}</span>
+                    <span className="font-semibold text-foreground">AED {codDeliveryCharge.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-4 border-t border-border">
                   <span className="text-lg font-bold text-foreground">Total</span>
-                  <span className="text-2xl font-black text-primary">₹{total.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-primary">AED {total.toFixed(2)}</span>
                 </div>
               </div>
 

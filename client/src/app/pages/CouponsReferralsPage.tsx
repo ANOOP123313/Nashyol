@@ -116,7 +116,7 @@ export function CouponsReferralsPage() {
           <div className="flex items-center gap-3 bg-card p-2 pl-4 rounded-2xl border shadow-sm">
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Wallet Balance</p>
-              <p className="text-xl font-black text-primary">₹{(stats?.walletBalance ?? stats?.points ?? 0).toFixed(2)}</p>
+              <p className="text-xl font-black text-primary">AED {(stats?.walletBalance ?? stats?.points ?? 0).toFixed(2)}</p>
             </div>
             <Button size="icon" variant="ghost" className="rounded-xl"><ChevronRight className="size-5" /></Button>
           </div>
@@ -159,7 +159,7 @@ export function CouponsReferralsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {[
                     { label: "Total Referrals", value: stats?.referralCount || 0, icon: Users },
-                    { label: "Wallet Rewards", value: `₹${(stats?.totalEarnedRewards ?? (stats?.referralCount || 0) * 100).toFixed(2)}`, icon: Trophy },
+                    { label: "Wallet Rewards", value: `AED ${(stats?.totalEarnedRewards ?? (stats?.referralCount || 0) * 100).toFixed(2)}`, icon: Trophy },
                   ].map((stat, i) => (
                     <div key={i} className="bg-background/10 backdrop-blur-md border border-white/20 p-6 rounded-3xl">
                       <div className="bg-background/20 p-3 rounded-2xl w-fit mb-4">

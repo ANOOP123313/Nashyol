@@ -280,9 +280,9 @@ export function ProductDetailPage() {
               </div>
               <h1 className="text-4xl font-extrabold text-foreground mb-4 leading-tight">{product.title}</h1>
               <div className="flex items-end gap-4 mb-6">
-                <span className="text-4xl font-black text-primary">₹{currentPrice}</span>
+                <span className="text-4xl font-black text-primary">AED {currentPrice}</span>
                 {product.offerPrice && (
-                  <span className="text-xl text-muted-foreground dark:text-muted-foreground line-through mb-1">₹{product.price}</span>
+                  <span className="text-xl text-muted-foreground dark:text-muted-foreground line-through mb-1">AED {product.price}</span>
                 )}
               </div>
               <p className="text-muted-foreground leading-relaxed text-lg">{product.description}</p>
@@ -379,7 +379,7 @@ export function ProductDetailPage() {
             {/* Service Highlights */}
             <div className="grid grid-cols-3 gap-6">
               {[
-                { icon: Truck, label: "Free Shipping", sub: "Orders over ₹100" },
+                { icon: Truck, label: "Free Shipping", sub: "Orders over AED 100" },
                 { icon: Shield, label: "Secure Payment", sub: "100% Secure payment" },
                 { icon: RotateCcw, label: "Easy Returns", sub: "30-day return policy" },
               ].map((item, idx) => (

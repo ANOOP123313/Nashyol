@@ -219,10 +219,10 @@ export default function ReferralSystem() {
               <path d="M9 12l2 2 4-4" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>}
           />
-          <StatCard title="Coupon Value" value={`₹${referralStats.revenue.toLocaleString()}`} sub="Referral rewards" subColor="#6b7280"
+          <StatCard title="Coupon Value" value={`AED ${referralStats.revenue.toLocaleString()}`} sub="Referral rewards" subColor="#6b7280"
             icon={<svg width="38" height="38" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" fill="#fef3c7" stroke="#f59e0b" strokeWidth="1.5"/>
-              <text x="12" y="16.5" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#f59e0b">₹</text>
+              <text x="12" y="16.5" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#f59e0b">AED</text>
             </svg>}
           />
         </div>
@@ -314,7 +314,7 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Type</label>
                         <select style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount (₹)</option>
+                          <option>Fixed Amount (AED)</option>
                         </select>
                       </div>
                       <div>
@@ -340,7 +340,7 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Type</label>
                         <select style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount (₹)</option>
+                          <option>Fixed Amount (AED)</option>
                         </select>
                       </div>
                       <div>
@@ -385,7 +385,7 @@ export default function ReferralSystem() {
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Discount Type</label>
                         <select style={{ width: "100%", border: "1px solid #d1fae5", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
                           <option>Percentage (%)</option>
-                          <option>Fixed Amount (₹)</option>
+                          <option>Fixed Amount (AED)</option>
                         </select>
                       </div>
                       <div>
@@ -410,7 +410,7 @@ export default function ReferralSystem() {
                       <div>
                         <label style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>Reward Type</label>
                         <select style={{ width: "100%", border: "1px solid #fed7aa", borderRadius: 9, padding: "11px 14px", marginTop: 6, fontSize: 14.5, background: "#fff", color: "#1f2937" }}>
-                          <option>Fixed Amount (₹)</option>
+                          <option>Fixed Amount (AED)</option>
                           <option>Percentage (%)</option>
                         </select>
                       </div>

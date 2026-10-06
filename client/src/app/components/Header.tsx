@@ -103,7 +103,7 @@ export function Header() {
   // Dynamic promotional messages from CMS
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [topBarOffers, setTopBarOffers] = useState<string[]>([
-    "✨ Free shipping on orders over ₹500",
+    "✨ Free shipping on orders over AED 500",
     "🎉 20% OFF on your first order - Use code: WELCOME20",
     "🔥 Flash Sale! Up to 50% OFF on selected items",
     "💎 New Arrivals - Shop the latest trends now",

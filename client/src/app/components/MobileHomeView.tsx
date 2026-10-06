@@ -114,7 +114,7 @@ export function MobileHomeView({
     {
       icon: Truck,
       title: "Free Shipping",
-      description: "On orders over ₹500",
+      description: "On orders over AED 500",
     },
     {
       icon: Headphones,

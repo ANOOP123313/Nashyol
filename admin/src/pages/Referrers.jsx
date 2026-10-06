@@ -119,7 +119,7 @@ function GenerateCouponModal({ referrer, onClose, onSuccess }) {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "14px", marginBottom: "16px" }}>
           <div>
             <label style={lbl}>Value Type</label>
-            <CustomSelect value={valueType} onChange={setValueType} options={["Percentage (%)", "Fixed Amount (₹)"]} />
+            <CustomSelect value={valueType} onChange={setValueType} options={["Percentage (%)", "Fixed Amount (AED)"]} />
           </div>
           <div>
             <label style={lbl}>Value</label>
@@ -236,7 +236,7 @@ function ReferrerDetail({ referrer, onBack, onRefresh }) {
           {[
             { label: "Total Referrals", val: referrer.referrals ?? 0, icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
             { label: "Conversion Rate", val: `${referrer.referrals ? Math.round(((referrer.conversions || 0) / referrer.referrals) * 100) : 0}%`, icon: <IcTrendUp s={20} c="#10b981" />, bg: "#ecfdf5" },
-            { label: "Total Rewards", val: referrer.reward || "₹0.00", icon: <IcDollar s={20} c="#f59e0b" />, bg: "#fffbeb" },
+            { label: "Total Rewards", val: referrer.reward || "AED 0.00", icon: <IcDollar s={20} c="#f59e0b" />, bg: "#fffbeb" },
             { label: "Available Coupons", val: coupons.filter(c => c.status === "active").length, icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5", vc: "#10b981" },
             { label: "Used Coupons", val: coupons.filter(c => c.status === "used").length, icon: <IcCheckCircle s={20} c="#4b9ce2" />, bg: "#eff6ff" },
           ].map((s, i) => (
@@ -485,7 +485,7 @@ export default function ReferrersPage() {
           {[
             { label: "Total Referrers", value: String(referralStats.referrers), sub: "From backend leaderboard", subC: "#4b9ce2", icon: <IcUsers s={20} c="#4b9ce2" />, bg: "#eff6ff" },
             { label: "Total Referrals", value: String(referralStats.referrals), sub: "From backend", subC: "#10b981", icon: <IcTrendUp s={20} c="#f87171" />, bg: "#fff1f2" },
-            { label: "Rewards Distributed", value: `₹${referralStats.rewards.toFixed(2)}`, sub: "Referral rewards", subC: "#6b7280", icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5" },
+            { label: "Rewards Distributed", value: `AED ${referralStats.rewards.toFixed(2)}`, sub: "Referral rewards", subC: "#6b7280", icon: <IcGift s={20} c="#10b981" />, bg: "#ecfdf5" },
             { label: "Avg. Referrals", value: referralStats.referrers ? (referralStats.referrals / referralStats.referrers).toFixed(1) : "0", sub: "Calculated", subC: "#6b7280", icon: <IcUserMinus s={20} c="#f97316" />, bg: "#fff7ed" },
           ].map((s, i) => (
             <div key={i} style={{ background: "#fff", borderRadius: "13px", padding: "16px 14px", border: "1px solid #eef0f3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -557,7 +557,7 @@ export default function ReferrersPage() {
                     </div>
                     <div>
                       <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Rewards Earned</div>
-                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#10b981" }}>{r.reward || `₹${(r.rewardNum || 0).toFixed(2)}`}</div>
+                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#10b981" }}>{r.reward || `AED ${(r.rewardNum || 0).toFixed(2)}`}</div>
                     </div>
                     <div>
                       <div style={{ color: "#9ca3af", fontSize: "11px", marginBottom: "2px" }}>Coupons</div>
@@ -605,7 +605,7 @@ export default function ReferrersPage() {
                           {(r.referrals || 0) > 0 && <IcTrendUp s={16} c="#10b981" />}
                         </div>
                       </td>
-                      <td style={{ padding: "16px 12px", fontSize: "14px", color: "#10b981", fontWeight: "600" }}>{r.reward || `₹${(r.rewardNum || 0).toFixed(2)}`}</td>
+                      <td style={{ padding: "16px 12px", fontSize: "14px", color: "#10b981", fontWeight: "600" }}>{r.reward || `AED ${(r.rewardNum || 0).toFixed(2)}`}</td>
                       <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "14px", color: "#374151" }}><IcGift s={15} c="#f59e0b" />{r.earnedCoupons ?? 0}</span></td>
                       <td style={{ padding: "16px 12px" }}><span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "13px", color: "#6b7280" }}><IcCalendar s={13} />{r.lastActive || r.joinedDate || "Recently"}</span></td>
                       <td style={{ padding: "16px 12px" }}>
