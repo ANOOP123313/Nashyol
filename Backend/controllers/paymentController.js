@@ -6,6 +6,7 @@ import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import Setting from "../models/Setting.js";
 import Coupon from "../models/Coupon.js";
+import User from "../models/User.js";
 import { logTransaction } from "./transactionController.js";
 import { rewardReferrer } from "./referralController.js";
 
@@ -244,7 +245,10 @@ export const createPaymentIntentFromCart = asyncHandler(async (req, res) => {
   const productSubtotalAfterCoupon = Math.max(0, itemsSubtotal - discountAmount);
   let totalAmount = productSubtotalAfterCoupon + shipping;
 
-  const reqPoints = Number(referralPointsToUse ?? (useReferralPoints ? 999999 : 0));
+  const hasCustomPoints = referralPointsToUse !== undefined && referralPointsToUse !== null;
+  const reqPoints = hasCustomPoints
+    ? Number(referralPointsToUse)
+    : (useReferralPoints ? 999999 : 0);
   let referralDiscount = 0;
   if (reqPoints > 0) {
     const userDoc = await User.findById(req.user._id);

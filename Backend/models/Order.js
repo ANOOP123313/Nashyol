@@ -120,6 +120,7 @@ const orderSchema = new mongoose.Schema(
     discountAmount: { type: Number, default: 0 },
     referralDiscount: { type: Number, default: 0 },
     pointsUsed: { type: Number, default: 0 },
+    pointsRefunded: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

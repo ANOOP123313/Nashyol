@@ -58,6 +58,8 @@ export const authApi = {
   me: () => request<{ _id: string; name: string; email?: string; phone?: string; avatar?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me"),
   updateMe: (body: { name?: string; email?: string; phone?: string; avatar?: string }) =>
     request<{ _id: string; name: string; email: string; phone?: string; avatar?: string; role: string; referralCode?: string; walletBalance?: number }>("/api/auth/me", { method: "PUT", body: JSON.stringify(body) }),
+  deleteAccount: (password: string) =>
+    request<{ message: string }>("/api/auth/me", { method: "DELETE", body: JSON.stringify({ password }) }),
 };
 
 // Upload

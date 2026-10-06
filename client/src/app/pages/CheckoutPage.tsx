@@ -582,6 +582,7 @@ export function CheckoutPage() {
             const orderData = {
               couponCode: appliedCoupon?.code,
               useReferralPoints: useReferralPoints && referralPointsDiscount > 0,
+              referralPointsToUse: referralPointsDiscount,
               address: {
                 fullName: `${firstName} ${lastName}`,
                 phone,
@@ -613,6 +614,8 @@ export function CheckoutPage() {
               shippingCharge: shipping,
               couponCode: appliedCoupon?.code || result?.couponCode || "",
               discountAmount: couponDiscount || result?.discountAmount || 0,
+              referralDiscount: referralPointsDiscount || result?.referralDiscount || 0,
+              pointsUsed: pointsToUse || result?.pointsUsed || referralPointsDiscount || 0,
               amount: total,
               totalAmount: total,
               paymentMethod: "card",

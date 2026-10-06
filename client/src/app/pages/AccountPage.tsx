@@ -11,9 +11,10 @@ import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { addressesApi, ordersApi, returnsApi, reviewsApi, referralsApi, couponsApi, uploadApi, paymentsApi } from "../../services/api";
+import { addressesApi, ordersApi, returnsApi, reviewsApi, referralsApi, couponsApi, uploadApi, paymentsApi, authApi } from "../../services/api";
 import { toast } from "sonner";
 import { OrdersPage } from "./OrdersPage";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 
 export function AccountPage() {
   const navigate = useRouter();
@@ -35,6 +36,9 @@ export function AccountPage() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate.replace("/login?redirect=/account");
@@ -112,6 +116,24 @@ export function AccountPage() {
       toast.error(error instanceof Error ? error.message : "Unable to save address");
     } finally {
       setSavingAddress(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error("Please enter your account password to confirm deletion.");
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteAccount(deletePassword);
+      toast.success("Your account has been deleted permanently.");
+      await logout();
+      navigate.push("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete account");
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -528,6 +550,37 @@ export function AccountPage() {
                 </div>
               </div>
             </div>
+
+            {/* Danger Zone: Permanent Account Deletion */}
+            <div className="p-6 md:p-8 max-w-2xl bg-red-50/80 dark:bg-red-950/20 border border-red-200/80 dark:border-red-900/60 rounded-3xl shadow-md space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-red-500/10 dark:bg-red-500/20 rounded-2xl">
+                  <AlertCircle className="size-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold text-red-700 dark:text-red-400">
+                    Danger Zone - Delete Account
+                  </h3>
+                  <p className="text-xs text-red-600/80 dark:text-red-300/80 mt-0.5">
+                    Permanently delete your profile and user account
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
+                Once you delete your account, all your personal information, saved preferences, and account history will be permanently erased. This action is irreversible and requires confirmation.
+              </p>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setDeletePassword("");
+                  setDeleteModalOpen(true);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs md:text-sm h-11 px-6 gap-2 rounded-xl shadow-md transition-all"
+              >
+                <Trash2 className="size-4" />
+                <span>Delete Account Permanently</span>
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="orders">
@@ -840,6 +893,60 @@ export function AccountPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Permanent Delete Account Confirmation Modal */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <AlertCircle className="size-6 text-red-600 dark:text-red-400" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-red-600 dark:text-red-400">
+                Confirm Account Deletion
+              </DialogTitle>
+            </div>
+            <DialogDescription className="pt-3 text-sm text-muted-foreground">
+              Are you sure you want to permanently delete your account? All your personal details will be erased immediately. <strong className="text-foreground">This action cannot be undone.</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-foreground">
+                Enter your account password to confirm deletion:
+              </Label>
+              <Input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                className="text-sm border-red-300 dark:border-red-800 focus:border-red-500 focus:ring-red-500/20"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deletingAccount}
+                className="h-10 text-xs font-medium"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || !deletePassword}
+                className="bg-red-600 hover:bg-red-700 h-10 text-xs font-bold gap-2"
+              >
+                {deletingAccount ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                <span>Yes, Delete Permanently</span>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

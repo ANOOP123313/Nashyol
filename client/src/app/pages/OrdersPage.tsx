@@ -15,6 +15,8 @@ import {
   Box,
   XCircle,
   AlertTriangle,
+  Tag,
+  Gift,
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -111,6 +113,7 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
           discountAmount: Number(order.discountAmount) || 0,
           referralDiscount: Number(order.referralDiscount) || 0,
           pointsUsed: Number(order.pointsUsed) || 0,
+          pointsRefunded: Boolean(order.pointsRefunded),
           shippingCharge: Number(order.shippingCharge) || 0,
           deliveryDate: order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString() : "Pending",
           total: order.totalAmount || 0,
@@ -355,15 +358,23 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
     const targetId = orderToCancel.rawId || orderToCancel._id || orderToCancel.orderNumber || orderToCancel.id;
     setCancelling(true);
     try {
-      await ordersApi.cancel(targetId, cancelReason);
-      toast.success("Order cancelled successfully");
+      const res: any = await ordersApi.cancel(targetId, cancelReason);
+      const refunded = Number(res?.refundedPoints) || 0;
+      if (refunded > 0) {
+        toast.success("Order cancelled successfully", {
+          description: `${refunded} referral points have been returned to your account.`,
+        });
+      } else {
+        toast.success("Order cancelled successfully");
+      }
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderToCancel.id || o.rawId === targetId || o.orderNumber === orderToCancel.orderNumber
-            ? { ...o, status: "Cancelled" }
+            ? { ...o, status: "Cancelled", orderStatus: "cancelled", pointsRefunded: refunded > 0 || o.pointsRefunded }
             : o
         )
       );
+      fetchOrders();
       setCancelModalOpen(false);
       setOrderToCancel(null);
     } catch (err: any) {
@@ -717,6 +728,86 @@ export function OrdersPage({ hideHero = false }: OrdersPageProps) {
                       </p>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Price Details (mirrors the Order Success page breakdown) */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-[var(--primary-color)]/10 to-orange-500/10 dark:from-[var(--primary-color)]/15 dark:to-orange-500/15 border border-[var(--primary-color)]/30">
+                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <CreditCard className="size-5 text-[var(--primary-color)]" />
+                  Price Details
+                </h4>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                      Products Subtotal ({selectedOrder.items.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 1), 0)} items)
+                    </span>
+                    <span>₹{Number(selectedOrder.productAmount || 0).toFixed(2)}</span>
+                  </div>
+
+                  {selectedOrder.discountAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm py-1 px-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200/80 dark:border-emerald-800/80">
+                      <span className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-semibold text-xs sm:text-sm">
+                        <Tag className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        Coupon Discount
+                        {selectedOrder.couponCode && (
+                          <span className="px-2 py-0.5 text-xs font-extrabold rounded-md bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 uppercase tracking-wider">
+                            {selectedOrder.couponCode}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                        -₹{Number(selectedOrder.discountAmount).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {(selectedOrder.referralDiscount > 0 || selectedOrder.pointsUsed > 0) && (
+                    <div className="flex items-center justify-between text-sm py-1 px-3 bg-orange-50 dark:bg-orange-950/40 rounded-xl border border-orange-200/80 dark:border-orange-800/80">
+                      <span className="flex items-center gap-2 text-orange-800 dark:text-orange-300 font-semibold text-xs sm:text-sm">
+                        <Gift className="size-4 text-orange-600 dark:text-orange-400" />
+                        Referral Points Used ({selectedOrder.pointsUsed || selectedOrder.referralDiscount} Pts)
+                      </span>
+                      <span className="font-bold text-orange-700 dark:text-orange-300">
+                        -₹{Number(selectedOrder.referralDiscount || selectedOrder.pointsUsed || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Shipping Charge</span>
+                    <span>
+                      {selectedOrder.shippingCharge > 0 ? `₹${Number(selectedOrder.shippingCharge).toFixed(2)}` : "FREE"}
+                    </span>
+                  </div>
+
+                  {selectedOrder.codCharge > 0 && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Cash on Delivery Fee</span>
+                      <span>₹{Number(selectedOrder.codCharge).toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between border-t border-orange-200/80 dark:border-orange-800/80 pt-3 mt-2">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                      {selectedOrder.paymentStatus === "paid"
+                        ? "Total Amount Paid"
+                        : selectedOrder.paymentMethod === "cod"
+                          ? "Total Payable on Delivery"
+                          : "Total Amount"}
+                    </span>
+                    <span className="text-2xl font-extrabold text-[var(--primary-color)]">
+                      ₹{Number(selectedOrder.total || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {(selectedOrder.orderStatus || "").toLowerCase() === "cancelled" && selectedOrder.pointsUsed > 0 && selectedOrder.pointsRefunded && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+                      ✓ {selectedOrder.pointsUsed} referral points were returned to your account.
+                    </p>
+                  )}
                 </div>
               </div>
 

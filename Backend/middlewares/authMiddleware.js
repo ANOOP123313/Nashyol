@@ -70,6 +70,27 @@ export const authorize = (...roles) => {
   };
 };
 
+export const optionalProtect = async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (token && token !== "null" && token !== "undefined") {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "naashyol_production_super_secret_key_2026");
+      const user = await User.findById(decoded.id).select("-password");
+      if (user && !user.isBlocked) {
+        req.user = user;
+      }
+    } catch (error) {
+      // Ignore token errors for optional protect
+    }
+  }
+  next();
+};
+
 export const admin = (req, res, next) => {
   if (req.user && (req.user.role === "admin" || req.user.role === "superadmin")) {
     return next();

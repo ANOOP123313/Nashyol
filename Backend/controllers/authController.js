@@ -206,3 +206,29 @@ export const updateMe = asyncHandler(async (req, res) => {
     walletBalance: req.user.walletBalance,
   });
 });
+
+export const deleteMe = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  if (!password) {
+    res.status(400);
+    throw new Error("Password is required to confirm account deletion");
+  }
+
+  const user = await User.findById(req.user._id).select("+password");
+  if (!user) {
+    res.status(404);
+    throw new Error("User account not found");
+  }
+
+  if (user.password) {
+    const bcrypt = await import("bcryptjs");
+    const isMatch = await bcrypt.default.compare(password, user.password);
+    if (!isMatch) {
+      res.status(400);
+      throw new Error("Incorrect password. Account deletion cancelled.");
+    }
+  }
+
+  await User.findByIdAndDelete(user._id);
+  res.json({ message: "Account deleted permanently" });
+});
